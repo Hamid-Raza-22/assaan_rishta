@@ -51,7 +51,7 @@
 // }
 //
 // // lib/app/data/models/user_model.dart
-// class UserModel {
+// class SignUpModel {
 //   final String firstName;
 //   final String lastName;
 //   final String email;
@@ -60,7 +60,7 @@
 //   final String password;
 //   final String gender;
 //
-//   UserModel({
+//   SignUpModel({
 //     required this.firstName,
 //     required this.lastName,
 //     required this.email,
@@ -82,8 +82,8 @@
 //     };
 //   }
 //
-//   factory UserModel.fromJson(Map<String, dynamic> json) {
-//     return UserModel(
+//   factory SignUpModel.fromJson(Map<String, dynamic> json) {
+//     return SignUpModel(
 //       firstName: json['firstName'] ?? '',
 //       lastName: json['lastName'] ?? '',
 //       email: json['email'] ?? '',
@@ -106,7 +106,7 @@
 //     httpClient.timeout = Duration(seconds: 30);
 //   }
 //
-//   Future<Response> signUp(UserModel user) async {
+//   Future<Response> signUp(SignUpModel user) async {
 //     try {
 //       return await post('/auth/signup', user.toJson());
 //     } catch (e) {
@@ -131,7 +131,7 @@
 // class AuthRepository {
 //   final AuthProvider _authProvider = Get.find<AuthProvider>();
 //
-//   Future<bool> signUp(UserModel user) async {
+//   Future<bool> signUp(SignUpModel user) async {
 //     try {
 //       final response = await _authProvider.signUp(user);
 //       return response.statusCode == 200;
@@ -281,7 +281,7 @@
 //     isLoading.value = true;
 //
 //     try {
-//       final user = UserModel(
+//       final user = SignUpModel(
 //         firstName: firstNameController.text.trim(),
 //         lastName: lastNameController.text.trim(),
 //         email: emailController.text.trim(),

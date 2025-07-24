@@ -1,12 +1,21 @@
 // lib/core/app_pages.dart
-import 'package:assaan_rishta/app/core/bindings/account_type_binding.dart';
+
 import 'package:get/get.dart';
 
 import '../../views/account_type/account_type_view.dart';
+import '../../views/bottom_nav/bottom_nav_view.dart';
+import '../../views/chat/export.dart';
+import '../../views/home/home_view.dart';
 import '../../views/login/login_view.dart';
+import '../../views/new_chat/chat_list_screen.dart';
+import '../../views/profile/export.dart';
+import '../../views/signup/address_preferences_view.dart';
+import '../../views/signup/basic_info_view.dart';
 import '../../views/signup/signup_view.dart';
-import '../bindings/login_bindings.dart';
-import '../bindings/signup_bindings.dart';
+import '../../views/user_details/user_details_view.dart';
+import '../bindings/app_bindings.dart';
+
+import '../export.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -16,27 +25,90 @@ class AppPages {
     GetPage(
       name: AppRoutes.ACCOUNT_TYPE,
       page: () => const AccountTypeView(),
-      binding: AccountTypeBinding(),
+      binding: AppBindings(),
       transition: Transition.leftToRight,
-      transitionDuration: Duration(milliseconds: 300),
-
+      transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
       name: AppRoutes.LOGIN,
-      page: () =>  LoginView(),
-      binding: LoginBinding(),
+      page: () => LoginView(),
+      binding: AppBindings(),
       transition: Transition.rightToLeft,
-      transitionDuration: Duration(milliseconds: 400),
-
+      transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
       name: AppRoutes.SIGNUP,
-      page: () =>  SignupView(),
-      binding: SignupBinding(),
+      page: () => SignupView(),
+      binding: AppBindings(),
       transition: Transition.circularReveal,
-      transitionDuration: Duration(milliseconds: 1000),
-
-
+      transitionDuration: Duration(milliseconds: 200),
     ),
+    GetPage(
+      name: AppRoutes.BASIC_INFO,
+      page: () => const BasicInfoView(),
+      binding:  AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.OTHER_INFO,
+      page: () => const AddressPreferencesView(),
+      binding:  AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.HOME,
+      page: () => const HomeView(),
+      binding: AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.PROFILE,
+      page: () => const ProfileView(),
+      binding: AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.BOTTOM_NAV,
+      page: () => const BottomNavView(),
+      binding: AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+
+    GetPage(
+      name: AppRoutes.PROFILE_DETAIL_VIEW,
+      page: () => const ProfileDetailsView(),
+      binding: AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.USER_DETAILS_VIEW,
+      page: () => const UserDetailsView(),
+      binding: AppBindings(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    // In your AppRoutes or wherever you define your GetPage routes
+    GetPage(
+      name: AppRoutes.CHATTING_VIEW,
+      page: () {
+        // Retrieve the ChatUser argument passed during navigation
+        final ChatUser user = Get.arguments as ChatUser;
+        // return ChatListScreen(currentUserId: "16822",);
+        return ChattingView(user: user);
+      },
+      binding: AppBindings(),
+      transition: Transition.rightToLeft,
+      // transition: Transition.circularReveal,
+
+      transitionDuration: const Duration(milliseconds: 400), // Added const
+    ),
+
+
   ];
 }

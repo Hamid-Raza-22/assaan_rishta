@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "546459710100",
+    "project_id": "asaan-rishta-chat",
+    "storage_bucket": "asaan-rishta-chat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:546459710100:android:1621e62c5cf0334090fa81",
+        "android_client_info": {
+          "package_name": "com.asan.rishta.matrimonial.asan_rishta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXvMqvobjVh11HFpQ2JJIFDJke1qgp5bo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:546459710100:android:6d90a8ce53295a0a90fa81",
+        "android_client_info": {
+          "package_name": "com.hamid.assaan_rishta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXvMqvobjVh11HFpQ2JJIFDJke1qgp5bo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,3 +1,4 @@
+import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_button.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_checkbox.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_text_field.dart';
@@ -10,7 +11,13 @@ import '../../widgets/app_text.dart';
 class LoginView extends GetView<LoginViewModel> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return WillPopScope(
+        onWillPop: () async {
+          // Navigate to a specific route instead of default back
+          Get.offNamed(AppRoutes.ACCOUNT_TYPE);
+          return false;
+        },// Prevents default back action
+   child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
@@ -103,42 +110,43 @@ class LoginView extends GetView<LoginViewModel> {
               Obx(() => CustomButton(
                 text: "Login",
                 isLoading: controller.isLoading.value,
-                onPressed:
-                controller.isFormValid.value ? controller.login : null,
+                onPressed: controller.isFormValid.value
+                    ? () => controller.login(context)
+                    : null,
               )),
               SizedBox(height: 200),
-              Obx(() => Row(
-                children: [
-                  CustomCheckbox(
-                    isChecked: controller.agreeToTerms.value,
-                    onChanged: controller.toggleAgreeToTerms,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        text: 'I agree to the ',
-                        style: TextStyle(
-                            color: Colors.grey[600], fontSize: 14),
-                        children: [
-                          TextSpan(
-                            text: 'Terms & Conditions',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                          TextSpan(
-                            text: ' and ',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                          TextSpan(
-                            text: 'Privacy Policy',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              )),
+              // Obx(() => Row(
+              //   children: [
+              //     CustomCheckbox(
+              //       isChecked: controller.agreeToTerms.value,
+              //       onChanged: controller.toggleAgreeToTerms,
+              //     ),
+              //     SizedBox(width: 8),
+              //     Expanded(
+              //       child: RichText(
+              //         text: TextSpan(
+              //           text: 'I agree to the ',
+              //           style: TextStyle(
+              //               color: Colors.grey[600], fontSize: 14),
+              //           children: [
+              //             TextSpan(
+              //               text: 'Terms & Conditions',
+              //               style: TextStyle(color: Colors.red),
+              //             ),
+              //             TextSpan(
+              //               text: ' and ',
+              //               style: TextStyle(color: Colors.grey[600]),
+              //             ),
+              //             TextSpan(
+              //               text: 'Privacy Policy',
+              //               style: TextStyle(color: Colors.red),
+              //             ),
+              //           ],
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // )),
               SizedBox(height: 30),
               Center(
                 child: Row(
@@ -164,6 +172,6 @@ class LoginView extends GetView<LoginViewModel> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

@@ -1,0 +1,32 @@
+builders:
+  flutter_gen:
+    import: "package:flutter_gen_runner/flutter_gen_runner.dart"
+    builder_factories: ["build"]
+    build_extensions: { ".dart": [".g.dart"] }
+    auto_apply: dependents
+    applies_builders: ["source_gen|combining_builder"]
+
+  auto_route_generator:
+    import: "package:auto_route_generator/builder.dart"
+    builder_factories: ["autoRouterBuilder"]
+    build_extensions: { ".dart": [".gr.dart"] }
+    auto_apply: dependents
+    applies_builders: ["source_gen|combining_builder"]
+
+targets:
+  $default:
+    builders:
+      flutter_gen|flutter_gen:
+        options:
+          output: lib/gen/
+          line_length: 80
+          integrations:
+            flutter_svg: true
+        generate_for:
+          - lib/**/*.dart
+
+      auto_route_generator|auto_route_generator:
+        options:
+          generate_route_list: true
+        generate_for:
+          - lib/routes/**/*.dart

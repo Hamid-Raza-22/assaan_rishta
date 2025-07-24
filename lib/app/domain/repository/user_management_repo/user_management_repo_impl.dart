@@ -1,0 +1,722 @@
+import 'dart:convert';
+
+import 'package:dartz/dartz.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/export.dart';
+import '../../../core/models/req_model/sign_up_model.dart';
+import '../../../core/models/res_model/login_model.dart';
+import '../../../core/services/network_services/export.dart';
+import '../../../core/services/storage_services/export.dart';
+import '../../../core/services/storage_services/storage_repo.dart';
+import 'export.dart';
+
+class UserManagementRepoImpl implements UserManagementRepo {
+  final StorageRepo _storageRepo;
+  final NetworkHelper _networkHelper;
+  final EndPoints _endPoints;
+  final SharedPreferences sharedPreferences;
+
+  UserManagementRepoImpl(
+    this._storageRepo,
+    this._networkHelper,
+    this._endPoints,
+    this.sharedPreferences,
+  );
+
+  @override
+  bool getUserLoggedInStatus() {
+    return _storageRepo.getBool(StorageKeys.isUserLoggedIn) ?? false;
+  }
+
+  @override
+  int? getUserId() {
+    return _storageRepo.getInt(StorageKeys.userId);
+  }
+
+  @override
+  String getUserName() {
+    return '${_storageRepo.getString(StorageKeys.userName)}';
+  }
+
+  @override
+  String getUserEmail() {
+    return '${_storageRepo.getString(StorageKeys.userEmail)}';
+  }
+
+  @override
+  String getUserPic() {
+    return '${_storageRepo.getString(StorageKeys.userPic)}';
+  }
+
+  @override
+  String getUserPassword() {
+    return '${_storageRepo.getString(StorageKeys.userPassword)}';
+  }
+
+  @override
+  Future<Either<AppError, LoginModel>> login(
+      {required Map<String, dynamic> body}) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.loginUrl(),
+        body: body,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        isEncode: false,
+      );
+      LoginModel model = LoginModel();
+      LoginError errorModel = LoginError();
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        model = LoginModel.fromJson(jsonDecode(response.body));
+        _storageRepo.setString(StorageKeys.token, model.accessToken!);
+        _storageRepo.setBool(StorageKeys.isUserLoggedIn, true);
+        return Right(model);
+      }
+      errorModel = LoginError.fromJson(jsonDecode(response.body));
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+          description: errorModel.error.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> signUp({
+    required SignUpModel signUpModel,
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.signUpUrl(),
+        isEncode: true,
+        body: signUpModel.toJson(),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, DonorClaims>> getDonorClaims() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getDonorClaimsUrl(),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": "Bearer ${sharedPreferences.get(StorageKeys.token)}",
+        },
+      );
+      DonorClaims model = DonorClaims();
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        model = DonorClaims.fromJson(jsonDecode(response.body));
+        _storageRepo.setInt(StorageKeys.userId, model.userId!);
+        _storageRepo.setString(
+            StorageKeys.userName, '${model.firstName} ${model.lastName}');
+        _storageRepo.setString(StorageKeys.userEmail, '${model.email}');
+        _storageRepo.setString(StorageKeys.userPic, '${model.userImage}');
+        return Right(model);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, dynamic>> getProfileCompletionCount() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getProfileCompletionCountUrl(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+        ),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, dynamic>> deleteUserProfile() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.deleteUserProfile(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+        ),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, CurrentUserProfile>> getCurrentUserProfile() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getCurrentUserProfileUrl(
+            uid: _storageRepo.getInt(StorageKeys.userId)),
+      );
+      CurrentUserProfile model = CurrentUserProfile();
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        model = CurrentUserProfile.fromJson(jsonDecode(response.body));
+        return Right(model);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> updateProfilePic({
+    required String picData,
+  }) async {
+    try {
+      final response = await _networkHelper.postMultipartData(
+        _endPoints.updateProfileUrl(),
+        fields: {
+          'picData': picData,
+          'userId': _storageRepo.getInt(StorageKeys.userId).toString(),
+          'role_id': '2',
+        },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> updateProfileInfo({
+    required String endPoint,
+    required Map<String, dynamic> payload,
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.updateProfileInfoUrl(endPoint),
+        isEncode: true,
+        body: payload,
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, PartnerPreferenceData>> getPartnerPreference() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getGetPartnerPreferenceDataUrl(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+        ),
+      );
+      PartnerPreferenceData model = PartnerPreferenceData();
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        model = PartnerPreferenceData.fromJson(jsonDecode(response.body));
+        return Right(model);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> updatePartnerPreference({
+    required Map<String, String> payload,
+  }) async {
+    try {
+      final response = await _networkHelper.postMultipartData(
+        _endPoints.updatePartnerPreferenceUrl(),
+        fields: payload,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> updatePassword({
+    required String password,
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.updatePasswordUrl(),
+        body: {
+          "password": password,
+          "user_id": _storageRepo.getInt(StorageKeys.userId),
+          "user_type": "user",
+        },
+        headers: {
+          "Content-Type": "application/json",
+        },
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, AllProfileList>> getAllProfiles({
+    required int pageNo,
+    required String pageLimit,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getAllProfilesUrl(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+          pageNo: pageNo,
+          pageLimit: pageLimit,
+        ),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(AllProfileList.fromJson(jsonDecode(response.body)));
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, AllProfileList>> getAllFeaturedProfiles({
+    required int pageNo,
+    required String pageLimit,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getAllFeaturedProfilesUrl(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+          pageNo: pageNo,
+          pageLimit: pageLimit,
+        ),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(AllProfileList.fromJson(jsonDecode(response.body)));
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, AllProfileList>> getAllProfilesByFilter({
+    required ProfileFilter profileFilter,
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.profilesByFilterUrl(),
+        body: profileFilter.toJson(),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(AllProfileList.fromJson(jsonDecode(response.body)));
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, ProfileDetails>> getProfilesDetails(
+      {required int uid}) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getProfilesDetailsUrl(uid: uid),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(ProfileDetails.fromJson(jsonDecode(response.body)));
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, AllVendorsList>> getAllVendors({
+    required int catId,
+    required String pageNo,
+    required int cityId,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getAllVendorsUrl(
+          catId: catId,
+          pageNo: pageNo,
+          cityId: cityId,
+        ),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(AllVendorsList.fromJson(jsonDecode(response.body)));
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, List<VendorServices>>> getVendorServices({
+    required vendorId,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getVendorServicesUrl(vendorId: vendorId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(VendorServices.fromJsonList(jsonResponse));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, List<VendorQuestions>>> getVendorQuestions({
+    required vendorId,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getVendorQuestionsUrl(vendorId: vendorId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(VendorQuestions.fromJsonList(jsonResponse));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, List<VendorAlbums>>> getVendorAlbums({
+    required vendorId,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getVendorAlbumsUrl(vendorId: vendorId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(VendorAlbums.fromJsonList(jsonResponse));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, List<VendorVideos>>> getVendorVideo({
+    required vendorId,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getVendorVideoUrl(vendorId: vendorId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(VendorVideos.fromJsonList(jsonResponse));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, List<VendorPackages>>> getVendorPackage({
+    required vendorId,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getVendorPackageUrl(vendorId: vendorId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(VendorPackages.fromJsonList(jsonResponse));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> addToFavorites({
+    required int favUid,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.addToFavoritesUrl(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+          favUid: favUid,
+        ),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, List<FavoritesProfiles>>> getAllFavorites() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getFavoritesUrl(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+        ),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(FavoritesProfiles.fromJsonList(jsonResponse));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+}

@@ -3,7 +3,11 @@ import 'package:assaan_rishta/app/views/signup/widgets/custom_text_field.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/gender_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/routes/app_routes.dart';
+import '../../utils/app_colors.dart';
 import '../../viewmodels/signup_viewmodel.dart';
+import '../../widgets/custom_checkbox.dart';
 
 
 class SignupView extends StatelessWidget {
@@ -127,37 +131,74 @@ class SignupView extends StatelessWidget {
               SizedBox(height: 10),
 
               Obx(() => CustomButton(
-                text: "Let's Get Started",
+                text: "Next",
                 isLoading: controller.isLoading.value,
                 onPressed: controller.isFormValid.value
-                    ? controller.signUp
+                    ? () {
+                  debugPrint("Form is valid, proceeding to basic info");
+                  debugPrint("Email: ${controller.emailController.text}");
+                  debugPrint("Password: ${controller.passwordController.text}");
+                  Get.toNamed(AppRoutes.BASIC_INFO);
+                }
                     : null,
               )),
-              SizedBox(height: 8),
-
-              RichText(
-                text: TextSpan(
-                  text: 'By creating an account, You agree to our ',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  children: [
-                    TextSpan(
-                      text: 'Terms & Conditions',
-                      style: TextStyle(color: Colors.red),
+              SizedBox(height: 15),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CustomCheckbox(
+                    value: true,
+                    onChanged: (bool value) {
+                      debugPrint('$value');
+                      controller.isTermsAgree.value = value;
+                      controller.update();
+                    },
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: RichText(
+                      textAlign: TextAlign.start,
+                      overflow: TextOverflow.visible,
+                      text: TextSpan(
+                        text: 'By creating an account, You agree to the',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: AppColors.blackColor,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: ' Terms & Conditions ',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: AppColors.secondaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'and',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: AppColors.blackColor,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' Privacy Policy.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: AppColors.secondaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    TextSpan(
-                      text: ' and agree to ',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                    TextSpan(
-                      text: 'Privacy Policy',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+  ])),
       ),
     );
   }

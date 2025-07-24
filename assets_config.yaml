@@ -1,0 +1,5 @@
+assetsConfig:
+  compressionLevel: "aggressive"
+  stripUnused: true
+  deduplicateAssets: true
+  generateReferences: true
