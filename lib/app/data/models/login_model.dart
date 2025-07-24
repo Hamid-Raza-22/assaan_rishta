@@ -10,11 +10,7 @@ class LoginModel {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-      'rememberMe': rememberMe,
-    };
+    return {'email': email, 'password': password, 'rememberMe': rememberMe};
   }
 
   factory LoginModel.fromJson(Map<String, dynamic> json) {

@@ -4,17 +4,21 @@ import 'package:get/get.dart';
 import '../models/login_model.dart';
 import '../models/user_model.dart';
 
-
 class AuthProvider extends GetConnect {
   @override
   void onInit() {
-    httpClient.baseUrl = 'https://your-api-base-url.com';
+    httpClient.baseUrl = 'https://thsolutionz.com/api/';
     httpClient.timeout = Duration(seconds: 30);
   }
 
-  Future<Response> signUp(UserModel user) async {
-    return await post('/auth/signup', user.toJson());
+  Future<Response> signUp(SignUpModel user) async {
+    try {
+    return await post('Users/registerUser', user.toJson());
+    } catch (e) {
+      return Response(statusCode: 500, body: {'error': e.toString()});
+    }
   }
+
   Future<Response> login(LoginModel loginData) async {
     try {
       return await post('/auth/login', loginData.toJson());
@@ -22,6 +26,7 @@ class AuthProvider extends GetConnect {
       return Response(statusCode: 500, body: {'error': e.toString()});
     }
   }
+
   Future<Response> checkEmailExists(String email) async {
     return await get('/auth/check-email?email=$email');
   }

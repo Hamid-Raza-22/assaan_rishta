@@ -1,24 +1,69 @@
+// account_type_view.dart me auto-login check add karo
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../viewmodels/account_type_viewmodel.dart';
+import '../../viewmodels/auth_service.dart';
 
 class AccountTypeView extends GetView<AccountTypeViewModel> {
   const AccountTypeView({super.key});
 
   @override
+// account_type_view.dart me auto-login check को safe banao
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        toolbarHeight: 44,
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+          toolbarHeight: 44,
+        ),
+        body: Obx(() {
+          try {
+            final authService = AuthService.instance;
+
+            // Show loading while checking auth status
+            if (!authService.isInitialized.value) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.pink),
+                    ),
+                    SizedBox(height: 20),
+                    Text('Checking login status...', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
+
+            // Show account type selection if not logged in
+            return _buildAccountTypeContent();
+          } catch (e) {
+            debugPrint('💥 Error in AccountTypeView build: $e');
+            return _buildAccountTypeContent();
+          }
+        }),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+    );
+  }
+  void _checkAutoLogin() {
+    // This will be handled by AuthService automatically
+    debugPrint('🔄 Account type view loaded, auth check in progress...');
+  }
+
+  Widget _buildAccountTypeContent() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: SingleChildScrollView(
         child: Column(
           children: [
             const SizedBox(height: 40),
@@ -112,11 +157,9 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
               ),
             ),
 
-            const Spacer(),
-
             // Terms and Conditions
             Padding(
-              padding: const EdgeInsets.only(bottom: 40),
+              padding: const EdgeInsets.only(top: 40, bottom: 40),
               child: RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
