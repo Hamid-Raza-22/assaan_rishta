@@ -242,10 +242,7 @@ class AuthService extends GetxController {
     }
   }
 
-  // Clear all user data (for testing purposes)
-  Future<void> clearAllData() async {
-    await logout(Get.context!);
-  }
+
 }
 
 // User data model
