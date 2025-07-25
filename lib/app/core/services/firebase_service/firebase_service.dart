@@ -331,7 +331,7 @@ class FirebaseService {
       debugPrint('✅ Message sent successfully');
 
       // 4. Send notification ONLY if needed (non-blocking)
-      _sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
+      sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
 
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
@@ -339,7 +339,7 @@ class FirebaseService {
   }
 
   // OPTIMIZED: Smart notification sending
-  static Future<void> _sendNotificationIfNeeded(ChatUser chatUser, String msg, Type type, String currentUserId) async {
+  static Future<void> sendNotificationIfNeeded(ChatUser chatUser, String msg, Type type, String currentUserId) async {
     try {
       final userDoc = await firestore.collection('Hamid_users').doc(chatUser.id).get();
       if (!userDoc.exists) return;

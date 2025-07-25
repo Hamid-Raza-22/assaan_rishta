@@ -29,7 +29,7 @@ class _ChattingViewState extends State<ChattingView>
     with WidgetsBindingObserver {
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
-
+  bool _isInitialized = false;
   List<Message> _list = [];
   late TextEditingController _textController;
 
@@ -50,7 +50,7 @@ class _ChattingViewState extends State<ChattingView>
 
     // Set inside chat status to true when entering chat
     chatController.setInsideChatStatus(true);
-
+    _isInitialized = true;
     // Mark messages as read
     _markMessagesAsRead();
   }
@@ -62,6 +62,8 @@ class _ChattingViewState extends State<ChattingView>
 
     WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
+    // currentUID = "";
+    _isInitialized = false;
     super.dispose();
   }
 
@@ -105,6 +107,7 @@ class _ChattingViewState extends State<ChattingView>
   @override
   Widget build(BuildContext context) {
     Size chatMq = MediaQuery.of(context).size;
+    final cachedMessages = chatController.getCachedMessages(widget.user.id);
     return PopScope(
       canPop: !_showEmoji,
       onPopInvoked: (_) => _willpop(),
@@ -125,6 +128,20 @@ class _ChattingViewState extends State<ChattingView>
                   switch (snapshot.connectionState) {
                     case ConnectionState.waiting:
                     case ConnectionState.none:
+                  // Show cached messages if available instead of "Syncing..."
+                    if (cachedMessages != null && cachedMessages.isNotEmpty) {
+                      _list = cachedMessages;
+                      return ListView.builder(
+                        reverse: true,
+                        itemCount: _list.length,
+                        padding: EdgeInsets.only(top: chatMq.height * .01),
+                        physics: const BouncingScrollPhysics(),
+                        itemBuilder: (ctx, i) => MessageCard(
+                          message: _list[i],
+                          pause: _paused,
+                        ),
+                      );
+                    }
                       return const Center(
                         child: Text(
                           'Syncing ...',
@@ -135,7 +152,10 @@ class _ChattingViewState extends State<ChattingView>
                     case ConnectionState.done:
                       final data = snapshot.data?.docs;
                       _list = data?.map((e) => Message.fromJson(e.data())).toList() ?? [];
-
+                      // Cache the messages
+                      if (_list.isNotEmpty) {
+                        chatController.cacheMessages(widget.user.id, _list);
+                      }
                       if (_list.isNotEmpty) {
                         return ListView.builder(
                           reverse: true,
@@ -198,10 +218,13 @@ class _ChattingViewState extends State<ChattingView>
                 // Smart back navigation
                 if (Navigator.of(context).canPop() && Get.previousRoute.isNotEmpty) {
                   debugPrint('📤 Can pop - doing normal back');
-                  Get.back();
+                  //Get.offAllNamed('/bottom-nav');
+                   Get.back();
                 } else {
 
                   debugPrint('🏠 Cannot pop - going to chat list');
+                  // Get.offAllNamed('/bottom-nav');
+
                   Get.to(() => const BottomNavView(index: 1));
                 }
               },

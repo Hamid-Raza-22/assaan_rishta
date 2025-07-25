@@ -15,7 +15,6 @@ import '../../viewmodels/signup_viewmodel.dart';
 import '../../viewmodels/user_details_viewmodel.dart';
 import '../../views/bottom_nav/export.dart';
 import '../../views/profile/export.dart';
-import '../../views/profile/profile_details/profile_details_controller.dart';
 import '../services/network_services/export.dart';
 import '../services/storage_services/export.dart';
 
@@ -27,74 +26,46 @@ class AppBindings extends Bindings {
     debugPrint('🔧 Initializing AppBindings...');
 
     try {
-      // HIGHEST PRIORITY: AuthService
       Get.put<AuthService>(AuthService(), permanent: true);
-      debugPrint('✅ AuthService registered');
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-      // Initialize SharedPreferences
-      final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-      debugPrint('✅ SharedPreferences initialized');
-
-      // PERMANENT CORE DEPENDENCIES - These should never be deleted
-      Get.put<StorageRepo>(StorageRepoImpl(sharedPreferences), permanent: true);
-      Get.put<NetworkHelper>(NetworkHelperImpl(sharedPreferences), permanent: true);
+      Get.put<StorageRepo>(StorageRepoImpl(prefs), permanent: true);
+      Get.put<NetworkHelper>(NetworkHelperImpl(prefs), permanent: true);
       Get.put<EndPoints>(EndPoints(), permanent: true);
-      debugPrint('✅ Core dependencies registered');
 
-      // PERMANENT REPOS
       Get.put<SystemConfigRepo>(
-        SystemConfigRepoImpl(
-          Get.find<StorageRepo>(),
-          Get.find<NetworkHelper>(),
-          Get.find<EndPoints>(),
-          sharedPreferences,
-        ),
+        SystemConfigRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
         permanent: true,
       );
-
       Get.put<UserManagementRepo>(
-        UserManagementRepoImpl(
-          Get.find<StorageRepo>(),
-          Get.find<NetworkHelper>(),
-          Get.find<EndPoints>(),
-          sharedPreferences,
-        ),
-        permanent: true,
-      );
-      debugPrint('✅ Repos registered');
-
-      // PERMANENT USE CASES
-      Get.put<SystemConfigUseCase>(
-        SystemConfigUseCase(Get.find<SystemConfigRepo>()),
+        UserManagementRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
         permanent: true,
       );
 
-      Get.put<UserManagementUseCase>(
-        UserManagementUseCase(Get.find<UserManagementRepo>()),
-        permanent: true,
-      );
-      debugPrint('✅ Use cases registered');
+      Get.put<SystemConfigUseCase>(SystemConfigUseCase(Get.find()), permanent: true);
+      Get.put<UserManagementUseCase>(UserManagementUseCase(Get.find()), permanent: true);
 
-      // PERMANENT VIEW MODELS
-      Get.put<ChatListController>( ChatListController(),permanent: true);
       Get.put<ChatViewModel>(ChatViewModel(), permanent: true);
-      debugPrint('✅ ChatViewModel registered');
+      // Get.put<ChatListController>(ChatListController(), permanent: true);
+      Get.put<AccountTypeViewModel>(AccountTypeViewModel(), permanent: true);
+      // Get.put<BottomNavController>(BottomNavController(), permanent: true);
 
-      // LAZY PUT FOR OTHER CONTROLLERS (these can be deleted)
-      Get.lazyPut<AccountTypeViewModel>(() => AccountTypeViewModel());
-      Get.lazyPut<LoginViewModel>(() => LoginViewModel());
-      Get.lazyPut<SignupViewModel>(() => SignupViewModel());
-      Get.lazyPut<BottomNavController>(() => BottomNavController());
-      Get.lazyPut<HomeController>(() => HomeController());
-      Get.lazyPut<UserDetailsController>(() => UserDetailsController());
-      Get.lazyPut<ProfileController>(() => ProfileController());
-      Get.lazyPut<ProfileDetailsController>(() => ProfileDetailsController());
-      Get.lazyPut<EditProfileController>(() => EditProfileController());
-      Get.lazyPut<FavoritesController>(() => FavoritesController());
-      Get.lazyPut<TransactionHistoryController>(() => TransactionHistoryController());
-      Get.lazyPut<ChangePasswordController>(() => ChangePasswordController());
-      Get.lazyPut<ContactUsController>(() => ContactUsController());
-      Get.lazyPut<ChatListController>(() => ChatListController());
+      // Lazy loaded viewmodels
+      // Get.Put(() => AccountTypeViewModel());
+      Get.lazyPut(() => LoginViewModel());
+      Get.lazyPut(() => SignupViewModel());
+      Get.lazyPut(() => BottomNavController());
+      Get.lazyPut(() => ChatListController());
+      Get.lazyPut(() => HomeController());
+      Get.lazyPut(() => UserDetailsController());
+      Get.lazyPut(() => ProfileController());
+      Get.lazyPut(() => ProfileDetailsController());
+      Get.lazyPut(() => EditProfileController());
+      Get.lazyPut(() => FavoritesController());
+      Get.lazyPut(() => TransactionHistoryController());
+      Get.lazyPut(() => ChangePasswordController());
+      Get.lazyPut(() => ContactUsController());
+
       debugPrint('🎉 All dependencies registered successfully');
     } catch (e) {
       debugPrint('💥 Error in AppBindings: $e');

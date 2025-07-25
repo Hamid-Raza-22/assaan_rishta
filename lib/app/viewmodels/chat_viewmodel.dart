@@ -10,10 +10,11 @@ import '../data/repositories/chat_repository.dart';
 import 'dart:io';
 
 import '../views/chat/export.dart';
+import 'chat_list_viewmodel.dart';
 
 class ChatViewModel extends GetxController {
   final ChatRepository _repo = ChatRepository();
-
+  String? get currentChatUserId => selectedUser.value?.id;
   var chatUsers = <ChatUser>[].obs;
   var messages = <Message>[].obs;
   var selectedUser = Rxn<ChatUser>();
@@ -27,7 +28,18 @@ class ChatViewModel extends GetxController {
   bool _hasHandledNotification = false;
 
   final RxBool isFromNotification = false.obs;
+  final Map<String, List<Message>> _messageCache = {};
+  // Add method to check if chatting with specific user
+  bool isChattingWithUser(String userId) {
+    return selectedUser.value != null && selectedUser.value!.id == userId;
+  }
+  List<Message>? getCachedMessages(String userId) {
+    return _messageCache[userId];
+  }
 
+  void cacheMessages(String userId, List<Message> messages) {
+    _messageCache[userId] = messages;
+  }
   void setNavigationSource({required bool fromNotification}) {
     isFromNotification.value = fromNotification;
   }/// FIXED: Proper notification navigation handling
@@ -339,26 +351,47 @@ class ChatViewModel extends GetxController {
   }
 
   /// OPTIMIZED: Faster message sending
-  Future<void> sendMessage(String text) async {
-    debugPrint("🚀 Sending message to ${selectedUser.value?.name}");
+// In ChatViewModel, update sendMessage method:
 
+  Future<void> sendMessage(String text) async {
     if (selectedUser.value != null && text.trim().isNotEmpty) {
-      try {
-        await _repo.sendMessage(selectedUser.value!, text.trim(), Type.text);
-        debugPrint("✅ Message sent successfully");
-      } catch (e) {
-        debugPrint("❌ Error sending message: $e");
-        Get.snackbar(
-          'Error',
-          'Failed to send message',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
-      }
+      final listController = Get.find<ChatListController>();
+
+      // Optimistically update UI
+      await _repo.sendMessageOptimized(
+        selectedUser.value!,
+        text.trim(),
+        Type.text,
+        onMessageCreated: (message) {
+          // Immediately update last message in chat list
+          listController.updateLastMessageLocally(
+            selectedUser.value!.id,
+            message,
+          );
+        },
+      );
     }
   }
-
+  /// OPTIMIZED: Faster message sending
+  // Future<void> sendMessage(String text) async {
+  //   debugPrint("🚀 Sending message to ${selectedUser.value?.name}");
+  //
+  //   if (selectedUser.value != null && text.trim().isNotEmpty) {
+  //     try {
+  //       await _repo.sendMessage(selectedUser.value!, text.trim(), Type.text);
+  //       debugPrint("✅ Message sent successfully");
+  //     } catch (e) {
+  //       debugPrint("❌ Error sending message: $e");
+  //       Get.snackbar(
+  //         'Error',
+  //         'Failed to send message',
+  //         backgroundColor: Colors.red,
+  //         colorText: Colors.white,
+  //         duration: const Duration(seconds: 2),
+  //       );
+  //     }
+  //   }
+  // }
   /// OPTIMIZED: Faster first message
   Future<void> sendFirstMessage(String text) async {
     debugPrint("🚀 Sending first message to ${selectedUser.value?.name}");
