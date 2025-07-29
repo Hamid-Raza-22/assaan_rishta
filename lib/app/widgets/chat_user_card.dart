@@ -1,4 +1,4 @@
-// chat_user_card.dart - Fixed blinking issue
+// chat_user_card.dart - Added dismissible swipe-to-delete feature
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,6 +9,7 @@ import '../viewmodels/chat_list_viewmodel.dart';
 import '../viewmodels/chat_viewmodel.dart';
 import '../views/chat/export.dart';
 import 'export.dart';
+
 class ChatUserCard extends StatelessWidget {
   final String currentUID;
   final ChatUser user;
@@ -24,33 +25,125 @@ class ChatUserCard extends StatelessWidget {
     final controller = Get.find<ChatListController>();
     final size = MediaQuery.of(context).size;
 
-    return Card(
-      key: ValueKey('chat_card_${user.id}'),
-      color: const Color(0xFFF6F6F6),
-      margin: EdgeInsets.symmetric(
-        horizontal: size.width * .03,
-        vertical: 4,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: InkWell(
-        onTap: () => _navigateToChat(context),
-        onLongPress: () => _showBlockOptions(context),
-        child: ListTile(
-          leading: _buildAvatar(),
-          title: Text(
-            user.name,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
+    return Dismissible(
+      key: Key('dismissible_${user.id}'),
+      direction: DismissDirection.endToStart, // Right to left swipe only
+      background: _buildDismissBackground(),
+      confirmDismiss: (direction) => _showDeleteConfirmDialog(context),
+      onDismissed: (direction) {
+        // Delete the chat
+        controller.deleteChat(user);
+      },
+      child: Card(
+        key: ValueKey('chat_card_${user.id}'),
+        color: const Color(0xFFF6F6F6),
+        margin: EdgeInsets.symmetric(
+          horizontal: size.width * .03,
+          vertical: 4,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: InkWell(
+          onTap: () => _navigateToChat(context),
+          onLongPress: () => _showBlockOptions(context),
+          child: ListTile(
+            leading: _buildAvatar(),
+            title: Text(
+              user.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            overflow: TextOverflow.ellipsis,
+            subtitle: Obx(() => _buildSubtitle(controller)),
+            trailing: Obx(() => _buildTrailing(controller, context)),
           ),
-          subtitle: Obx(() => _buildSubtitle(controller)),
-          trailing: Obx(() => _buildTrailing(controller, context)),
         ),
       ),
+    );
+  }
+
+  Widget _buildDismissBackground() {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 20),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.delete_forever,
+            color: Colors.white,
+            size: 28,
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Delete',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmDialog(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 10),
+              Text('Delete Chat'),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete your chat with ${user.name}?\n\nThis action cannot be undone and all messages will be permanently deleted.',
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

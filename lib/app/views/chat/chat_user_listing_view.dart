@@ -4,12 +4,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/export.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../../widgets/chat_user_card.dart';
-import 'export.dart';
+
 
 class ChatUserListingView extends StatefulWidget {
   const ChatUserListingView({super.key});
@@ -136,100 +135,4 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
     );
   }
 }
-  // Widget _buildChatItem(ChatUser user) {
-  //   return GestureDetector(
-  //     onLongPress: () async {
-  //       final isBlocked = await chatController.isUserBlocked(user.id);
-  //       if (mounted) {
-  //         showBlockUnblockBottomSheet(
-  //           context: context,
-  //           userId: user.id,
-  //           isBlocked: isBlocked,
-  //           onBlock: () async => await chatController.blockUser(user.id),
-  //           onUnblock: () async => await chatController.unblockUser(user.id),
-  //         );
-  //       }
-  //     },
-  //     child: Dismissible(
-  //       key: ValueKey(user.id),
-  //       direction: DismissDirection.endToStart,
-  //       background: Container(
-  //         color: Colors.red,
-  //         alignment: Alignment.centerRight,
-  //         padding: const EdgeInsets.symmetric(horizontal: 20),
-  //         child: const Icon(Icons.delete, color: Colors.white),
-  //       ),
-  //       confirmDismiss: (direction) async {
-  //         return await showDialog(
-  //           context: context,
-  //           builder: (context) => AlertDialog(
-  //             title: const Text('Delete Chat'),
-  //             content: Text('Delete chat with ${user.name}?'),
-  //             actions: [
-  //               TextButton(
-  //                 onPressed: () => Navigator.pop(context, false),
-  //                 child: const Text('Cancel'),
-  //               ),
-  //               TextButton(
-  //                 onPressed: () => Navigator.pop(context, true),
-  //                 child: const Text('Delete', style: TextStyle(color: Colors.red)),
-  //               ),
-  //             ],
-  //           ),
-  //         );
-  //       },
-  //       onDismissed: (direction) => listController.deleteChat(user),
-  //       child: ChatUserCard(
-  //         key: ValueKey('card_${user.id}'),
-  //         currentUID: listController.currentUserId,
-  //         user: user,
-  //       ),
-  //     ),
-  //   );
-  // }
 
-  // PreferredSizeWidget _buildAppBar() {
-  //   return AppBar(
-  //     backgroundColor: AppColors.whiteColor,
-  //     surfaceTintColor: AppColors.whiteColor,
-  //     title: Obx(() => listController.isSearching.value
-  //         ? TextField(
-  //       focusNode: searchFocus,
-  //       autofocus: true,
-  //       textAlign: TextAlign.center,
-  //       decoration: const InputDecoration(
-  //         border: InputBorder.none,
-  //         hintText: 'Search name or email',
-  //       ),
-  //       style: const TextStyle(fontSize: 17),
-  //       onChanged: listController.searchUsers,
-  //     )
-  //         : const Text('Chats')),
-  //     centerTitle: true,
-  //     actions: [
-  //       // ADDED: Refresh button
-  //       IconButton(
-  //         tooltip: 'Refresh',
-  //         onPressed: () {
-  //           debugPrint('🔄 Manual refresh triggered');
-  //           listController.forceRefresh();
-  //         },
-  //         icon: const Icon(Icons.refresh),
-  //       ),
-  //       Obx(() => IconButton(
-  //         tooltip: 'Search',
-  //         onPressed: () {
-  //           listController.toggleSearch();
-  //           if (listController.isSearching.value) {
-  //             searchFocus.requestFocus();
-  //           }
-  //         },
-  //         icon: Icon(
-  //           listController.isSearching.value
-  //               ? CupertinoIcons.clear_circled
-  //               : Icons.search,
-  //         ),
-  //       )),
-  //     ],
-  //   );
-  // }
