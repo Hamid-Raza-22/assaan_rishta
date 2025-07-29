@@ -234,32 +234,336 @@ class FirebaseService {
     return chatRoomId;
   }
 
-  // stream for gell all the Messages
+  // // stream for gell all the Messages
+  // static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) {
+  //   return firestore
+  //       .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+  //       .orderBy('sent', descending: true)
+  //       .snapshots();
+  // }
+// Updated Firebase Service methods to handle smart deletion
+
+// Modified getAllMessages to filter out deleted messages
   static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) {
+    final currentUserId = useCase.getUserId().toString();
+
     return firestore
         .collection('Hamid_chats/${getConversationID(user.id)}/messages')
         .orderBy('sent', descending: true)
-        .snapshots();
+        .snapshots()
+        .asyncMap((snapshot) async {
+      // Check if this chat was deleted by current user
+      final deletionDoc = await firestore
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('deleted_chats')
+          .doc(user.id)
+          .get();
+
+      if (!deletionDoc.exists) {
+        // Chat was never deleted, return all messages
+        return snapshot;
+      }
+
+      // Get deletion timestamp
+      final deletionTime = deletionDoc.data()!['deleted_at'] as String;
+      final deletionTimestamp = int.parse(deletionTime);
+
+      // Filter messages - only show messages sent after deletion
+      final filteredDocs = snapshot.docs.where((doc) {
+        final messageSentTime = doc.data()['sent'] as String;
+        final messageTimestamp = int.parse(messageSentTime);
+        return messageTimestamp > deletionTimestamp;
+      }).toList();
+
+      // Create a new QuerySnapshot with filtered documents
+      return _createFilteredSnapshot(snapshot, filteredDocs);
+    });
   }
 
-  // OPTIMIZED: Faster mutual connection
+// Modified getLastMessage to respect deletion time
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) {
+    return firestore
+        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+        .orderBy('sent', descending: true)
+        .limit(1)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      if (snapshot.docs.isEmpty) return snapshot;
+
+      // Check if this message should be shown
+      final currentUserId = useCase.getUserId().toString();
+      final deletionDoc = await firestore
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('deleted_chats')
+          .doc(user.id)
+          .get();
+
+      if (!deletionDoc.exists) {
+        return snapshot; // No deletion record, show message
+      }
+
+      final deletionTime = int.parse(deletionDoc.data()!['deleted_at'] as String);
+      final messageTime = int.parse(snapshot.docs.first.data()['sent'] as String);
+
+      if (messageTime > deletionTime) {
+        return snapshot; // Message is newer than deletion, show it
+      } else {
+        // Message is older than deletion, return empty
+        return _createEmptySnapshot();
+      }
+    });
+  }
+
+// Modified sendMessage to handle re-connection after deletion
+//   static Future<void> sendMessage(ChatUser chatUser, String msg, Type type) async {
+//     if (me == null) {
+//       await getSelfInfo();
+//     }
+//
+//     final time = DateTime.now().millisecondsSinceEpoch.toString();
+//     final currentUserId = useCase.getUserId().toString();
+//
+//     // Check if chat was deleted by current user
+//     final deletionDoc = await firestore
+//         .collection('Hamid_users')
+//         .doc(currentUserId)
+//         .collection('deleted_chats')
+//         .doc(chatUser.id)
+//         .get();
+//
+//     final Message message = Message(
+//       toId: chatUser.id,
+//       msg: msg,
+//       read: '',
+//       type: type,
+//       fromId: currentUserId,
+//       sent: time,
+//     );
+//
+//     try {
+//       // If chat was deleted by current user, restore connection
+//       if (deletionDoc.exists) {
+//         debugPrint('🔄 Restoring deleted chat connection...');
+//
+//         // Remove deletion record
+//         await firestore
+//             .collection('Hamid_users')
+//             .doc(currentUserId)
+//             .collection('deleted_chats')
+//             .doc(chatUser.id)
+//             .delete();
+//
+//         // Re-add to my_users
+//         await firestore
+//             .collection('Hamid_users')
+//             .doc(currentUserId)
+//             .collection('my_users')
+//             .doc(chatUser.id)
+//             .set({'last_message_time': time});
+//       }
+//
+//       // PARALLEL OPERATIONS for speed
+//       await Future.wait([
+//         // 1. Save message
+//         firestore
+//             .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+//             .doc(time)
+//             .set(message.toJson()),
+//
+//         // 2. Update timestamps
+//         updateConversationTimestamp(currentUserId, chatUser.id, time),
+//         updateConversationTimestamp(chatUser.id, currentUserId, time),
+//
+//         // 3. Update receiver's last message
+//         firestore.collection('Hamid_users').doc(chatUser.id).update({
+//           'last_message': time,
+//         }),
+//       ]);
+//
+//       debugPrint('✅ Message sent successfully');
+//
+//       // 4. Send notification ONLY if needed (non-blocking)
+//       sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
+//
+//     } catch (e) {
+//       debugPrint('❌ Error sending message: $e');
+//     }
+//   }
+
+// Helper method to create filtered snapshot
+  static QuerySnapshot<Map<String, dynamic>> _createFilteredSnapshot(
+      QuerySnapshot<Map<String, dynamic>> originalSnapshot,
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> filteredDocs,
+      ) {
+    // Return a custom filtered snapshot
+    return FilteredQuerySnapshot(
+      docs: filteredDocs,
+      metadata: originalSnapshot.metadata,
+    );
+  }
+
+// Helper method to create empty snapshot
+  static QuerySnapshot<Map<String, dynamic>> _createEmptySnapshot() {
+    // Return empty snapshot - implement based on your Firebase version
+    throw UnimplementedError('Implement based on your Firebase setup');
+  }
+
+// Method to restore chat when receiving new message
+  static Future<void> restoreChatIfDeleted(String senderId) async {
+    try {
+      final currentUserId = useCase.getUserId().toString();
+      final deletionDoc = await firestore
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('deleted_chats')
+          .doc(senderId)
+          .get();
+
+      if (deletionDoc.exists) {
+        debugPrint('🔄 Auto-restoring chat from ${senderId}');
+
+        final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+
+        // Remove deletion record and restore connection
+        WriteBatch batch = firestore.batch();
+
+        batch.delete(
+            firestore
+                .collection('Hamid_users')
+                .doc(currentUserId)
+                .collection('deleted_chats')
+                .doc(senderId)
+        );
+
+        batch.set(
+          firestore
+              .collection('Hamid_users')
+              .doc(currentUserId)
+              .collection('my_users')
+              .doc(senderId),
+          {'last_message_time': timestamp},
+        );
+
+        await batch.commit();
+        debugPrint('✅ Chat restored automatically');
+      }
+    } catch (e) {
+      debugPrint('❌ Error restoring chat: $e');
+    }
+  }
+  // Add these methods to your Firebase Service
+// These will filter messages to show only new ones after deletion
+
+// Modified getAllMessages to filter deleted messages
+  static Stream<List<Message>> getAllMessagesFiltered(ChatUser user) async* {
+    final currentUserId = useCase.getUserId().toString();
+
+    // Get deletion timestamp first
+    String? deletionTime = await _getDeletionTime(currentUserId, user.id);
+
+    await for (final snapshot in firestore
+        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+        .orderBy('sent', descending: true)
+        .snapshots()) {
+
+      List<Message> filteredMessages = [];
+
+      for (var doc in snapshot.docs) {
+        try {
+          final message = Message.fromJson(doc.data());
+
+          // If no deletion time, show all messages
+          if (deletionTime == null) {
+            filteredMessages.add(message);
+            continue;
+          }
+
+          // Only show messages sent after deletion
+          final messageTimestamp = int.parse(message.sent);
+          final deletionTimestamp = int.parse(deletionTime);
+
+          if (messageTimestamp > deletionTimestamp) {
+            filteredMessages.add(message);
+          }
+
+        } catch (e) {
+          debugPrint('❌ Error parsing message: $e');
+        }
+      }
+
+      yield filteredMessages;
+    }
+  }
+
+// Helper method to get deletion time
+  static Future<String?> _getDeletionTime(String userId, String chatUserId) async {
+    try {
+      final userDoc = await firestore.collection('Hamid_users').doc(userId).get();
+      final deletedChats = userDoc.data()?['deleted_chats'] as Map<String, dynamic>? ?? {};
+      return deletedChats[chatUserId] as String?;
+    } catch (e) {
+      debugPrint('❌ Error getting deletion time: $e');
+      return null;
+    }
+  }
+
+// Modified getLastMessage to respect deletion time
+  static Stream<Message?> getLastMessageFiltered(ChatUser user) async* {
+    final currentUserId = useCase.getUserId().toString();
+
+    await for (final snapshot in firestore
+        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+        .orderBy('sent', descending: true)
+        .limit(1)
+        .snapshots()) {
+
+      if (snapshot.docs.isEmpty) {
+        yield null;
+        continue;
+      }
+
+      try {
+        final message = Message.fromJson(snapshot.docs.first.data());
+
+        // Check if this message should be shown
+        String? deletionTime = await _getDeletionTime(currentUserId, user.id);
+
+        if (deletionTime == null) {
+          yield message; // No deletion, show message
+          continue;
+        }
+
+        final messageTimestamp = int.parse(message.sent);
+        final deletionTimestamp = int.parse(deletionTime);
+
+        if (messageTimestamp > deletionTimestamp) {
+          yield message; // Message is newer than deletion
+        } else {
+          yield null; // Message is older than deletion
+        }
+
+      } catch (e) {
+        debugPrint('❌ Error parsing last message: $e');
+        yield null;
+      }
+    }
+  }
+
+// Updated ensureMutualChatConnection with better logic
   static Future<void> ensureMutualChatConnection(String senderId, String receiverId) async {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
-      // SINGLE BATCH for better performance
+      // Check if receiver had deleted this chat
+      final receiverDoc = await firestore.collection('Hamid_users').doc(receiverId).get();
+      final receiverData = receiverDoc.data() ?? {};
+      final deletedChats = receiverData['deleted_chats'] as Map<String, dynamic>? ?? {};
+
       WriteBatch batch = firestore.batch();
 
-      batch.set(
-        firestore
-            .collection('Hamid_users')
-            .doc(receiverId)
-            .collection('my_users')
-            .doc(senderId),
-        {'last_message_time': timestamp},
-        SetOptions(merge: true),
-      );
-
+      // Always ensure sender has the connection
       batch.set(
         firestore
             .collection('Hamid_users')
@@ -270,28 +574,63 @@ class FirebaseService {
         SetOptions(merge: true),
       );
 
+      // If receiver had deleted this chat, restore it
+      if (deletedChats.containsKey(senderId)) {
+        debugPrint('🔄 Auto-restoring deleted chat for receiver');
+
+        // Add back to receiver's my_users
+        batch.set(
+          firestore
+              .collection('Hamid_users')
+              .doc(receiverId)
+              .collection('my_users')
+              .doc(senderId),
+          {'last_message_time': timestamp},
+          SetOptions(merge: true),
+        );
+
+        // IMPORTANT: Don't remove deletion timestamp yet
+        // Keep it so that old messages remain filtered
+        // Only remove it when receiver manually starts chatting
+
+      } else {
+        // Normal case - just update timestamp
+        batch.set(
+          firestore
+              .collection('Hamid_users')
+              .doc(receiverId)
+              .collection('my_users')
+              .doc(senderId),
+          {'last_message_time': timestamp},
+          SetOptions(merge: true),
+        );
+      }
+
       await batch.commit();
-      debugPrint('✅ Mutual connection updated');
+      debugPrint('✅ Mutual connection ensured');
     } catch (e) {
       debugPrint('❌ Error in mutual connection: $e');
     }
   }
 
-  // OPTIMIZED: Faster timestamp update
-  static Future<void> updateConversationTimestamp(String userId, String otherUserId, String timestamp) async {
+// Call this method when user actively starts chatting (clears deletion filter)
+  static Future<void> clearDeletionFilter(String chatUserId) async {
     try {
-      await firestore
-          .collection('Hamid_users')
-          .doc(userId)
-          .collection('my_users')
-          .doc(otherUserId)
-          .update({'last_message_time': timestamp});
+      final currentUserId = useCase.getUserId().toString();
+
+      await firestore.collection('Hamid_users').doc(currentUserId).update({
+        'deleted_chats.$chatUserId': FieldValue.delete(),
+      });
+
+      debugPrint('✅ Deletion filter cleared for $chatUserId');
     } catch (e) {
-      debugPrint('❌ Error updating timestamp: $e');
+      debugPrint('❌ Error clearing deletion filter: $e');
     }
   }
+// Updated sendMessage in firebase_service.dart to handle re-connection
+// When user sends a message after deleting chat, it should restore the chat
 
-  // OPTIMIZED: Much faster message sending
+// Update sendMessage to NOT remove deletion record immediately
   static Future<void> sendMessage(ChatUser chatUser, String msg, Type type) async {
     if (me == null) {
       await getSelfInfo();
@@ -310,33 +649,231 @@ class FirebaseService {
     );
 
     try {
-      // PARALLEL OPERATIONS for speed
-      await Future.wait([
-        // 1. Save message
-        firestore
-            .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
-            .doc(time)
-            .set(message.toJson()),
+      // Check if chat was deleted
+      final deletionDoc = await firestore
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('deleted_chats')
+          .doc(chatUser.id)
+          .get();
 
-        // 2. Update timestamps
-        updateConversationTimestamp(currentUserId, chatUser.id, time),
-        updateConversationTimestamp(chatUser.id, currentUserId, time),
+      if (deletionDoc.exists) {
+        debugPrint('🔄 Sending message to previously deleted chat...');
 
-        // 3. Update receiver's last message
-        firestore.collection('Hamid_users').doc(chatUser.id).update({
-          'last_message': time,
-        }),
-      ]);
+        // DON'T remove deletion record - keep it for filtering old messages
+        // Just restore the chat in my_users
+        await firestore
+            .collection('Hamid_users')
+            .doc(currentUserId)
+            .collection('my_users')
+            .doc(chatUser.id)
+            .set({'last_message_time': time});
+      }
+
+      // Send the message
+      await firestore
+          .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+          .doc(time)
+          .set(message.toJson());
+
+      // Update timestamps
+      await updateConversationTimestamp(currentUserId, chatUser.id, time);
+
+      // Only update receiver's timestamp if they have the chat
+      final receiverChatDoc = await firestore
+          .collection('Hamid_users')
+          .doc(chatUser.id)
+          .collection('my_users')
+          .doc(currentUserId)
+          .get();
+
+      if (receiverChatDoc.exists) {
+        await updateConversationTimestamp(chatUser.id, currentUserId, time);
+      }
+
+      // Update receiver's last message
+      await firestore.collection('Hamid_users').doc(chatUser.id).update({
+        'last_message': time,
+      });
 
       debugPrint('✅ Message sent successfully');
-
-      // 4. Send notification ONLY if needed (non-blocking)
       sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
 
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
     }
   }
+  // Add method to permanently clear deletion record (optional)
+// Call this when user explicitly wants to see old messages again
+//   Future<void> _clearChatDeletion(String userId) async {
+//     try {
+//       await FirebaseFirestore.instance
+//           .collection('Hamid_users')
+//           .doc(currentUserId)
+//           .collection('deleted_chats')
+//           .doc(userId)
+//           .delete();
+//
+//       debugPrint('✅ Chat deletion record cleared - all messages visible now');
+//     } catch (e) {
+//       debugPrint('❌ Error clearing deletion record: $e');
+//     }
+//   }
+// Updated sendFirstMessage to respect deletion status
+ Future<void> sendFirstMessage(ChatUser chatUser, String msg, Type type) async {
+    if (me == null) {
+      await getSelfInfo();
+    }
+
+    deductConnects(userForId: chatUser.id);
+
+    final currentUserId = useCase.getUserId().toString();
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+
+    WriteBatch batch = firestore.batch();
+
+    // Add to current user's my_users
+    batch.set(
+      firestore
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('my_users')
+          .doc(chatUser.id),
+      {'last_message_time': timestamp},
+      SetOptions(merge: true),
+    );
+
+    // Check if receiver has deleted this chat
+    final receiverDeletionDoc = await firestore
+        .collection('Hamid_users')
+        .doc(chatUser.id)
+        .collection('deleted_chats')
+        .doc(currentUserId)
+        .get();
+
+    // Only add to receiver's my_users if they haven't deleted the chat
+    if (!receiverDeletionDoc.exists) {
+      batch.set(
+        firestore
+            .collection('Hamid_users')
+            .doc(chatUser.id)
+            .collection('my_users')
+            .doc(currentUserId),
+        {'last_message_time': timestamp},
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+    await sendMessage(chatUser, msg, type);
+  }
+
+// Add this method to handle incoming messages
+// When receiving a message from a deleted chat, optionally restore it
+
+  // static Future<void> handleIncomingMessage(String senderId) async {
+  //   try {
+  //     final currentUserId = useCase.getUserId().toString();
+  //
+  //     // Check if current user has this chat
+  //     final chatDoc = await firestore
+  //         .collection('Hamid_users')
+  //         .doc(currentUserId)
+  //         .collection('my_users')
+  //         .doc(senderId)
+  //         .get();
+  //
+  //     if (!chatDoc.exists) {
+  //       // Check if it was deleted
+  //       final deletionDoc = await firestore
+  //           .collection('Hamid_users')
+  //           .doc(currentUserId)
+  //           .collection('deleted_chats')
+  //           .doc(senderId)
+  //           .get();
+  //
+  //       if (deletionDoc.exists) {
+  //         debugPrint('📨 New message from deleted chat. Auto-restoring...');
+  //
+  //         final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+  //
+  //         // Remove deletion record
+  //         await deletionDoc.reference.delete();
+  //
+  //         // Restore to my_users
+  //         await firestore
+  //             .collection('Hamid_users')
+  //             .doc(currentUserId)
+  //             .collection('my_users')
+  //             .doc(senderId)
+  //             .set({'last_message_time': timestamp});
+  //
+  //         debugPrint('✅ Chat restored due to new message');
+  //       }
+  //     }
+  //   } catch (e) {
+  //     debugPrint('❌ Error handling incoming message: $e');
+  //   }
+  // }
+  static Future<void> updateConversationTimestamp(String userId, String otherUserId, String timestamp) async {
+    try {
+      await firestore
+          .collection('Hamid_users')
+          .doc(userId)
+          .collection('my_users')
+          .doc(otherUserId)
+          .update({'last_message_time': timestamp});
+    } catch (e) {
+      debugPrint('❌ Error updating timestamp: $e');
+    }
+  }
+
+  // OPTIMIZED: Much faster message sending
+  // static Future<void> sendMessage(ChatUser chatUser, String msg, Type type) async {
+  //   if (me == null) {
+  //     await getSelfInfo();
+  //   }
+  //
+  //   final time = DateTime.now().millisecondsSinceEpoch.toString();
+  //   final currentUserId = useCase.getUserId().toString();
+  //
+  //   final Message message = Message(
+  //     toId: chatUser.id,
+  //     msg: msg,
+  //     read: '',
+  //     type: type,
+  //     fromId: currentUserId,
+  //     sent: time,
+  //   );
+  //
+  //   try {
+  //     // PARALLEL OPERATIONS for speed
+  //     await Future.wait([
+  //       // 1. Save message
+  //       firestore
+  //           .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+  //           .doc(time)
+  //           .set(message.toJson()),
+  //
+  //       // 2. Update timestamps
+  //       updateConversationTimestamp(currentUserId, chatUser.id, time),
+  //       updateConversationTimestamp(chatUser.id, currentUserId, time),
+  //
+  //       // 3. Update receiver's last message
+  //       firestore.collection('Hamid_users').doc(chatUser.id).update({
+  //         'last_message': time,
+  //       }),
+  //     ]);
+  //
+  //     debugPrint('✅ Message sent successfully');
+  //
+  //     // 4. Send notification ONLY if needed (non-blocking)
+  //     sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
+  //
+  //   } catch (e) {
+  //     debugPrint('❌ Error sending message: $e');
+  //   }
+  // }
 
   // OPTIMIZED: Smart notification sending
   static Future<void> sendNotificationIfNeeded(ChatUser chatUser, String msg, Type type, String currentUserId) async {
@@ -407,14 +944,14 @@ class FirebaseService {
     }
   }
 
-  // stream for getting the last message
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) {
-    return firestore
-        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
-        .orderBy('sent', descending: true)
-        .limit(1)
-        .snapshots();
-  }
+  // // stream for getting the last message
+  // static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) {
+  //   return firestore
+  //       .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+  //       .orderBy('sent', descending: true)
+  //       .limit(1)
+  //       .snapshots();
+  // }
 
   // for sending images in chats
   static Future<void> sendChatImage(String currentUID, ChatUser chatUser, File file) async {
@@ -461,43 +998,43 @@ class FirebaseService {
   }
 
   // OPTIMIZED: Faster first message
-  Future<void> sendFirstMessage(ChatUser chatUser, String msg, Type type) async {
-    if (me == null) {
-      await getSelfInfo();
-    }
-
-    deductConnects(userForId: chatUser.id);
-
-    final currentUserId = useCase.getUserId().toString();
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-
-    // BATCH OPERATION for speed
-    WriteBatch batch = firestore.batch();
-
-    // Add mutual connection
-    batch.set(
-      firestore
-          .collection('Hamid_users')
-          .doc(currentUserId)
-          .collection('my_users')
-          .doc(chatUser.id),
-      {'last_message_time': timestamp},
-      SetOptions(merge: true),
-    );
-
-    batch.set(
-      firestore
-          .collection('Hamid_users')
-          .doc(chatUser.id)
-          .collection('my_users')
-          .doc(currentUserId),
-      {'last_message_time': timestamp},
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
-    await sendMessage(chatUser, msg, type);
-  }
+  // Future<void> sendFirstMessage(ChatUser chatUser, String msg, Type type) async {
+  //   if (me == null) {
+  //     await getSelfInfo();
+  //   }
+  //
+  //   deductConnects(userForId: chatUser.id);
+  //
+  //   final currentUserId = useCase.getUserId().toString();
+  //   final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+  //
+  //   // BATCH OPERATION for speed
+  //   WriteBatch batch = firestore.batch();
+  //
+  //   // Add mutual connection
+  //   batch.set(
+  //     firestore
+  //         .collection('Hamid_users')
+  //         .doc(currentUserId)
+  //         .collection('my_users')
+  //         .doc(chatUser.id),
+  //     {'last_message_time': timestamp},
+  //     SetOptions(merge: true),
+  //   );
+  //
+  //   batch.set(
+  //     firestore
+  //         .collection('Hamid_users')
+  //         .doc(chatUser.id)
+  //         .collection('my_users')
+  //         .doc(currentUserId),
+  //     {'last_message_time': timestamp},
+  //     SetOptions(merge: true),
+  //   );
+  //
+  //   await batch.commit();
+  //   await sendMessage(chatUser, msg, type);
+  // }
 
   // Block/Unblock methods remain the same
   static Future<void> blockUser(String userIdToBlock) async {
@@ -570,4 +1107,17 @@ class FirebaseService {
       },
     );
   }
+}
+// Custom QuerySnapshot implementation for filtered results
+class FilteredQuerySnapshot implements QuerySnapshot<Map<String, dynamic>> {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+  final SnapshotMetadata metadata;
+
+  FilteredQuerySnapshot({required this.docs, required this.metadata});
+
+  @override
+  List<DocumentChange<Map<String, dynamic>>> get docChanges => [];
+
+  @override
+  int get size => docs.length;
 }

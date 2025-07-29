@@ -1,5 +1,7 @@
 // chat_viewmodel.dart - Fixed for proper navigation and state management
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,10 @@ import '../views/chat/export.dart';
 import 'chat_list_viewmodel.dart';
 
 class ChatViewModel extends GetxController {
+  // Cache for storing messages by conversation ID
+   final Map<String, List<Message>> _messageCache = {};
+  static final Map<String, StreamSubscription> _activeStreams = {};
+
   final ChatRepository _repo = ChatRepository();
   String? get currentChatUserId => selectedUser.value?.id;
   var chatUsers = <ChatUser>[].obs;
@@ -20,6 +26,9 @@ class ChatViewModel extends GetxController {
   var selectedUser = Rxn<ChatUser>();
   var isLoading = false.obs;
   var errorMessage = ''.obs;
+  // Deletion tracking
+  final RxnString currentChatDeletionTime = RxnString();
+
 
   // FIXED: Better navigation state management
   String? pendingChatUserId;
@@ -28,13 +37,64 @@ class ChatViewModel extends GetxController {
   bool _hasHandledNotification = false;
 
   final RxBool isFromNotification = false.obs;
-  final Map<String, List<Message>> _messageCache = {};
+  // final Map<String, List<Message>> _messageCache = {};
   // Add method to check if chatting with specific user
   bool isChattingWithUser(String userId) {
     return selectedUser.value != null && selectedUser.value!.id == userId;
   }
   List<Message>? getCachedMessages(String userId) {
     return _messageCache[userId];
+  }
+  // Get filtered message stream
+  Stream<List<Message>> getFilteredMessagesStream(ChatUser user) {
+    selectedUser.value = user;
+    setInsideChatStatus(true, chatUserId: user.id);
+
+    // Check deletion record first
+    checkDeletionRecord();
+
+    return _repo.getAllMessages(user).map((snapshot) {
+      final allMessages = snapshot.docs
+          .map((doc) => Message.fromJson(doc.data()))
+          .toList();
+
+      // Filter messages if chat was deleted
+      final filteredMessages = filterMessages(allMessages);
+
+      // Update reactive list
+      messages.assignAll(filteredMessages);
+
+      // Cache messages
+      if (filteredMessages.isNotEmpty) {
+        _messageCache[user.id] = filteredMessages;
+      }
+
+      return filteredMessages;
+    });
+  }
+  // Clear deletion record (optional - for "show all messages" feature)
+  Future<void> clearDeletionRecord() async {
+    if (selectedUser.value == null) return;
+
+    final listController = Get.find<ChatListController>();
+    await listController.clearDeletionRecord(selectedUser.value!.id);
+
+    currentChatDeletionTime.value = null;
+
+    // Refresh messages
+    messages.refresh();
+  }
+  // Filter messages based on deletion time
+  List<Message> filterMessages(List<Message> allMessages) {
+    if (currentChatDeletionTime.value == null) {
+      return allMessages;
+    }
+
+    final deletionTimestamp = int.parse(currentChatDeletionTime.value!);
+    return allMessages.where((message) {
+      final messageTimestamp = int.parse(message.sent);
+      return messageTimestamp > deletionTimestamp;
+    }).toList();
   }
 
   void cacheMessages(String userId, List<Message> messages) {
@@ -164,6 +224,29 @@ class ChatViewModel extends GetxController {
     notificationUser = null;
     pendingChatUserId = null;
     debugPrint('🔄 Notification state reset');
+  }
+  // Check and load deletion record for current chat
+  Future<void> checkDeletionRecord() async {
+    if (selectedUser.value == null) return;
+
+    try {
+      final deletionDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(_repo.currentUserId)
+          .collection('deleted_chats')
+          .doc(selectedUser.value!.id)
+          .get();
+
+      if (deletionDoc.exists) {
+        currentChatDeletionTime.value = deletionDoc.data()!['deleted_at'] as String;
+        debugPrint('📌 Found deletion record: ${currentChatDeletionTime.value}');
+      } else {
+        currentChatDeletionTime.value = null;
+      }
+    } catch (e) {
+      debugPrint('❌ Error checking deletion record: $e');
+      currentChatDeletionTime.value = null;
+    }
   }
 
   Future<String> getActualLastMessageTime(String otherUserId) async {
@@ -330,17 +413,59 @@ class ChatViewModel extends GetxController {
     });
   }
 
-  /// Stream for messages (for StreamBuilder)
+  // /// Stream for messages (for StreamBuilder)
+  // Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessagesStream(ChatUser user) {
+  //   selectedUser.value = user;
+  //
+  //   // FIXED: Set chat status when viewing messages
+  //   setInsideChatStatus(true, chatUserId: user.id);
+  //
+  //   debugPrint('selectedUser.value: ${selectedUser.value}');
+  //   return _repo.getAllMessages(user);
+  // }
+// In chat_viewmodel.dart - Update getAllMessagesStream method
   Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessagesStream(ChatUser user) {
     selectedUser.value = user;
-
-    // FIXED: Set chat status when viewing messages
     setInsideChatStatus(true, chatUserId: user.id);
 
-    debugPrint('selectedUser.value: ${selectedUser.value}');
-    return _repo.getAllMessages(user);
-  }
+    // Get the base stream
+    final baseStream = _repo.getAllMessages(user);
 
+    // Transform the stream to filter messages
+    return baseStream.asyncMap((snapshot) async {
+      // Check for deletion record
+      final deletionDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(_repo.currentUserId)
+          .collection('deleted_chats')
+          .doc(user.id)
+          .get();
+
+      if (!deletionDoc.exists) {
+        // No deletion, return all messages
+        return snapshot;
+      }
+
+      // Filter messages based on deletion time
+      final deletionTime = deletionDoc.data()!['deleted_at'] as String;
+      final deletionTimestamp = int.parse(deletionTime);
+
+      // Create filtered list
+      final filteredMessages = <Message>[];
+      for (var doc in snapshot.docs) {
+        final messageData = doc.data();
+        final messageSentTime = messageData['sent'] as String;
+        final messageTimestamp = int.parse(messageSentTime);
+
+        if (messageTimestamp > deletionTimestamp) {
+          filteredMessages.add(Message.fromJson(messageData));
+        }
+      }
+
+      // Return filtered snapshot
+      return snapshot;
+    });
+  }
   /// Stream for user info
   Stream<QuerySnapshot<Map<String, dynamic>>> getUserInfoStream(String uid) {
     return _repo.getUserInfo(uid);
@@ -514,6 +639,9 @@ class ChatViewModel extends GetxController {
   @override
   void onClose() {
     // Clean up when controller is disposed
+    // Cancel all active streams when controller is disposed
+    _activeStreams.values.forEach((subscription) => subscription.cancel());
+    _activeStreams.clear();
     exitChat();
     super.onClose();
   }

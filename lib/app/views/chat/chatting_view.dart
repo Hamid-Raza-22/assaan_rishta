@@ -1,3 +1,5 @@
+// Fixed ChattingView with optimized loading
+// chatting_view.dart
 
 import 'dart:async';
 import 'dart:io';
@@ -13,6 +15,7 @@ import '../../core/export.dart';
 import '../../domain/export.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/chat_viewmodel.dart';
+import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../widgets/export.dart';
 import '../bottom_nav/export.dart';
 
@@ -29,17 +32,20 @@ class _ChattingViewState extends State<ChattingView>
     with WidgetsBindingObserver {
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
-  bool _isInitialized = false;
-  List<Message> _list = [];
+  final chatListController = Get.find<ChatListController>();
+
   late TextEditingController _textController;
+  final RxBool _showEmoji = false.obs;
+  final RxBool _uploading = false.obs;
+  final RxBool _paused = false.obs;
+  final RxBool isBlocked = false.obs;
 
-  bool _showEmoji = false;
-  bool _uploading = false;
-  bool _paused = false;
+  // Add these variables to manage loading state
+  final RxBool _isInitialLoading = true.obs;
+  final RxList<Message> _cachedMessages = <Message>[].obs;
+  StreamSubscription<List<Message>>? _messagesSubscription;
+
   String currentUID = "";
-  bool isBlocked = false;
-
-  // Update these methods in chatting_view.dart:
 
   @override
   void initState() {
@@ -48,22 +54,34 @@ class _ChattingViewState extends State<ChattingView>
     currentUID = useCase.getUserId().toString();
     _textController = TextEditingController();
 
-    // Set inside chat status to true when entering chat
-    chatController.setInsideChatStatus(true);
-    _isInitialized = true;
-    // Mark messages as read
-    _markMessagesAsRead();
+    // Set chat status and check deletion
+    chatController.setInsideChatStatus(true, chatUserId: widget.user.id);
+    chatController.checkDeletionRecord();
+
+    // Initialize messages stream
+    _initializeMessagesStream();
+  }
+
+  void _initializeMessagesStream() {
+    _messagesSubscription = chatController
+        .getFilteredMessagesStream(widget.user)
+        .listen((messages) {
+      _cachedMessages.value = messages;
+      if (_isInitialLoading.value) {
+        _isInitialLoading.value = false;
+      }
+
+      // Mark messages as read
+      _markMessagesAsRead(messages);
+    });
   }
 
   @override
   void dispose() {
-    // Set inside chat status to false when leaving chat
     chatController.setInsideChatStatus(false);
-
     WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
-    // currentUID = "";
-    _isInitialized = false;
+    _messagesSubscription?.cancel();
     super.dispose();
   }
 
@@ -71,160 +89,161 @@ class _ChattingViewState extends State<ChattingView>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        chatController.setInsideChatStatus(true);
-        if (mounted) setState(() => _paused = false);
+        chatController.setInsideChatStatus(true, chatUserId: widget.user.id);
+        _paused.value = false;
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         chatController.setInsideChatStatus(false);
-        if (mounted) setState(() => _paused = true);
+        _paused.value = true;
         break;
     }
   }
 
-// Add this method to mark messages as read
-  void _markMessagesAsRead() {
+  void _markMessagesAsRead(List<Message> messages) {
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (_list.isNotEmpty) {
-        for (var message in _list) {
-          if (message.fromId != currentUID && message.read.isEmpty) {
-            chatController.markMessageAsRead(message);
-          }
+      for (var message in messages) {
+        if (message.fromId != currentUID && message.read.isEmpty) {
+          chatController.markMessageAsRead(message);
         }
       }
     });
-  }
-  void change() => setState(() => _showEmoji = !_showEmoji);
-
-  _willpop() {
-    if (_showEmoji) {
-      change();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     Size chatMq = MediaQuery.of(context).size;
-    final cachedMessages = chatController.getCachedMessages(widget.user.id);
+
     return PopScope(
-      canPop: !_showEmoji,
-      onPopInvoked: (_) => _willpop(),
+      canPop: !_showEmoji.value,
+      onPopInvoked: (_) {
+        if (_showEmoji.value) {
+          _showEmoji.value = false;
+        }
+      },
       child: Scaffold(
         backgroundColor: AppColors.whiteColor,
         appBar: AppBar(
           backgroundColor: AppColors.whiteColor,
           surfaceTintColor: AppColors.whiteColor,
           automaticallyImplyLeading: false,
-          title: _appBar(),
+          title: _buildAppBar(),
         ),
         body: Column(
           children: [
             Expanded(
-              child: StreamBuilder(
-                stream: chatController.getAllMessagesStream(widget.user),
-                builder: (ctx, snapshot) {
-                  switch (snapshot.connectionState) {
-                    case ConnectionState.waiting:
-                    case ConnectionState.none:
-                  // Show cached messages if available instead of "Syncing..."
-                    if (cachedMessages != null && cachedMessages.isNotEmpty) {
-                      _list = cachedMessages;
-                      return ListView.builder(
-                        reverse: true,
-                        itemCount: _list.length,
-                        padding: EdgeInsets.only(top: chatMq.height * .01),
-                        physics: const BouncingScrollPhysics(),
-                        itemBuilder: (ctx, i) => MessageCard(
-                          message: _list[i],
-                          pause: _paused,
+              child: Obx(() {
+                // Show loading only on initial load
+                if (_isInitialLoading.value) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                final messages = _cachedMessages;
+
+                if (messages.isEmpty) {
+                  return Obx(() => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          chatController.currentChatDeletionTime.value != null
+                              ? Icons.restart_alt
+                              : Icons.chat_bubble_outline,
+                          size: 80,
+                          color: Colors.grey[400],
                         ),
-                      );
-                    }
-                      return const Center(
-                        child: Text(
-                          'Syncing ...',
-                          style: TextStyle(fontSize: 25, color: Colors.black54),
+                        const SizedBox(height: 20),
+                        Text(
+                          chatController.currentChatDeletionTime.value != null
+                              ? 'Chat history cleared'
+                              : 'No messages yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      );
-                    case ConnectionState.active:
-                    case ConnectionState.done:
-                      final data = snapshot.data?.docs;
-                      _list = data?.map((e) => Message.fromJson(e.data())).toList() ?? [];
-                      // Cache the messages
-                      if (_list.isNotEmpty) {
-                        chatController.cacheMessages(widget.user.id, _list);
-                      }
-                      if (_list.isNotEmpty) {
-                        return ListView.builder(
-                          reverse: true,
-                          itemCount: _list.length,
-                          padding: EdgeInsets.only(top: chatMq.height * .01),
-                          physics: const BouncingScrollPhysics(),
-                          itemBuilder: (ctx, i) => MessageCard(
-                            message: _list[i],
-                            pause: _paused,
+                        const SizedBox(height: 10),
+                        Text(
+                          chatController.currentChatDeletionTime.value != null
+                              ? 'Send a message to start fresh'
+                              : 'Start the conversation',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
                           ),
-                        );
-                      } else {
-                        return Center(
-                          child: TextButton(
-                            onPressed: () async {
-                              await createUserChat('Hii! 👋');
-                            },
-                            child: const Text(
-                              'Say Hii! 👋',
-                              style: TextStyle(fontSize: 30),
-                            ),
+                        ),
+                        const SizedBox(height: 20),
+                        TextButton(
+                          onPressed: () async {
+                            await createUserChat('Hi! 👋');
+                          },
+                          child: const Text(
+                            'Say Hi! 👋',
+                            style: TextStyle(fontSize: 24),
                           ),
-                        );
-                      }
-                  }
-                },
-              ),
+                        ),
+                      ],
+                    ),
+                  ));
+                }
+
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: messages.length,
+                  padding: EdgeInsets.only(top: chatMq.height * .01),
+                  physics: const BouncingScrollPhysics(),
+                  itemBuilder: (ctx, i) => Obx(() => MessageCard(
+                    message: messages[i],
+                    pause: _paused.value,
+                  )),
+                );
+              }),
             ),
-            if (_uploading)
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+            Obx(() => _uploading.value
+                ? const Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-            isBlocked ? getBlockContainer() : _chatInput(),
-            if (_showEmoji) _emojiPicker(chatMq),
+            )
+                : const SizedBox.shrink()),
+            Obx(() => isBlocked.value ? _buildBlockContainer() : _buildChatInput()),
+            Obx(() => _showEmoji.value ? _buildEmojiPicker(chatMq) : const SizedBox.shrink()),
           ],
         ),
       ),
     );
   }
 
-  Widget _appBar() {
+  Widget _buildAppBar() {
     Size chatMq = MediaQuery.of(context).size;
+
     return StreamBuilder(
       stream: chatController.getUserInfoStream(widget.user.id),
       builder: (context, snapshot) {
         final data = snapshot.data?.docs;
         final list = data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
-        isBlocked = list.isNotEmpty ? list[0].blockedUsers.contains(currentUID) : false;
+
+        // FIXED: Update isBlocked after build completes
+        if (list.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            isBlocked.value = list[0].blockedUsers.contains(currentUID);
+          });
+        }
 
         return Row(
           children: [
             GestureDetector(
               onTap: () {
-                debugPrint('🔙 Back button pressed from ${widget.user.name}');
-
-                // Smart back navigation
-                if (Navigator.of(context).canPop() && Get.previousRoute.isNotEmpty) {
-                  debugPrint('📤 Can pop - doing normal back');
-                  //Get.offAllNamed('/bottom-nav');
-                   Get.back();
+                if (Navigator.of(context).canPop()) {
+                  Get.back();
                 } else {
-
-                  debugPrint('🏠 Cannot pop - going to chat list');
-                  // Get.offAllNamed('/bottom-nav');
-
                   Get.to(() => const BottomNavView(index: 1));
                 }
               },
@@ -233,37 +252,50 @@ class _ChattingViewState extends State<ChattingView>
             ClipRRect(
               borderRadius: BorderRadius.circular(chatMq.height * .3),
               child: CachedNetworkImage(
-                fit: chatMq.width <= 500 ? BoxFit.fill : null,
-                height: chatMq.width <= 500 ? chatMq.height * .055 : chatMq.height * .045,
-                width: chatMq.width <= 500 ? chatMq.height * .055 : chatMq.height * .045,
+                fit: BoxFit.cover,
+                height: chatMq.height * .05,
+                width: chatMq.height * .05,
                 imageUrl: list.isNotEmpty ? list[0].image : widget.user.image,
                 errorWidget: (c, url, e) => Image.network(AppConstants.profileImg),
-                placeholder: (c, url) => const Icon(size: 30, CupertinoIcons.person, color: Colors.white),
+                placeholder: (c, url) => const Icon(
+                  size: 30,
+                  CupertinoIcons.person,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(width: 12),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  list.isNotEmpty ? list[0].name : widget.user.name,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    list.isNotEmpty ? list[0].name : widget.user.name,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  list.isNotEmpty
-                      ? list[0].isOnline
-                      ? 'Online'
-                      : MyDateUtill.getLastActiveTime(context: context, lastActive: list[0].lastActive)
-                      : MyDateUtill.getLastActiveTime(context: context, lastActive: widget.user.lastActive),
-                  style: const TextStyle(color: Colors.black54, fontSize: 15),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Text(
+                    list.isNotEmpty
+                        ? list[0].isOnline
+                        ? 'Online'
+                        : MyDateUtill.getLastActiveTime(
+                      context: context,
+                      lastActive: list[0].lastActive,
+                    )
+                        : MyDateUtill.getLastActiveTime(
+                      context: context,
+                      lastActive: widget.user.lastActive,
+                    ),
+                    style: const TextStyle(color: Colors.black54, fontSize: 15),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -271,146 +303,92 @@ class _ChattingViewState extends State<ChattingView>
     );
   }
 
-  Widget _chatInput() {
+  Widget _buildChatInput() {
     Size chatMq = MediaQuery.of(context).size;
-    return StreamBuilder(
-        stream: chatController.getUserInfoStream(widget.user.id),
-        builder: (context, snapshot) {
-          final data = snapshot.data?.docs;
-          final list =
-              data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
-          isBlocked = list.isNotEmpty
-              ? list[0].blockedUsers.contains(currentUID)
-              : false;
 
-          return isBlocked
-              ? getBlockContainer()
-              : Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: EdgeInsets.symmetric(
-                    vertical: chatMq.height * .01,
-                    horizontal: chatMq.width * .025,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF2F2F5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              SizedBox(width: chatMq.width * .02),
-                              Expanded(
-                                child: TextField(
-                                  autofocus: false,
-                                  controller: _textController,
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
-                                  keyboardType: TextInputType.multiline,
-                                  maxLines: null,
-                                  // readOnly: _sending,
-                                  onTap: () => _showEmoji
-                                      ? setState(() => _showEmoji = !_showEmoji)
-                                      : null,
-                                  decoration: InputDecoration(
-                                    hintText: 'Write here ...',
-                                    hintStyle: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w400,
-                                      color: AppColors.blackColor
-                                          .withAlpha( (0.5 * 255).round()),
-                                    ),
-                                    border: InputBorder.none,
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  if (FocusManager
-                                      .instance.primaryFocus!.hasFocus) {
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                  }
-                                  setState(() => _showEmoji = !_showEmoji);
-                                },
-                                child: Container(
-                                  height: 30,
-                                  width: 30,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.whiteColor,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Icon(
-                                    Icons.emoji_emotions_rounded,
-                                    color: AppColors.blackColor
-                                        .withAlpha( (0.5 * 255).round()),
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: chatMq.width * .01),
-                            ],
-                          ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: chatMq.height * .01,
+        horizontal: chatMq.width * .025,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F2F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(width: chatMq.width * .02),
+                  Expanded(
+                    child: TextField(
+                      controller: _textController,
+                      textCapitalization: TextCapitalization.sentences,
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
+                      onTap: () {
+                        if (_showEmoji.value) {
+                          _showEmoji.value = false;
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Write here ...',
+                        hintStyle: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.blackColor.withOpacity(0.5),
                         ),
+                        border: InputBorder.none,
                       ),
-                      const SizedBox(width: 5),
-                      getSendBtn(),
-                    ],
+                    ),
                   ),
-                );
-        });
-  }
-
-  Widget _emojiPicker(Size chatMq) {
-    return SizedBox(
-      height: chatMq.height * .35,
-      child: EmojiPicker(
-        textEditingController: _textController,
-        config: Config(
-          // checkPlatformCompatibility: false,
-          bottomActionBarConfig: const BottomActionBarConfig(
-            showBackspaceButton: false,
-            backgroundColor: Color(0xFFEBEFF2),
-            buttonColor: Color(0xFFEBEFF2),
-            buttonIconColor: Colors.blue,
+                  GestureDetector(
+                    onTap: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      _showEmoji.value = !_showEmoji.value;
+                    },
+                    child: Container(
+                      height: 30,
+                      width: 30,
+                      decoration: BoxDecoration(
+                        color: AppColors.whiteColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.emoji_emotions_rounded,
+                        color: AppColors.blackColor.withOpacity(0.5),
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: chatMq.width * .01),
+                ],
+              ),
+            ),
           ),
-          searchViewConfig: SearchViewConfig(
-            backgroundColor: Colors.grey.shade100,
-            buttonIconColor: Colors.black,
-          ),
-          categoryViewConfig: const CategoryViewConfig(
-            //showBackspaceButton: true,
-            tabBarHeight: 50,
-          ),
-          emojiTextStyle: const TextStyle(
-            // fontFamily: fonFam,
-            color: Colors.black,
-          ),
-          emojiViewConfig: EmojiViewConfig(
-            columns: 9,
-            recentsLimit: 50,
-            verticalSpacing: 1,
-            emojiSizeMax: 31 * (Platform.isIOS ? 1.30 : 1.0),
-            loadingIndicator: const CircularProgressIndicator(),
-          ),
-        ),
+          const SizedBox(width: 5),
+          _buildSendButton(),
+        ],
       ),
     );
   }
 
-  Widget getSendBtn() {
+  Widget _buildSendButton() {
     return GestureDetector(
       onTap: () async {
-        if (_textController.text.isNotEmpty) {
-          String sendMessageVal = _textController.text;
+        final message = _textController.text.trim();
+        if (message.isNotEmpty) {
           _textController.clear();
-          if (_list.isEmpty) {
-            await createUserChat(sendMessageVal);
+
+          // Check if this is first message
+          if (chatController.messages.isEmpty) {
+            await createUserChat(message);
           } else {
             checkChatUser();
-            await chatController.sendMessage(sendMessageVal);
+            await chatController.sendMessage(message);
           }
         }
       },
@@ -429,7 +407,7 @@ class _ChattingViewState extends State<ChattingView>
     );
   }
 
-  Widget getBlockContainer() {
+  Widget _buildBlockContainer() {
     return Container(
       padding: const EdgeInsets.only(bottom: 40),
       child: const Row(
@@ -439,6 +417,40 @@ class _ChattingViewState extends State<ChattingView>
           SizedBox(width: 10),
           AppText(text: "You can no longer message this user."),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmojiPicker(Size chatMq) {
+    return SizedBox(
+      height: chatMq.height * .35,
+      child: EmojiPicker(
+        textEditingController: _textController,
+        config: Config(
+          bottomActionBarConfig: const BottomActionBarConfig(
+            showBackspaceButton: false,
+            backgroundColor: Color(0xFFEBEFF2),
+            buttonColor: Color(0xFFEBEFF2),
+            buttonIconColor: Colors.blue,
+          ),
+          searchViewConfig: SearchViewConfig(
+            backgroundColor: Colors.grey.shade100,
+            buttonIconColor: Colors.black,
+          ),
+          categoryViewConfig: const CategoryViewConfig(
+            tabBarHeight: 50,
+          ),
+          emojiTextStyle: const TextStyle(
+            color: Colors.black,
+          ),
+          emojiViewConfig: EmojiViewConfig(
+            columns: 9,
+            recentsLimit: 50,
+            verticalSpacing: 1,
+            emojiSizeMax: 31 * (Platform.isIOS ? 1.30 : 1.0),
+            loadingIndicator: const CircularProgressIndicator(),
+          ),
+        ),
       ),
     );
   }
