@@ -147,15 +147,39 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
+  // Widget _buildAvatar() {
+  //   return Stack(
+  //     children: [
+  //       CircleAvatar(
+  //         radius: 25,
+  //         backgroundColor: Colors.transparent,
+  //         foregroundImage: user.image.isEmpty
+  //             ? const NetworkImage(AppConstants.profileImg)
+  //             : NetworkImage(user.image),
+  //       ),
+  //       if (user.isOnline)
+  //         Positioned(
+  //           right: 0,
+  //           bottom: 0,
+  //           child: Container(
+  //             height: 8,
+  //             width: 8,
+  //             decoration: BoxDecoration(
+  //               borderRadius: BorderRadius.circular(8),
+  //               color: Colors.green,
+  //             ),
+  //           ),
+  //         ),
+  //     ],
+  //   );
+  // }
   Widget _buildAvatar() {
     return Stack(
       children: [
         CircleAvatar(
           radius: 25,
           backgroundColor: Colors.transparent,
-          foregroundImage: user.image.isEmpty
-              ? const NetworkImage(AppConstants.profileImg)
-              : NetworkImage(user.image),
+          foregroundImage: provider(), // Using the provider method here
         ),
         if (user.isOnline)
           Positioned(
@@ -174,6 +198,11 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
+  ImageProvider? provider() {
+    return user.image.isEmpty
+        ? const NetworkImage(AppConstants.profileImg)
+        : NetworkImage(user.image);
+  }
   Widget _buildSubtitle(ChatListController controller) {
     final lastMessage = controller.getLastMessageReactive(user.id).value;
 
@@ -264,6 +293,7 @@ class ChatUserCard extends StatelessWidget {
       ),
     );
   }
+
 
   void _navigateToChat(BuildContext context) {
     final chatController = Get.find<ChatViewModel>();

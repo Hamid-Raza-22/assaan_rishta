@@ -265,8 +265,8 @@ class ProfileView extends GetView<ProfileController> {
             text: 'Buy Connects',
             iconPath: AppAssets.icReferEarn,
             imageType: ImageType.svg,
-            onTap: () {
-              Get.toNamed(AppRoutes.BUY_CONNECTS_VIEW);
+            onTap: () =>
+              Get.toNamed(AppRoutes.BUY_CONNECTS_VIEW)
 
               // Get.to(
               //   () => const BuyConnectsView(),
@@ -274,7 +274,7 @@ class ProfileView extends GetView<ProfileController> {
               //   transition: Transition.circularReveal,
               //   duration: const Duration(milliseconds: 500),
               // );
-            },
+
           ),
           ClickableListTile(
             text: 'Transaction History',

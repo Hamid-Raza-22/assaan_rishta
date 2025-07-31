@@ -33,7 +33,7 @@ class AppBindings extends Bindings {
     try {
       Get.put<AuthService>(AuthService(), permanent: true);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-
+      await prefs.reload();
       Get.put<StorageRepo>(StorageRepoImpl(prefs), permanent: true);
       Get.put<NetworkHelper>(NetworkHelperImpl(prefs), permanent: true);
       Get.put<EndPoints>(EndPoints(), permanent: true);
@@ -55,7 +55,7 @@ class AppBindings extends Bindings {
       Get.put<UserManagementUseCase>(UserManagementUseCase(Get.find()), permanent: true);
 
       Get.put<ChatViewModel>(ChatViewModel(), permanent: true);
-      // Get.put<ChatListController>(ChatListController(), permanent: true);
+     Get.put<ChatListController>(ChatListController(), permanent: true);
       Get.put<AccountTypeViewModel>(AccountTypeViewModel(), permanent: true);
       // Get.put<BottomNavController>(BottomNavController(), permanent: true);
 
@@ -65,7 +65,7 @@ class AppBindings extends Bindings {
       Get.lazyPut(() => SignupViewModel());
       Get.lazyPut(() => ForgotPasswordController());
       Get.lazyPut(() => BottomNavController());
-      Get.lazyPut(() => ChatListController());
+      // Get.lazyPut(() => ChatListController());
       Get.lazyPut(() => HomeController());
       Get.lazyPut(() => UserDetailsController());
       Get.lazyPut(() => ProfileController());
@@ -83,7 +83,7 @@ class AppBindings extends Bindings {
       Get.lazyPut(() => EditProfileController());
       Get.lazyPut(() => PartnerPreferenceController());
       Get.lazyPut(() => FavoritesController());
-      Get.lazyPut(() => BuyConnectsView());
+      Get.lazyPut(() => BuyConnectsController());
       Get.lazyPut(() => TransactionHistoryController());
       Get.lazyPut(() => ChangePasswordController());
       Get.lazyPut(() => ContactUsController());

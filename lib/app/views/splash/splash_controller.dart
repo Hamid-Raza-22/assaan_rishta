@@ -21,7 +21,7 @@ class SplashController extends BaseController {
     bool status = useCase.userManagementRepo.getUserLoggedInStatus();
     if (status) {
       Timer(
-        const Duration(seconds: 3),
+        const Duration(seconds: 2),
         () {
            Get.offNamed(AppRoutes.BOTTOM_NAV);
           //   () => const BottomNavView(),

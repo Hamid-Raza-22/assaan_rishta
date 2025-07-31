@@ -339,8 +339,9 @@ class NotificationServices {
     }
   }
   // FIXED: Safe navigation method with single navigation call
-// FIXED: Safe navigation method that checks current route
-  _navigateToChatSafely(ChatUser chatUser) async {
+  // In _navigateToChatSafely method, replace the existing implementation:
+
+  Future<void> _navigateToChatSafely(ChatUser chatUser) async {
     if (_isNavigating) {
       debugPrint('⚠️ Navigation already in progress');
       return;
@@ -354,13 +355,6 @@ class NotificationServices {
       debugPrint('🏠 Starting safe navigation to chat...');
       debugPrint('📍 Current route: ${Get.currentRoute}');
 
-      // Check if already in chat with this user using the dynamic route
-      final expectedRoute = AppRoutes.chattingViewWithUser(chatUser.id);
-      if (Get.currentRoute == expectedRoute) {
-        debugPrint('✅ Already in chat with user ${chatUser.name}');
-        return;
-      }
-
       // Ensure controllers are available
       if (!Get.isRegistered<ChatViewModel>()) {
         Get.put(ChatViewModel(), permanent: true);
@@ -369,36 +363,55 @@ class NotificationServices {
         Get.put(ChatListController(), permanent: true);
       }
 
+      final chatController = Get.find<ChatViewModel>();
+
+      // Check if already chatting with this user
+      if (chatController.isChattingWithUser(chatUser.id)) {
+        debugPrint('✅ Already in chat with user ${chatUser.name}');
+        return;
+      }
+
       // Add user to chat list first
       await _addSenderToChatList(chatUser.id);
 
-      // Navigate using the dynamic route
-      if (Get.currentRoute.contains('/chatting_view/')) {
-        // Already in a chat with different user, replace
-        Get.offNamed(
-          expectedRoute,
-          arguments: chatUser,
-          preventDuplicates: false,
+      // FIXED: Better navigation handling when already in chat
+      if (Get.currentRoute.contains('/chatting_view/') ||
+          Get.currentRoute.contains('/chatting-view')) {
+        debugPrint('🔄 Already in chat view, switching to new user...');
+
+        // Exit current chat properly
+        await chatController.exitChat();
+
+        // Small delay to ensure cleanup
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // Navigate to new chat
+        Get.off(
+              () => ChattingView(user: chatUser),
+          transition: Transition.rightToLeft,
+          duration: const Duration(milliseconds: 300),
         );
       }
       else if (Get.currentRoute.contains('/bottom-nav')) {
+
         // In bottom nav, navigate directly
-        Get.toNamed(
-          expectedRoute,
-          arguments: chatUser,
+        Get.to(
+              () => ChattingView(user: chatUser),
+          transition: Transition.rightToLeft,
           preventDuplicates: true,
         );
       }
       else {
-
-        // From any other screen
+        // From any other screen, go through bottom nav
         Get.offAll(
               () => const BottomNavView(index: 2),
-          arguments: {
-            'openChat': true,
-            'chatUser': chatUser,
-          },
+          predicate: (route) => false, // Clear all routes
         );
+
+        // Navigate to chat after bottom nav loads
+        Future.delayed(const Duration(milliseconds: 100), () {
+          Get.to(() => ChattingView(user: chatUser));
+        });
       }
 
       debugPrint('✅ Navigation completed');
@@ -412,6 +425,79 @@ class NotificationServices {
       });
     }
   }
+// FIXED: Safe navigation method that checks current route
+//   _navigateToChatSafely(ChatUser chatUser) async {
+//     if (_isNavigating) {
+//       debugPrint('⚠️ Navigation already in progress');
+//       return;
+//     }
+//
+//     try {
+//       _isNavigating = true;
+//       _lastNavigatedUserId = chatUser.id;
+//       _lastNavigationTime = DateTime.now();
+//
+//       debugPrint('🏠 Starting safe navigation to chat...');
+//       debugPrint('📍 Current route: ${Get.currentRoute}');
+//
+//       // Check if already in chat with this user using the dynamic route
+//       final expectedRoute = AppRoutes.chattingViewWithUser(chatUser.id);
+//       if (Get.currentRoute == expectedRoute) {
+//         debugPrint('✅ Already in chat with user ${chatUser.name}');
+//         return;
+//       }
+//
+//       // Ensure controllers are available
+//       if (!Get.isRegistered<ChatViewModel>()) {
+//         Get.put(ChatViewModel(), permanent: true);
+//       }
+//       if (!Get.isRegistered<ChatListController>()) {
+//         Get.put(ChatListController(), permanent: true);
+//       }
+//
+//       // Add user to chat list first
+//       await _addSenderToChatList(chatUser.id);
+//
+//       // Navigate using the dynamic route
+//       if (Get.currentRoute.contains('/chatting_view/')) {
+//         // Already in a chat with different user, replace
+//         Get.offNamed(
+//           expectedRoute,
+//           arguments: chatUser,
+//           preventDuplicates: false,
+//         );
+//       }
+//       else if (Get.currentRoute.contains('/bottom-nav')) {
+//         // In bottom nav, navigate directly
+//         Get.toNamed(
+//           expectedRoute,
+//           arguments: chatUser,
+//           preventDuplicates: true,
+//         );
+//       }
+//       else {
+//
+//         // From any other screen
+//         Get.offAll(
+//               () => const BottomNavView(index: 2),
+//           arguments: {
+//             'openChat': true,
+//             'chatUser': chatUser,
+//           },
+//         );
+//       }
+//
+//       debugPrint('✅ Navigation completed');
+//
+//     } catch (e) {
+//       debugPrint('❌ Error navigating: $e');
+//       _navigateToBottomNav();
+//     } finally {
+//       Future.delayed(const Duration(seconds: 1), () {
+//         _isNavigating = false;
+//       });
+//     }
+//   }
 
 // Add this helper method to check if already in chat
 //   bool _isAlreadyInChatWithUser(String userId) {

@@ -17,7 +17,8 @@ class ChatListController extends GetxController {
   final RxBool isSearching = false.obs;
   final RxBool isLoading = true.obs;
   final RxBool isRefreshing = false.obs;
-
+// Add this to prevent loading state during navigation
+  final RxBool isNavigatingToChat = false.obs;
   // Deletion tracking
   final RxMap<String, String> deletionTimestamps = <String, String>{}.obs;
 
