@@ -18,6 +18,7 @@ import '../../views/bottom_nav/export.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/profile/export.dart';
 import '../../views/profile/partner_preference/partner_preference_controller.dart';
+import '../../views/splash/export.dart';
 import '../../views/vendor/export.dart';
 import '../services/network_services/export.dart';
 import '../services/storage_services/export.dart';
@@ -36,7 +37,11 @@ class AppBindings extends Bindings {
       Get.put<StorageRepo>(StorageRepoImpl(prefs), permanent: true);
       Get.put<NetworkHelper>(NetworkHelperImpl(prefs), permanent: true);
       Get.put<EndPoints>(EndPoints(), permanent: true);
-
+      Get.lazyPut<SplashController>(
+            () => SplashController(
+          Get.find<UserManagementUseCase>(),
+        ),
+      );
       Get.put<SystemConfigRepo>(
         SystemConfigRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
         permanent: true,
@@ -78,7 +83,7 @@ class AppBindings extends Bindings {
       Get.lazyPut(() => EditProfileController());
       Get.lazyPut(() => PartnerPreferenceController());
       Get.lazyPut(() => FavoritesController());
-      Get.lazyPut(() => BuyConnectsController());
+      Get.lazyPut(() => BuyConnectsView());
       Get.lazyPut(() => TransactionHistoryController());
       Get.lazyPut(() => ChangePasswordController());
       Get.lazyPut(() => ContactUsController());

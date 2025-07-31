@@ -90,7 +90,7 @@ class AsanRishtaApp extends StatelessWidget {
           useMaterial3: true,
         ),
       initialBinding: AppBindings(),
-      initialRoute: AppRoutes.ACCOUNT_TYPE,
+      initialRoute: AppRoutes.SPLASH,
       getPages: AppPages.routes,
       debugShowCheckedModeBanner: false,
     );

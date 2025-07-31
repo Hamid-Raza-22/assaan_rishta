@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/export.dart';
+import '../../core/routes/app_routes.dart';
 import '../../utils/exports.dart';
 import '../../widgets/export.dart';
 import 'export.dart';
@@ -46,15 +47,17 @@ class VendorView extends GetView<VendorController> {
   _categoryItem(context, index) {
     VendorCategory category = controller.vendorCategoryList[index];
     return GestureDetector(
-      // onTap: () {
-      //   Get.to(
+      onTap: () {
+        Get.toNamed(AppRoutes.VENDER_LISTING_VIEW, arguments: category);
+
+        //   Get.to(
       //     () => const VendorListingView(),
       //     binding: AppBindings(),
       //     transition: Transition.circularReveal,
       //     duration: const Duration(milliseconds: 500),
       //     arguments: category,
       //   );
-      // },
+      },
       child: Container(
         margin: const EdgeInsets.all(08),
         decoration: BoxDecoration(

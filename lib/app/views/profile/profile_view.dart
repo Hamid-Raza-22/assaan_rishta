@@ -46,10 +46,7 @@ class ProfileView extends GetView<ProfileController> {
   _appBar(BuildContext context) {
     return const PreferredSize(
       preferredSize: Size(double.infinity, 40),
-      child: CustomAppBar(
-        isBack: false,
-        title: "Profile",
-      ),
+      child: CustomAppBar(isBack: false, title: "Profile"),
     );
   }
 
@@ -82,7 +79,7 @@ class ProfileView extends GetView<ProfileController> {
                       children: [
                         AppText(
                           text:
-                          'Complete Your Profile: ${controller.profileCompleteCount} %',
+                              'Complete Your Profile: ${controller.profileCompleteCount} %',
                           fontSize: 10,
                           fontWeight: FontWeight.w400,
                         ),
@@ -157,20 +154,14 @@ class ProfileView extends GetView<ProfileController> {
         actions: <Widget>[
           CupertinoActionSheetAction(
             onPressed: () {
-              controller.pickImage(
-                context,
-                ImageSource.camera,
-              );
+              controller.pickImage(context, ImageSource.camera);
               Navigator.of(context).pop();
             },
             child: const Text('Camera'),
           ),
           CupertinoActionSheetAction(
             onPressed: () {
-              controller.pickImage(
-                context,
-                ImageSource.gallery,
-              );
+              controller.pickImage(context, ImageSource.gallery);
               Navigator.of(context).pop();
             },
             child: const Text('Gallery'),
@@ -180,10 +171,7 @@ class ProfileView extends GetView<ProfileController> {
           onPressed: () {
             Navigator.of(context).pop();
           },
-          child: const AppText(
-            text: 'Cancel',
-            color: AppColors.redColor,
-          ),
+          child: const AppText(text: 'Cancel', color: AppColors.redColor),
         ),
       ),
     );
@@ -229,6 +217,10 @@ class ProfileView extends GetView<ProfileController> {
             text: 'Edit Profile',
             icon: Icons.edit_outlined,
             onTap: () {
+              Get.toNamed(AppRoutes.PROFILE_EDIT_VIEW)!.then((onValue) {
+                controller.getCurrentUserProfiles();
+              });
+
               // Get.to(
               //   () => const EditProfileView(),
               //   binding: AppBindings(),
@@ -244,6 +236,8 @@ class ProfileView extends GetView<ProfileController> {
             text: 'Partner Preference',
             icon: Icons.person_add_alt_1_outlined,
             onTap: () {
+              Get.toNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
+
               // Get.to(
               //   () => const PartnerPreferenceView(),
               //   binding: AppBindings(),
@@ -257,6 +251,8 @@ class ProfileView extends GetView<ProfileController> {
             iconPath: AppAssets.icFavorites,
             imageType: ImageType.svg,
             onTap: () {
+              Get.toNamed(AppRoutes.FAVORITES_VIEW);
+
               // Get.to(
               //   () => const FavoritesView(),
               //   binding: AppBindings(),
@@ -270,6 +266,8 @@ class ProfileView extends GetView<ProfileController> {
             iconPath: AppAssets.icReferEarn,
             imageType: ImageType.svg,
             onTap: () {
+              Get.toNamed(AppRoutes.BUY_CONNECTS_VIEW);
+
               // Get.to(
               //   () => const BuyConnectsView(),
               //   binding: AppBindings(),
@@ -282,19 +280,23 @@ class ProfileView extends GetView<ProfileController> {
             text: 'Transaction History',
             icon: Icons.history,
             onTap: () {
-            //   Get.to(
-            //     () => const TransactionHistoryView(),
-            //     binding: AppBindings(),
-            //     transition: Transition.circularReveal,
-            //     duration: const Duration(milliseconds: 500),
-            //     arguments: controller.getUserName(),
-            //   );
-             },
+              Get.toNamed(AppRoutes.TRANSACTION_HISTORY_VIEW, arguments: controller.getUserName());
+
+              //   Get.to(
+              //     () => const TransactionHistoryView(),
+              //     binding: AppBindings(),
+              //     transition: Transition.circularReveal,
+              //     duration: const Duration(milliseconds: 500),
+              //     arguments: controller.getUserName(),
+              //   );
+            },
           ),
           ClickableListTile(
             text: 'Change Password',
             icon: Icons.lock_outline,
             onTap: () {
+              Get.toNamed(AppRoutes.CHANGE_PASSWORD_VIEW);
+
               // Get.to(
               //   () => const ChangePasswordView(),
               //   binding: AppBindings(),
@@ -307,6 +309,8 @@ class ProfileView extends GetView<ProfileController> {
             text: 'Contact Us',
             icon: Icons.contact_emergency_outlined,
             onTap: () {
+              Get.toNamed(AppRoutes.CONTACT_US_VIEW);
+
               // Get.to(
               //   () => const ContactUsView(),
               //   binding: AppBindings(),
@@ -320,6 +324,8 @@ class ProfileView extends GetView<ProfileController> {
             iconPath: AppAssets.icTermsOfServices,
             imageType: ImageType.asset,
             onTap: () {
+              Get.toNamed(AppRoutes.ABOUT_US_VIEW);
+
               // Get.to(
               //   () => const AboutUsView(),
               //   binding: AppBindings(),
@@ -332,6 +338,8 @@ class ProfileView extends GetView<ProfileController> {
             text: 'Privacy Policy',
             icon: Icons.privacy_tip_outlined,
             onTap: () {
+              Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE);
+
               // Get.to(() => const InAppWebViewSite(
               //       url: "https://asaanrishta.com/privacy",
               //       title: "Privacy Policy",
@@ -399,20 +407,17 @@ class ProfileView extends GetView<ProfileController> {
                       child: Card(
                         elevation: 0.5,
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(35),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(35)),
                         ),
                         child: Container(
                           alignment: Alignment.center,
                           height: MediaQuery.of(context).size.height * 0.065,
                           decoration: BoxDecoration(
-                              color: Colors.white,
-                              // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(35),
-                              border: Border.all(
-                                color: AppColors.primaryColor,
-                              )),
+                            color: Colors.white,
+                            // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                            borderRadius: BorderRadius.circular(35),
+                            border: Border.all(color: AppColors.primaryColor),
+                          ),
                           child: Text(
                             'Cancel',
                             style: GoogleFonts.poppins(
@@ -434,20 +439,17 @@ class ProfileView extends GetView<ProfileController> {
                       child: Card(
                         elevation: 0.5,
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(35),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(35)),
                         ),
                         child: Container(
                           alignment: Alignment.center,
                           height: MediaQuery.of(context).size.height * 0.065,
                           decoration: BoxDecoration(
-                              color: AppColors.primaryColor,
-                              // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(35),
-                              border: Border.all(
-                                color: AppColors.primaryColor,
-                              )),
+                            color: AppColors.primaryColor,
+                            // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                            borderRadius: BorderRadius.circular(35),
+                            border: Border.all(color: AppColors.primaryColor),
+                          ),
                           child: Text(
                             'Delete',
                             style: GoogleFonts.poppins(
@@ -507,20 +509,17 @@ class ProfileView extends GetView<ProfileController> {
                       child: Card(
                         elevation: 0.5,
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(35),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(35)),
                         ),
                         child: Container(
                           alignment: Alignment.center,
                           height: MediaQuery.of(context).size.height * 0.065,
                           decoration: BoxDecoration(
-                              color: Colors.white,
-                              // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(35),
-                              border: Border.all(
-                                color: AppColors.primaryColor,
-                              )),
+                            color: Colors.white,
+                            // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                            borderRadius: BorderRadius.circular(35),
+                            border: Border.all(color: AppColors.primaryColor),
+                          ),
                           child: Text(
                             'Cancel',
                             style: GoogleFonts.poppins(
@@ -542,20 +541,17 @@ class ProfileView extends GetView<ProfileController> {
                       child: Card(
                         elevation: 0.5,
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(35),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(35)),
                         ),
                         child: Container(
                           alignment: Alignment.center,
                           height: MediaQuery.of(context).size.height * 0.065,
                           decoration: BoxDecoration(
-                              color: AppColors.primaryColor,
-                              // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(35),
-                              border: Border.all(
-                                color: AppColors.primaryColor,
-                              )),
+                            color: AppColors.primaryColor,
+                            // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                            borderRadius: BorderRadius.circular(35),
+                            border: Border.all(color: AppColors.primaryColor),
+                          ),
                           child: Text(
                             'Log Out',
                             style: GoogleFonts.poppins(
@@ -578,30 +574,31 @@ class ProfileView extends GetView<ProfileController> {
 
   getVersionNameWidget() {
     return FutureBuilder(
-        future: controller.getVersionNumber(),
-        builder: (ctx, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            if (snapshot.hasError) {
-              return const Center(
-                child: AppText(
-                  text: 'Version: 1.0.2',
-                  fontSize: 12,
-                  color: Colors.black,
-                ),
-              );
-            } else if (snapshot.hasData) {
-              final data = snapshot.data as String;
-              return Center(
-                child: AppText(
-                  text: 'version: $data',
-                  fontSize: 12,
-                  color: Colors.black,
-                ),
-              );
-            }
+      future: controller.getVersionNumber(),
+      builder: (ctx, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: AppText(
+                text: 'Version: 1.0.2',
+                fontSize: 12,
+                color: Colors.black,
+              ),
+            );
+          } else if (snapshot.hasData) {
+            final data = snapshot.data as String;
+            return Center(
+              child: AppText(
+                text: 'version: $data',
+                fontSize: 12,
+                color: Colors.black,
+              ),
+            );
           }
-          return const SizedBox.shrink();
-        });
+        }
+        return const SizedBox.shrink();
+      },
+    );
   }
 
   profileShimmer(context) {
@@ -611,11 +608,7 @@ class ProfileView extends GetView<ProfileController> {
       baseColor: Colors.grey.shade300,
       highlightColor: Colors.grey.shade100,
       enabled: true,
-      child: BannerPlaceholder(
-        width: w,
-        height: h * 0.25,
-        borderRadius: 10,
-      ),
+      child: BannerPlaceholder(width: w, height: h * 0.25, borderRadius: 10),
     );
   }
 }

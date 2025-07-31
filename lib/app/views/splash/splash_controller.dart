@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:get/get.dart';
 
 import '../../core/base/export.dart';
@@ -22,7 +23,7 @@ class SplashController extends BaseController {
       Timer(
         const Duration(seconds: 3),
         () {
-          // Get.offAll(
+           Get.offNamed(AppRoutes.BOTTOM_NAV);
           //   () => const BottomNavView(),
           //   binding: AppBindings(),
           //   transition: Transition.circularReveal,

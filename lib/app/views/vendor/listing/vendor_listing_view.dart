@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/export.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../utils/exports.dart';
 import '../../../widgets/export.dart';
 import '../export.dart';
@@ -118,7 +119,8 @@ class VendorListingView extends GetView<VendorListingController> {
                   itemBuilder: (context, index) {
                     VendorsList item = controller.vendorList[index];
                     return GestureDetector(
-                      // onTap: () {
+                      onTap: () {
+                        Get.toNamed(AppRoutes.VENDER_DETAILS_VIEW, arguments: item);
                       //   Get.to(
                       //     () => const VendorDetailView(),
                       //     binding: AppBindings(),
@@ -126,7 +128,7 @@ class VendorListingView extends GetView<VendorListingController> {
                       //     duration: const Duration(milliseconds: 500),
                       //     arguments: item,
                       //   );
-                      // },
+                      },
                       child: Container(
                         margin: const EdgeInsets.all(08),
                         decoration: BoxDecoration(

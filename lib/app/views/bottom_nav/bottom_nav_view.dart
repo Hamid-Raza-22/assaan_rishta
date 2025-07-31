@@ -84,8 +84,8 @@ class BottomNavView extends StatelessWidget {
   List<BottomNavigationBarItem> _buildNavItems(int selectedIndex) {
     final items = [
       {'icon': AppAssets.icHome, 'label': 'Home'},
-      {'icon': AppAssets.icVendor, 'label': 'Vendor'},
-      {'icon': AppAssets.icChat, 'label': 'Chat'},
+      {'icon': AppAssets.icVendor, 'label': 'Vendors'},
+      {'icon': AppAssets.icChat, 'label': 'Chats'},
       {'icon': AppAssets.icFilter, 'label': 'Filter'},
       {'icon': AppAssets.icProfile, 'label': 'Profile'},
 

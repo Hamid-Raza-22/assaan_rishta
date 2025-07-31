@@ -393,7 +393,7 @@ class NotificationServices {
 
         // From any other screen
         Get.offAll(
-              () => const BottomNavView(index: 1),
+              () => const BottomNavView(index: 2),
           arguments: {
             'openChat': true,
             'chatUser': chatUser,
