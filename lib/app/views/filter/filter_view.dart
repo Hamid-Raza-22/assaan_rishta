@@ -8,7 +8,7 @@ import '../../core/export.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/filter_viewmodel.dart';
 import '../../widgets/export.dart';
-
+import '../../core/routes/app_routes.dart';
 import '../user_details/user_details_view.dart';
 import 'export.dart';
 
@@ -226,15 +226,17 @@ class FilterView extends GetView<FilterController> {
                       fontColor: AppColors.whiteColor,
                       fontWeight: FontWeight.w500,
                       fontSize: 18,
-                      // onTap: () {
-                      //   Get.to(
+                      onTap: () {
+                        Get.toNamed(AppRoutes.USER_DETAILS_VIEW, arguments: user.userId);
+
+                        //   Get.to(
                       //     () => const UserDetailsView(),
                       //     binding: AppBindings(),
                       //     transition: Transition.downToUp,
                       //     duration: const Duration(milliseconds: 500),
                       //     arguments: user.userId,
                       //   );
-                      // },
+                      },
                     ),
                     const SizedBox(height: 30),
                   ],
