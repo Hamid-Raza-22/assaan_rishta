@@ -198,7 +198,7 @@ class AppPages {
 
         // Fallback if user data is missing
         debugPrint("dhfzfyiziiiiiiiiiiiiiiiiiiiii");
-        return const BottomNavView(index: 1);
+        return const BottomNavView(index: 2);
       },
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 400),

@@ -39,14 +39,26 @@ class FirebaseService {
   static String? _currentChatUserId;
 
   // ADDED: App state management
+// Update the setAppState method to be more accurate
   static void setAppState({bool? isInForeground, bool? isInChat, String? chatUserId}) {
-     if (isInForeground != null) _isAppInForeground = isInForeground;
-    if (isInChat != null) _isInChatScreen = isInChat;
-    if (chatUserId != null) _currentChatUserId = chatUserId;
+    // Only update foreground state if explicitly provided
+    if (isInForeground != null) {
+      _isAppInForeground = isInForeground;
+    }
+
+    if (isInChat != null) {
+      _isInChatScreen = isInChat;
+    }
+
+    if (chatUserId != null) {
+      _currentChatUserId = chatUserId;
+    } else if (isInChat == false) {
+      // Clear chat user ID when exiting chat
+      _currentChatUserId = null;
+    }
 
     debugPrint('📱 App State: Foreground=$_isAppInForeground, InChat=$_isInChatScreen, ChatUser=$_currentChatUserId');
   }
-
   // for checking if user exist or not?
   static Future<bool> userExists(uid) async =>
       (await firestore.collection('Hamid_users').doc(uid).get()).exists;

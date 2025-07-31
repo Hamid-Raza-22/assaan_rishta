@@ -51,6 +51,10 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
       backgroundColor: AppColors.whiteColor,
       appBar: _buildAppBar(),
       body: Obx(() {
+        // Don't show loading if navigating to chat
+        if (listController.isNavigatingToChat.value) {
+          return const SizedBox.shrink();
+        }
         if (listController.isLoading.value && listController.chatUsers.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }

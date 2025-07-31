@@ -78,6 +78,7 @@ class _ChattingViewState extends State<ChattingView>
 
   @override
   void dispose() {
+    chatController.exitChat();
     chatController.setInsideChatStatus(false);
     WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
@@ -240,11 +241,14 @@ class _ChattingViewState extends State<ChattingView>
         return Row(
           children: [
             GestureDetector(
-              onTap: () {
+              onTap: () async {
+                // Ensure proper cleanup before navigation
+                //await chatController.exitChat();
                 if (Navigator.of(context).canPop()) {
                   Get.back();
                 } else {
-                  Get.to(() => const BottomNavView(index: 1));
+                  //await chatController.exitChat();
+                  Get.to(() => const BottomNavView(index: 2));
                 }
               },
               child: const Icon(Icons.arrow_back_ios, color: Colors.black),

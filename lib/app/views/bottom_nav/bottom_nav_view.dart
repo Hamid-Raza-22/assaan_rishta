@@ -1,14 +1,16 @@
 // Optimized bottom_nav_view.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/export.dart';
 import '../../utils/exports.dart';
+import '../chat/chatting_view.dart';
 import 'export.dart';
 
-class BottomNavView extends StatelessWidget {
+class BottomNavView extends StatefulWidget {
   final int index;
 
   const BottomNavView({
@@ -17,6 +19,32 @@ class BottomNavView extends StatelessWidget {
   });
 
   @override
+  State<BottomNavView> createState() => _BottomNavViewState();
+}
+
+class _BottomNavViewState extends State<BottomNavView> {
+  bool _hasHandledNavigation = false;
+  void _checkForPendingChatNavigation() {
+    // Prevent multiple executions
+    if (_hasHandledNavigation) return;
+
+    // Check if coming from notification with chat user
+    final args = Get.arguments;
+    if (args != null && args is Map) {
+      final openChat = args['openChat'] as bool?;
+      final chatUser = args['chatUser'] as ChatUser?;
+
+      if (openChat == true && chatUser != null) {
+        _hasHandledNavigation = true;
+
+        // Navigate to chat after a small delay
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.to(() => ChattingView(user: chatUser));
+        });
+      }
+    }
+  }
+  @override
   Widget build(BuildContext context) {
     // Use Get.find if already exists, otherwise create new
     final BottomNavController controller = Get.isRegistered<BottomNavController>()
@@ -24,13 +52,20 @@ class BottomNavView extends StatelessWidget {
         : Get.put(BottomNavController(), permanent: true);
 
     // Only update tab if different
-    if (controller.selectedTab.value != index) {
-      controller.updateTab(index);
+    if (controller.selectedTab.value != widget.index) {
+      controller.updateTab(widget.index);
     }
 
     // Initialize notifications only once
     if (!controller.isNotificationInitialized) {
       controller.notificationInit(context: context);
+    }
+
+    // Handle notification navigation after view is built
+    if (!_hasHandledNavigation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkForPendingChatNavigation();
+      });
     }
 
     return PopScope(
@@ -41,6 +76,11 @@ class BottomNavView extends StatelessWidget {
         final shouldExit = await _showExitDialog(context, controller);
         if (shouldExit) {
           await controller.cleanUpBeforeExit();
+          if (Platform.isAndroid) {
+            SystemNavigator.pop();
+          } else if (Platform.isIOS) {
+            exit(0);
+          }
           if (context.mounted) {
             Navigator.of(context).pop();
           }

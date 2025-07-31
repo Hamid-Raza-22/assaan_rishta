@@ -39,12 +39,11 @@ class ChatViewModel extends GetxController {
   final RxBool isFromNotification = false.obs;
   // final Map<String, List<Message>> _messageCache = {};
   // Add method to check if chatting with specific user
-  bool isChattingWithUser(String userId) {
-    return selectedUser.value != null && selectedUser.value!.id == userId;
-  }
+
   List<Message>? getCachedMessages(String userId) {
     return _messageCache[userId];
   }
+
   // Get filtered message stream
   Stream<List<Message>> getFilteredMessagesStream(ChatUser user) {
     selectedUser.value = user;
@@ -84,6 +83,7 @@ class ChatViewModel extends GetxController {
     // Refresh messages
     messages.refresh();
   }
+
   // Filter messages based on deletion time
   List<Message> filterMessages(List<Message> allMessages) {
     if (currentChatDeletionTime.value == null) {
@@ -628,12 +628,35 @@ class ChatViewModel extends GetxController {
   }
 
   /// ADDED: Clean exit from chat
+// Add this method to properly exit chat
   Future<void> exitChat() async {
-    if (selectedUser.value != null) {
-      await setInsideChatStatus(false);
-      selectedUser.value = null;
-      debugPrint('👋 Exited chat');
+    try {
+      debugPrint('👋 Exiting current chat...');
+
+      // Clear current chat state
+      if (selectedUser.value != null) {
+        await setInsideChatStatus(false);
+
+        // Cancel any active message streams
+        final userId = selectedUser.value!.id;
+        _activeStreams[userId]?.cancel();
+        _activeStreams.remove(userId);
+
+        // Clear messages and user
+        messages.clear();
+        selectedUser.value = null;
+        currentChatDeletionTime.value = null;
+      }
+
+      debugPrint('✅ Chat exited successfully');
+    } catch (e) {
+      debugPrint('❌ Error exiting chat: $e');
     }
+  }
+
+// Add helper method to check if chatting with specific user
+  bool isChattingWithUser(String userId) {
+    return selectedUser.value != null && selectedUser.value!.id == userId;
   }
 
   @override

@@ -96,7 +96,8 @@ class HomeView extends GetView<HomeController> {
           // );
         }
       },
-      child: Container(
+      child:
+      Container(
         clipBehavior: Clip.hardEdge,
         padding: const EdgeInsets.all(20),
         margin: const EdgeInsets.symmetric(horizontal: 00),
@@ -105,12 +106,12 @@ class HomeView extends GetView<HomeController> {
           color: AppColors.blackColor,
           image: DecorationImage(
             image: user.profileImage != null && user.profileImage!.isNotEmpty
-                ? NetworkImage(user.profileImage!)
+                ? NetworkImage(user.profileImage!) as ImageProvider
                 : AssetImage(
                     user.gender!.toLowerCase() == "male"
                         ? AppAssets.malePlaceholder
                         : AppAssets.femalePlaceholder,
-                  ),
+                  ) as ImageProvider,
             fit: BoxFit.cover,
           ),
           boxShadow: [
