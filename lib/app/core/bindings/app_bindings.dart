@@ -10,11 +10,15 @@ import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/login_viewmodel.dart';
 import '../../viewmodels/home_viewmodel.dart';
+import '../../viewmodels/filter_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import '../../viewmodels/signup_viewmodel.dart';
 import '../../viewmodels/user_details_viewmodel.dart';
 import '../../views/bottom_nav/export.dart';
+import '../../views/forgot_password/export.dart';
 import '../../views/profile/export.dart';
+import '../../views/profile/partner_preference/partner_preference_controller.dart';
+import '../../views/vendor/export.dart';
 import '../services/network_services/export.dart';
 import '../services/storage_services/export.dart';
 
@@ -54,6 +58,7 @@ class AppBindings extends Bindings {
       // Get.Put(() => AccountTypeViewModel());
       Get.lazyPut(() => LoginViewModel());
       Get.lazyPut(() => SignupViewModel());
+      Get.lazyPut(() => ForgotPasswordController());
       Get.lazyPut(() => BottomNavController());
       Get.lazyPut(() => ChatListController());
       Get.lazyPut(() => HomeController());
@@ -65,6 +70,19 @@ class AppBindings extends Bindings {
       Get.lazyPut(() => TransactionHistoryController());
       Get.lazyPut(() => ChangePasswordController());
       Get.lazyPut(() => ContactUsController());
+      Get.lazyPut(() => VendorController());
+      Get.lazyPut(() => FilterController());
+      Get.lazyPut(() => VendorListingController());
+      Get.lazyPut(() => VendorDetailController());
+      Get.lazyPut(() => ProfileDetailsController());
+      Get.lazyPut(() => EditProfileController());
+      Get.lazyPut(() => PartnerPreferenceController());
+      Get.lazyPut(() => FavoritesController());
+      Get.lazyPut(() => BuyConnectsController());
+      Get.lazyPut(() => TransactionHistoryController());
+      Get.lazyPut(() => ChangePasswordController());
+      Get.lazyPut(() => ContactUsController());
+
 
       debugPrint('🎉 All dependencies registered successfully');
     } catch (e) {
