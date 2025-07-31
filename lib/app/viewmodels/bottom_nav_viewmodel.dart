@@ -7,6 +7,8 @@ import 'package:get/get.dart';
 
 import '../core/services/firebase_service/export.dart';
 import '../views/chat/chat_user_listing_view.dart';
+import '../views/filter/export.dart';
+import '../views/vendor/export.dart';
 import '../views/home/home_view.dart';
 import '../views/profile/export.dart';
 import 'chat_viewmodel.dart';
@@ -36,7 +38,9 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   void _initializePages() {
     pages = [
       const HomeView(),
+      const VendorView(),
       const ChatUserListingView(),
+      const FilterView(),
       const ProfileView(),
     ];
   }

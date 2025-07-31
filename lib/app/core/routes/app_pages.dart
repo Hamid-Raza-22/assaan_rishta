@@ -89,7 +89,6 @@ class AppPages {
     GetPage(
       name: AppRoutes.USER_DETAILS_VIEW,
       page: () => const UserDetailsView(),
-
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),
