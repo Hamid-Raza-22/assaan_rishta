@@ -31,41 +31,44 @@ class AppBindings extends Bindings {
     debugPrint('🔧 Initializing AppBindings...');
 
     try {
-      Get.put<AuthService>(AuthService(), permanent: true);
+      Get.lazyPut<AuthService>(() => AuthService(), fenix: true);
+
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.reload();
-      Get.put<StorageRepo>(StorageRepoImpl(prefs), permanent: true);
-      Get.put<NetworkHelper>(NetworkHelperImpl(prefs), permanent: true);
-      Get.put<EndPoints>(EndPoints(), permanent: true);
+      // Get.put<StorageRepo>(StorageRepoImpl(prefs), permanent: true);
+      // Get.put<NetworkHelper>(NetworkHelperImpl(prefs), permanent: true);
+      // Get.put<EndPoints>(EndPoints(), permanent: true);
       Get.lazyPut<SplashController>(
             () => SplashController(
           Get.find<UserManagementUseCase>(),
         ),
       );
-      Get.put<SystemConfigRepo>(
-        SystemConfigRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
-        permanent: true,
-      );
-      Get.put<UserManagementRepo>(
-        UserManagementRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
-        permanent: true,
-      );
+      // Get.put<SystemConfigRepo>(
+      //   SystemConfigRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
+      //   permanent: true,
+      // );
+      // Get.put<UserManagementRepo>(
+      //   UserManagementRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
+      //   permanent: true,
+      // );
+      //
+      // Get.put<SystemConfigUseCase>(SystemConfigUseCase(Get.find()), permanent: true);
+      // Get.put<UserManagementUseCase>(UserManagementUseCase(Get.find()), permanent: true);
 
-      Get.put<SystemConfigUseCase>(SystemConfigUseCase(Get.find()), permanent: true);
-      Get.put<UserManagementUseCase>(UserManagementUseCase(Get.find()), permanent: true);
-
-      Get.put<ChatViewModel>(ChatViewModel(), permanent: true);
-     Get.put<ChatListController>(ChatListController(), permanent: true);
-      Get.put<AccountTypeViewModel>(AccountTypeViewModel(), permanent: true);
+      //Get.put<ChatViewModel>(ChatViewModel(), permanent: true);
+     //Get.put<ChatListController>(ChatListController(), permanent: true);
+     // Get.put<AccountTypeViewModel>(AccountTypeViewModel(), permanent: true);
       // Get.put<BottomNavController>(BottomNavController(), permanent: true);
 
       // Lazy loaded viewmodels
       // Get.Put(() => AccountTypeViewModel());
       Get.lazyPut(() => LoginViewModel());
+      Get.lazyPut(() => AccountTypeViewModel());
+      Get.lazyPut(() => ChatViewModel());
       Get.lazyPut(() => SignupViewModel());
       Get.lazyPut(() => ForgotPasswordController());
       Get.lazyPut(() => BottomNavController());
-      // Get.lazyPut(() => ChatListController());
+      Get.lazyPut(() => ChatListController());
       Get.lazyPut(() => HomeController());
       Get.lazyPut(() => UserDetailsController());
       Get.lazyPut(() => ProfileController());

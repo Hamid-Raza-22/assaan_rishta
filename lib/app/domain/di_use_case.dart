@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import '../viewmodels/chat_list_viewmodel.dart';
+import '../viewmodels/chat_viewmodel.dart';
 import 'export.dart';
 
 Future<void> initializeModelUseCasesDependencies() async {
@@ -10,4 +12,6 @@ Future<void> initializeModelUseCasesDependencies() async {
     () => SystemConfigUseCase(Get.find<SystemConfigRepo>()),
     fenix: true,
   );
+  Get.lazyPut<ChatViewModel>(() => ChatViewModel(), fenix: true);
+  Get.lazyPut<ChatListController>(() => ChatListController(), fenix: true);
 }

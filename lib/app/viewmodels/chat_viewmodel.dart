@@ -1,4 +1,4 @@
-// chat_viewmodel.dart - Fixed for proper navigation and state management
+// chat_viewmodel.dart - Fixed null check error and state management
 
 import 'dart:async';
 
@@ -16,7 +16,7 @@ import 'chat_list_viewmodel.dart';
 
 class ChatViewModel extends GetxController {
   // Cache for storing messages by conversation ID
-   final Map<String, List<Message>> _messageCache = {};
+  final Map<String, List<Message>> _messageCache = {};
   static final Map<String, StreamSubscription> _activeStreams = {};
 
   final ChatRepository _repo = ChatRepository();
@@ -26,9 +26,9 @@ class ChatViewModel extends GetxController {
   var selectedUser = Rxn<ChatUser>();
   var isLoading = false.obs;
   var errorMessage = ''.obs;
+
   // Deletion tracking
   final RxnString currentChatDeletionTime = RxnString();
-
 
   // FIXED: Better navigation state management
   String? pendingChatUserId;
@@ -37,8 +37,6 @@ class ChatViewModel extends GetxController {
   bool _hasHandledNotification = false;
 
   final RxBool isFromNotification = false.obs;
-  // final Map<String, List<Message>> _messageCache = {};
-  // Add method to check if chatting with specific user
 
   List<Message>? getCachedMessages(String userId) {
     return _messageCache[userId];
@@ -71,6 +69,7 @@ class ChatViewModel extends GetxController {
       return filteredMessages;
     });
   }
+
   // Clear deletion record (optional - for "show all messages" feature)
   Future<void> clearDeletionRecord() async {
     if (selectedUser.value == null) return;
@@ -100,9 +99,12 @@ class ChatViewModel extends GetxController {
   void cacheMessages(String userId, List<Message> messages) {
     _messageCache[userId] = messages;
   }
+
   void setNavigationSource({required bool fromNotification}) {
     isFromNotification.value = fromNotification;
-  }/// FIXED: Proper notification navigation handling
+  }
+
+  /// FIXED: Proper notification navigation handling
   Future<void> handlePendingNavigation() async {
     // PREVENT: Multiple navigation attempts
     if (_isNavigatingFromNotification || _hasHandledNotification) {
@@ -225,6 +227,7 @@ class ChatViewModel extends GetxController {
     pendingChatUserId = null;
     debugPrint('🔄 Notification state reset');
   }
+
   // Check and load deletion record for current chat
   Future<void> checkDeletionRecord() async {
     if (selectedUser.value == null) return;
@@ -359,15 +362,19 @@ class ChatViewModel extends GetxController {
 
   /// FIXED: Proper chat status management
   Future<void> setInsideChatStatus(bool isInside, {String? chatUserId}) async {
-    await _repo.insideChatStatus(isInside);
+    try {
+      await _repo.insideChatStatus(isInside);
 
-    // Update Firebase service state
-    FirebaseService.setAppState(
-        isInChat: isInside,
-        chatUserId: chatUserId
-    );
+      // Update Firebase service state
+      FirebaseService.setAppState(
+          isInChat: isInside,
+          chatUserId: chatUserId
+      );
 
-    debugPrint('💬 Chat status updated: ${isInside ? "Inside" : "Outside"} chat${chatUserId != null ? " with $chatUserId" : ""}');
+      debugPrint('💬 Chat status updated: ${isInside ? "Inside" : "Outside"} chat${chatUserId != null ? " with $chatUserId" : ""}');
+    } catch (e) {
+      debugPrint('❌ Error setting chat status: $e');
+    }
   }
 
   Future<bool> userExists(String uid) => _repo.userExists(uid);
@@ -413,17 +420,6 @@ class ChatViewModel extends GetxController {
     });
   }
 
-  // /// Stream for messages (for StreamBuilder)
-  // Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessagesStream(ChatUser user) {
-  //   selectedUser.value = user;
-  //
-  //   // FIXED: Set chat status when viewing messages
-  //   setInsideChatStatus(true, chatUserId: user.id);
-  //
-  //   debugPrint('selectedUser.value: ${selectedUser.value}');
-  //   return _repo.getAllMessages(user);
-  // }
-// In chat_viewmodel.dart - Update getAllMessagesStream method
   Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessagesStream(ChatUser user) {
     selectedUser.value = user;
     setInsideChatStatus(true, chatUserId: user.id);
@@ -466,6 +462,7 @@ class ChatViewModel extends GetxController {
       return snapshot;
     });
   }
+
   /// Stream for user info
   Stream<QuerySnapshot<Map<String, dynamic>>> getUserInfoStream(String uid) {
     return _repo.getUserInfo(uid);
@@ -476,47 +473,32 @@ class ChatViewModel extends GetxController {
   }
 
   /// OPTIMIZED: Faster message sending
-// In ChatViewModel, update sendMessage method:
-
   Future<void> sendMessage(String text) async {
     if (selectedUser.value != null && text.trim().isNotEmpty) {
-      final listController = Get.find<ChatListController>();
+      // Check if ChatListController exists before using it
+      if (Get.isRegistered<ChatListController>()) {
+        final listController = Get.find<ChatListController>();
 
-      // Optimistically update UI
-      await _repo.sendMessageOptimized(
-        selectedUser.value!,
-        text.trim(),
-        Type.text,
-        onMessageCreated: (message) {
-          // Immediately update last message in chat list
-          listController.updateLastMessageLocally(
-            selectedUser.value!.id,
-            message,
-          );
-        },
-      );
+        // Optimistically update UI
+        await _repo.sendMessageOptimized(
+          selectedUser.value!,
+          text.trim(),
+          Type.text,
+          onMessageCreated: (message) {
+            // Immediately update last message in chat list
+            listController.updateLastMessageLocally(
+              selectedUser.value!.id,
+              message,
+            );
+          },
+        );
+      } else {
+        // Fallback to normal send if list controller not available
+        await _repo.sendMessage(selectedUser.value!, text.trim(), Type.text);
+      }
     }
   }
-  /// OPTIMIZED: Faster message sending
-  // Future<void> sendMessage(String text) async {
-  //   debugPrint("🚀 Sending message to ${selectedUser.value?.name}");
-  //
-  //   if (selectedUser.value != null && text.trim().isNotEmpty) {
-  //     try {
-  //       await _repo.sendMessage(selectedUser.value!, text.trim(), Type.text);
-  //       debugPrint("✅ Message sent successfully");
-  //     } catch (e) {
-  //       debugPrint("❌ Error sending message: $e");
-  //       Get.snackbar(
-  //         'Error',
-  //         'Failed to send message',
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //         duration: const Duration(seconds: 2),
-  //       );
-  //     }
-  //   }
-  // }
+
   /// OPTIMIZED: Faster first message
   Future<void> sendFirstMessage(String text) async {
     debugPrint("🚀 Sending first message to ${selectedUser.value?.name}");
@@ -627,34 +609,85 @@ class ChatViewModel extends GetxController {
     });
   }
 
-  /// ADDED: Clean exit from chat
-// Add this method to properly exit chat
-  Future<void> exitChat() async {
+  /// FIXED: Clean exit from chat with null safety and widget lock handling
+  Future<void> exitChat({bool isDisposing = false}) async {
     try {
-      debugPrint('👋 Exiting current chat...');
+      debugPrint('👋 Exiting current chat... (isDisposing: $isDisposing)');
 
-      // Clear current chat state
+      // Clear current chat state with null checks
       if (selectedUser.value != null) {
-        await setInsideChatStatus(false);
-
-        // Cancel any active message streams
+        // Get user ID before clearing
         final userId = selectedUser.value!.id;
+
+        // Cancel any active message streams FIRST
         _activeStreams[userId]?.cancel();
         _activeStreams.remove(userId);
 
-        // Clear messages and user
-        messages.clear();
-        selectedUser.value = null;
-        currentChatDeletionTime.value = null;
+        // Clear data without triggering UI updates during disposal
+        if (isDisposing) {
+          // During disposal, clear data without reactive updates
+          messages.clear();
+          selectedUser.value = null;
+          currentChatDeletionTime.value = null;
+        } else {
+          // Normal exit - safe to update reactive values
+          messages.clear();
+          selectedUser.value = null;
+          currentChatDeletionTime.value = null;
+        }
+
+        // Safely set inside chat status AFTER clearing user
+        if (!isDisposing) {
+          try {
+            await setInsideChatStatus(false);
+          } catch (e) {
+            debugPrint('⚠️ Error setting chat status during exit: $e');
+            // Continue even if this fails
+          }
+        }
+      }
+
+      // FIXED: Reset loading state only if not disposing
+      if (!isDisposing && Get.isRegistered<ChatListController>()) {
+        // Schedule state updates for next frame to avoid widget lock
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (Get.isRegistered<ChatListController>()) {
+            final listController = Get.find<ChatListController>();
+            // Force reset all loading states
+            listController.isLoading.value = false;
+            listController.isRefreshing.value = false;
+            listController.isNavigatingToChat.value = false;
+
+            // Reconnect listeners if needed
+            if (listController.chatUsers.isNotEmpty) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (Get.isRegistered<ChatListController>()) {
+                  listController.reconnectListeners();
+                }
+              });
+            }
+          }
+        });
       }
 
       debugPrint('✅ Chat exited successfully');
     } catch (e) {
-      debugPrint('❌ Error exiting chat: $e');
+      debugPrint('❌ Error exiting chat (handled): $e');
+      // Continue execution even if error occurs
+
+      // Ensure loading states are reset even on error (if not disposing)
+      if (!isDisposing && Get.isRegistered<ChatListController>()) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (Get.isRegistered<ChatListController>()) {
+            final listController = Get.find<ChatListController>();
+            listController.resetAllStates();
+          }
+        });
+      }
     }
   }
 
-// Add helper method to check if chatting with specific user
+  // Add helper method to check if chatting with specific user
   bool isChattingWithUser(String userId) {
     return selectedUser.value != null && selectedUser.value!.id == userId;
   }
@@ -665,7 +698,13 @@ class ChatViewModel extends GetxController {
     // Cancel all active streams when controller is disposed
     _activeStreams.values.forEach((subscription) => subscription.cancel());
     _activeStreams.clear();
-    exitChat();
+
+    // Use isDisposing flag to prevent UI updates during disposal
+    exitChat(isDisposing: true).catchError((e) {
+      debugPrint('⚠️ Error during controller cleanup: $e');
+      return null;
+    });
+
     super.onClose();
   }
 }

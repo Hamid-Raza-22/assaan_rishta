@@ -238,16 +238,28 @@ class _ChattingViewState extends State<ChattingView>
           });
         }
 
+        // Fix: Get image URL with proper validation
+        String imageUrl = '';
+        if (list.isNotEmpty && list[0].image.isNotEmpty) {
+          imageUrl = list[0].image;
+        } else if (widget.user.image.isNotEmpty) {
+          imageUrl = widget.user.image;
+        } else {
+          imageUrl = AppConstants.profileImg; // Use default image
+        }
+
         return Row(
           children: [
             GestureDetector(
               onTap: () async {
                 // Ensure proper cleanup before navigation
-                //await chatController.exitChat();
                 if (Navigator.of(context).canPop()) {
+                  // await chatListController.isRefreshing();
+                  // await chatController.exitChat();
                   Get.back();
                 } else {
-                  //await chatController.exitChat();
+                  // await chatListController.isRefreshing();
+                  // await chatController.exitChat();
                   Get.to(() => const BottomNavView(index: 2));
                 }
               },
@@ -259,12 +271,32 @@ class _ChattingViewState extends State<ChattingView>
                 fit: BoxFit.cover,
                 height: chatMq.height * .05,
                 width: chatMq.height * .05,
-                imageUrl: list.isNotEmpty ? list[0].image : widget.user.image,
-                errorWidget: (c, url, e) => Image.network(AppConstants.profileImg),
-                placeholder: (c, url) => const Icon(
-                  size: 30,
-                  CupertinoIcons.person,
-                  color: Colors.white,
+                imageUrl: imageUrl, // Use validated image URL
+                errorWidget: (c, url, e) => Container(
+                  height: chatMq.height * .05,
+                  width: chatMq.height * .05,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(chatMq.height * .3),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 30,
+                  ),
+                ),
+                placeholder: (c, url) => Container(
+                  height: chatMq.height * .05,
+                  width: chatMq.height * .05,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(chatMq.height * .3),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 30,
+                  ),
                 ),
               ),
             ),

@@ -1,4 +1,4 @@
-// notification_service.dart - FIXED VERSION
+// notification_service.dart - FIXED VERSION with better state management
 
 import 'dart:convert';
 import 'dart:io';
@@ -26,8 +26,8 @@ class NotificationServices {
   static bool _isNavigating = false;
   static String? _lastNavigatedUserId;
   static DateTime? _lastNavigationTime;
-  static Future<String> getAccessToken() async {
 
+  static Future<String> getAccessToken() async {
     Map<String, String> serviceAccountJson = {
       "type": "service_account",
       "project_id": "asaan-rishta-chat",
@@ -163,6 +163,7 @@ class NotificationServices {
       );
     });
   }
+
   // Store FCM token for a user
   static Future<void> storeFCMToken(String userId) async {
     try {
@@ -210,6 +211,7 @@ class NotificationServices {
       debugPrint('❌ Error removing FCM token: $e');
     }
   }
+
   // Update the getDeviceToken method to store it automatically
   Future<String> getDeviceToken() async {
     try {
@@ -256,7 +258,7 @@ class NotificationServices {
     });
   }
 
-  // FIXED: Complete notification handling
+  // FIXED: Complete notification handling with better state management
   Future<void> handleMessage(BuildContext context, RemoteMessage message) async {
     debugPrint('🔔 Notification clicked with data: ${message.data}');
 
@@ -274,6 +276,7 @@ class NotificationServices {
           debugPrint('⚠️ Preventing duplicate navigation to same user');
           return;
         }
+
         try {
           debugPrint('🚀 Creating ChatUser from notification data...');
 
@@ -298,7 +301,7 @@ class NotificationServices {
           debugPrint('✅ ChatUser created: ${chatUser.name}');
 
           // FIXED: Direct navigation without complex logic
-         await _navigateToChatSafely(chatUser);
+          await _navigateToChatSafely(chatUser);
 
         } catch (e) {
           debugPrint('❌ Error in notification handling: $e');
@@ -310,6 +313,7 @@ class NotificationServices {
       }
     }
   }
+
   // Check if should prevent navigation
   bool _shouldPreventNavigation(String userId) {
     final now = DateTime.now();
@@ -338,9 +342,8 @@ class NotificationServices {
       });
     }
   }
-  // FIXED: Safe navigation method with single navigation call
-  // In _navigateToChatSafely method, replace the existing implementation:
 
+  // FIXED: Safe navigation method with better state management
   Future<void> _navigateToChatSafely(ChatUser chatUser) async {
     if (_isNavigating) {
       debugPrint('⚠️ Navigation already in progress');
@@ -364,6 +367,10 @@ class NotificationServices {
       }
 
       final chatController = Get.find<ChatViewModel>();
+      final chatListController = Get.find<ChatListController>();
+
+      // FIXED: Reset any stuck loading states
+      chatListController.resetAllStates();
 
       // Check if already chatting with this user
       if (chatController.isChattingWithUser(chatUser.id)) {
@@ -379,20 +386,30 @@ class NotificationServices {
           Get.currentRoute.contains('/chatting-view')) {
         debugPrint('🔄 Already in chat view, switching to new user...');
 
+        // Set navigation flag to prevent loading
+        chatListController.isNavigatingToChat.value = true;
+
         // Exit current chat properly
         await chatController.exitChat();
 
         // Small delay to ensure cleanup
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 200));
 
         // Navigate to new chat
-        Get.off(
+        Get.to(
               () => ChattingView(user: chatUser),
           transition: Transition.rightToLeft,
           duration: const Duration(milliseconds: 300),
         );
+
+        // Reset navigation flag after navigation
+        Future.delayed(const Duration(milliseconds: 500), () {
+          chatListController.isNavigatingToChat.value = false;
+        });
       }
       else if (Get.currentRoute.contains('/bottom-nav')) {
+        // Set navigation flag
+        chatListController.isNavigatingToChat.value = true;
 
         // In bottom nav, navigate directly
         Get.to(
@@ -400,17 +417,29 @@ class NotificationServices {
           transition: Transition.rightToLeft,
           preventDuplicates: true,
         );
+
+        // Reset navigation flag
+        Future.delayed(const Duration(milliseconds: 300), () {
+          chatListController.isNavigatingToChat.value = false;
+        });
       }
       else {
         // From any other screen, go through bottom nav
-        Get.offAll(
+        chatListController.isNavigatingToChat.value = true;
+
+        Get.to(
               () => const BottomNavView(index: 2),
-          predicate: (route) => false, // Clear all routes
+         // predicate: (route) => false, // Clear all routes
         );
 
         // Navigate to chat after bottom nav loads
-        Future.delayed(const Duration(milliseconds: 100), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.to(() => ChattingView(user: chatUser));
+
+          // Reset navigation flag
+          Future.delayed(const Duration(milliseconds: 300), () {
+            chatListController.isNavigatingToChat.value = false;
+          });
         });
       }
 
@@ -418,114 +447,31 @@ class NotificationServices {
 
     } catch (e) {
       debugPrint('❌ Error navigating: $e');
+
+      // Reset states on error
+      if (Get.isRegistered<ChatListController>()) {
+        final listController = Get.find<ChatListController>();
+        listController.resetAllStates();
+      }
+
       _navigateToBottomNav();
     } finally {
+      // Always reset navigation flag after delay
       Future.delayed(const Duration(seconds: 1), () {
         _isNavigating = false;
+
+        // Final state check
+        if (Get.isRegistered<ChatListController>()) {
+          final listController = Get.find<ChatListController>();
+          if (listController.isLoading.value ||
+              listController.isRefreshing.value ||
+              listController.isNavigatingToChat.value) {
+            listController.resetAllStates();
+          }
+        }
       });
     }
   }
-// FIXED: Safe navigation method that checks current route
-//   _navigateToChatSafely(ChatUser chatUser) async {
-//     if (_isNavigating) {
-//       debugPrint('⚠️ Navigation already in progress');
-//       return;
-//     }
-//
-//     try {
-//       _isNavigating = true;
-//       _lastNavigatedUserId = chatUser.id;
-//       _lastNavigationTime = DateTime.now();
-//
-//       debugPrint('🏠 Starting safe navigation to chat...');
-//       debugPrint('📍 Current route: ${Get.currentRoute}');
-//
-//       // Check if already in chat with this user using the dynamic route
-//       final expectedRoute = AppRoutes.chattingViewWithUser(chatUser.id);
-//       if (Get.currentRoute == expectedRoute) {
-//         debugPrint('✅ Already in chat with user ${chatUser.name}');
-//         return;
-//       }
-//
-//       // Ensure controllers are available
-//       if (!Get.isRegistered<ChatViewModel>()) {
-//         Get.put(ChatViewModel(), permanent: true);
-//       }
-//       if (!Get.isRegistered<ChatListController>()) {
-//         Get.put(ChatListController(), permanent: true);
-//       }
-//
-//       // Add user to chat list first
-//       await _addSenderToChatList(chatUser.id);
-//
-//       // Navigate using the dynamic route
-//       if (Get.currentRoute.contains('/chatting_view/')) {
-//         // Already in a chat with different user, replace
-//         Get.offNamed(
-//           expectedRoute,
-//           arguments: chatUser,
-//           preventDuplicates: false,
-//         );
-//       }
-//       else if (Get.currentRoute.contains('/bottom-nav')) {
-//         // In bottom nav, navigate directly
-//         Get.toNamed(
-//           expectedRoute,
-//           arguments: chatUser,
-//           preventDuplicates: true,
-//         );
-//       }
-//       else {
-//
-//         // From any other screen
-//         Get.offAll(
-//               () => const BottomNavView(index: 2),
-//           arguments: {
-//             'openChat': true,
-//             'chatUser': chatUser,
-//           },
-//         );
-//       }
-//
-//       debugPrint('✅ Navigation completed');
-//
-//     } catch (e) {
-//       debugPrint('❌ Error navigating: $e');
-//       _navigateToBottomNav();
-//     } finally {
-//       Future.delayed(const Duration(seconds: 1), () {
-//         _isNavigating = false;
-//       });
-//     }
-//   }
-
-// Add this helper method to check if already in chat
-//   bool _isAlreadyInChatWithUser(String userId) {
-//     // Check if current route is chatting view
-//     if (!Get.currentRoute.contains('chatting_view')) {
-//       return false;
-//     }
-//
-//     // Check if ChatViewModel exists and has the same user
-//     if (Get.isRegistered<ChatViewModel>()) {
-//       final chatController = Get.find<ChatViewModel>();
-//       final currentChatUser = chatController.selectedUser.value;
-//
-//       if (currentChatUser != null && currentChatUser.id == userId) {
-//         debugPrint('🎯 Already chatting with user: $userId');
-//         return true;
-//       }
-//     }
-//
-//     // Additional check using Get.arguments
-//     final args = Get.arguments;
-//     if (args != null && args is ChatUser && args.id == userId) {
-//       debugPrint('🎯 Already chatting with user (from args): $userId');
-//       return true;
-//     }
-//
-//     return false;
-//   }
 
   // Helper function to add sender to chat list
   Future<void> _addSenderToChatList(String senderId) async {
@@ -553,7 +499,6 @@ class NotificationServices {
   }
 
   // Send notification method
-// Modified sendNotification to check if receiver has valid token
   static Future<void> sendNotification({
     required String senderName,
     required String fcmToken,
