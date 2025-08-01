@@ -1,9 +1,9 @@
-// 1. Updated ChatListController with GetX
-// chat_list_viewmodel.dart
+// chat_list_viewmodel.dart - Fixed loading state management
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import '../core/export.dart';
 import '../domain/export.dart';
@@ -17,8 +17,9 @@ class ChatListController extends GetxController {
   final RxBool isSearching = false.obs;
   final RxBool isLoading = true.obs;
   final RxBool isRefreshing = false.obs;
-// Add this to prevent loading state during navigation
+  // Add this to prevent loading state during navigation
   final RxBool isNavigatingToChat = false.obs;
+
   // Deletion tracking
   final RxMap<String, String> deletionTimestamps = <String, String>{}.obs;
 
@@ -226,13 +227,16 @@ class ChatListController extends GetxController {
         chatUsers.assignAll(newUsers);
         _cleanupStaleListeners(newUsers);
 
+        // FIXED: Reset loading states properly
         isLoading.value = false;
         isRefreshing.value = false;
+        isNavigatingToChat.value = false;
       },
       onError: (error) {
         debugPrint('❌ Error fetching user details: $error');
         isLoading.value = false;
         isRefreshing.value = false;
+        isNavigatingToChat.value = false;
       },
     );
   }
@@ -368,6 +372,7 @@ class ChatListController extends GetxController {
     }
   }
 
+  // FIXED: Force refresh with proper state management
   void forceRefresh() {
     if (isRefreshing.value) return;
 
@@ -375,12 +380,51 @@ class ChatListController extends GetxController {
     _initializeStreams();
     _loadDeletionRecords();
   }
+
+  // FIXED: Reconnect listeners with state check
   void reconnectListeners() {
     debugPrint('🔄 Reconnecting message listeners...');
+
+    // Don't reconnect if navigating to chat
+    if (isNavigatingToChat.value) {
+      debugPrint('⚠️ Skip reconnect - navigating to chat');
+      return;
+    }
+
     for (var user in chatUsers) {
       _listenToUserMessages(user);
     }
+
+    // Ensure loading states are reset
+    isLoading.value = false;
+    isRefreshing.value = false;
   }
+
+  // FIXED: Method to properly reset all states with widget lock check
+  void resetAllStates() {
+    // Check if we can safely update states
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.detached) {
+      debugPrint('⚠️ App detached, skipping state reset');
+      return;
+    }
+
+    // Schedule state updates for next frame if widget tree is locked
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resetStatesInternal();
+      });
+    } else {
+      _resetStatesInternal();
+    }
+  }
+
+  void _resetStatesInternal() {
+    isLoading.value = false;
+    isRefreshing.value = false;
+    isNavigatingToChat.value = false;
+    debugPrint('🔄 All states reset');
+  }
+
   @override
   void onClose() {
     _myUsersSubscription?.cancel();

@@ -71,7 +71,7 @@ class SplashView extends GetView<SplashController> {
                           // (controller.useCase.userManagementRepo
                           //             .getUserLoggedInStatus() ==
                           //         false)
-                          (!authService.isInitialized.value == false)
+                          (!authService.isInitialized.value)
                               ? CustomButton(
                                   text: "Get Started",
                                   isGradient: true,
