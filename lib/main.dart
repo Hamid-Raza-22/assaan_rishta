@@ -84,10 +84,7 @@ class AsanRishtaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Asan Rishta',
-      // theme: ThemeData(
-      //   primarySwatch: Colors.red,
-      //   fontFamily: 'Roboto',
-      // ),
+
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: AppColors.primaryColor,

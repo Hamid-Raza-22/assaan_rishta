@@ -20,8 +20,7 @@ import '../../views/profile/export.dart';
 import '../../views/profile/partner_preference/partner_preference_controller.dart';
 import '../../views/splash/export.dart';
 import '../../views/vendor/export.dart';
-import '../services/network_services/export.dart';
-import '../services/storage_services/export.dart';
+
 
 
 
@@ -32,65 +31,80 @@ class AppBindings extends Bindings {
 
     try {
       Get.lazyPut<AuthService>(() => AuthService(), fenix: true);
+      debugPrint('✅ AuthService registered');
 
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-      // Get.put<StorageRepo>(StorageRepoImpl(prefs), permanent: true);
-      // Get.put<NetworkHelper>(NetworkHelperImpl(prefs), permanent: true);
-      // Get.put<EndPoints>(EndPoints(), permanent: true);
       Get.lazyPut<SplashController>(
             () => SplashController(
           Get.find<UserManagementUseCase>(),
         ),
       );
-      // Get.put<SystemConfigRepo>(
-      //   SystemConfigRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
-      //   permanent: true,
-      // );
-      // Get.put<UserManagementRepo>(
-      //   UserManagementRepoImpl(Get.find(), Get.find(), Get.find(), prefs),
-      //   permanent: true,
-      // );
-      //
-      // Get.put<SystemConfigUseCase>(SystemConfigUseCase(Get.find()), permanent: true);
-      // Get.put<UserManagementUseCase>(UserManagementUseCase(Get.find()), permanent: true);
+      debugPrint('✅ SplashController registered');
 
-      //Get.put<ChatViewModel>(ChatViewModel(), permanent: true);
-     //Get.put<ChatListController>(ChatListController(), permanent: true);
-     // Get.put<AccountTypeViewModel>(AccountTypeViewModel(), permanent: true);
-      // Get.put<BottomNavController>(BottomNavController(), permanent: true);
+      Get.lazyPut(() => LoginViewModel(), fenix: true);
+      debugPrint('✅ LoginViewModel registered');
 
-      // Lazy loaded viewmodels
-      // Get.Put(() => AccountTypeViewModel());
-      Get.lazyPut(() => LoginViewModel());
-      Get.lazyPut(() => AccountTypeViewModel());
-      Get.lazyPut(() => ChatViewModel());
-      Get.lazyPut(() => SignupViewModel());
-      Get.lazyPut(() => ForgotPasswordController());
-      Get.lazyPut(() => BottomNavController());
-      Get.lazyPut(() => ChatListController());
-      Get.lazyPut(() => HomeController());
-      Get.lazyPut(() => UserDetailsController());
-      Get.lazyPut(() => ProfileController());
-      Get.lazyPut(() => ProfileDetailsController());
-      Get.lazyPut(() => EditProfileController());
-      Get.lazyPut(() => FavoritesController());
-      Get.lazyPut(() => TransactionHistoryController());
-      Get.lazyPut(() => ChangePasswordController());
-      Get.lazyPut(() => ContactUsController());
-      Get.lazyPut(() => VendorController());
-      Get.lazyPut(() => FilterController());
-      Get.lazyPut(() => VendorListingController());
-      Get.lazyPut(() => VendorDetailController());
-      Get.lazyPut(() => ProfileDetailsController());
-      Get.lazyPut(() => EditProfileController());
-      Get.lazyPut(() => PartnerPreferenceController());
-      Get.lazyPut(() => FavoritesController());
-      Get.lazyPut(() => BuyConnectsController());
-      Get.lazyPut(() => TransactionHistoryController());
-      Get.lazyPut(() => ChangePasswordController());
-      Get.lazyPut(() => ContactUsController());
+      Get.lazyPut(() => AccountTypeViewModel(), fenix: true);
+      debugPrint('✅ AccountTypeViewModel registered');
 
+      Get.lazyPut(() => ChatViewModel(), fenix: true);
+      debugPrint('✅ ChatViewModel registered');
+
+      Get.lazyPut(() => SignupViewModel(), fenix: true);
+      debugPrint('✅ SignupViewModel registered');
+
+      Get.lazyPut(() => ForgotPasswordController(), fenix: true);
+      debugPrint('✅ ForgotPasswordController registered');
+
+      Get.lazyPut(() => BottomNavController(), fenix: true);
+      debugPrint('✅ BottomNavController registered');
+
+      Get.lazyPut(() => ChatListController(), fenix: true);
+      debugPrint('✅ ChatListController registered');
+
+      Get.lazyPut(() => HomeController(), fenix: true);
+      debugPrint('✅ HomeController registered');
+
+      Get.lazyPut(() => UserDetailsController(), fenix: true);
+      debugPrint('✅ UserDetailsController registered');
+
+      Get.lazyPut(() => ProfileController(), fenix: true);
+      debugPrint('✅ ProfileController registered');
+
+      Get.lazyPut(() => ProfileDetailsController(), fenix: true);
+      debugPrint('✅ ProfileDetailsController registered');
+
+      Get.lazyPut(() => EditProfileController(), fenix: true);
+      debugPrint('✅ EditProfileController registered');
+
+      Get.lazyPut(() => FavoritesController(), fenix: true);
+      debugPrint('✅ FavoritesController registered');
+
+      Get.lazyPut(() => TransactionHistoryController(), fenix: true);
+      debugPrint('✅ TransactionHistoryController registered');
+
+      Get.lazyPut(() => ChangePasswordController(), fenix: true);
+      debugPrint('✅ ChangePasswordController registered');
+
+      Get.lazyPut(() => ContactUsController(), fenix: true);
+      debugPrint('✅ ContactUsController registered');
+
+      Get.lazyPut(() => VendorController(), fenix: true);
+      debugPrint('✅ VendorController registered');
+
+      Get.lazyPut(() => FilterController(), fenix: true);
+      debugPrint('✅ FilterController registered');
+
+      Get.lazyPut(() => VendorListingController(), fenix: true);
+      debugPrint('✅ VendorListingController registered');
+
+      Get.lazyPut(() => VendorDetailController(), fenix: true);
+      debugPrint('✅ VendorDetailController registered');
+
+      Get.lazyPut(() => PartnerPreferenceController(), fenix: true);
+      debugPrint('✅ PartnerPreferenceController registered');
+
+      Get.lazyPut(() => BuyConnectsController(), fenix: true);
+      debugPrint('✅ BuyConnectsController registered');
 
       debugPrint('🎉 All dependencies registered successfully');
     } catch (e) {
@@ -98,3 +112,4 @@ class AppBindings extends Bindings {
     }
   }
 }
+
