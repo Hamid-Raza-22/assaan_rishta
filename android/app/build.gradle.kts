@@ -46,15 +46,15 @@ android {
         }
     }
 
-//    splits {
-//        abi {
-//            isEnable = true
-//            reset()
-//            include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
-//            isUniversalApk = false
-//        }
-//    }
-}
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
+            isUniversalApk = false
+        }
+    }
+}Assalamualaikum we may have Akshay Kumar Job disintegration Bal application for test current police apna blog bolla function V dash E Jessica patient complete Udayan Farm Kijera Hermane finalized Virginia Hirumani finalize
 
 flutter {
     source = "../.."

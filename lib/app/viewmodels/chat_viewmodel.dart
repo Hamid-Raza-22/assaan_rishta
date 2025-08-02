@@ -26,6 +26,7 @@ class ChatViewModel extends GetxController {
   var selectedUser = Rxn<ChatUser>();
   var isLoading = false.obs;
   var errorMessage = ''.obs;
+  final RxMap<String, List<Message>> cachedMessagesPerUser = <String, List<Message>>{}.obs;
 
   // Deletion tracking
   final RxnString currentChatDeletionTime = RxnString();

@@ -1,4 +1,4 @@
-// chat_user_card.dart - Added dismissible swipe-to-delete feature
+// chat_user_card.dart - Fixed to hide online status for blocked users
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -22,16 +22,34 @@ class ChatUserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!Get.isRegistered<ChatViewModel>()) {
+      Get.put(ChatViewModel());
+      debugPrint('💬 ChatViewModel created in _navigateToChat');
+    }
+
     final controller = Get.find<ChatListController>();
+    final chatViewModel = Get.find<ChatViewModel>();
     final size = MediaQuery.of(context).size;
+
+    // Check if blocked - both ways
+    final RxBool isBlockedByOther = false.obs;
+    final RxBool hasBlockedThem = false.obs;
+
+    // Check block status
+    chatViewModel.isBlockedByFriend(user.id).then((value) {
+      isBlockedByOther.value = value;
+    });
+
+    chatViewModel.isUserBlocked(user.id).then((value) {
+      hasBlockedThem.value = value;
+    });
 
     return Dismissible(
       key: Key('dismissible_${user.id}'),
-      direction: DismissDirection.endToStart, // Right to left swipe only
+      direction: DismissDirection.endToStart,
       background: _buildDismissBackground(),
       confirmDismiss: (direction) => _showDeleteConfirmDialog(context),
       onDismissed: (direction) {
-        // Delete the chat
         controller.deleteChat(user);
       },
       child: Card(
@@ -47,19 +65,50 @@ class ChatUserCard extends StatelessWidget {
         child: InkWell(
           onTap: () => _navigateToChat(context),
           onLongPress: () => _showBlockOptions(context),
-          child: ListTile(
-            leading: _buildAvatar(),
-            title: Text(
-              user.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Obx(() => _buildSubtitle(controller)),
-            trailing: Obx(() => _buildTrailing(controller, context)),
-          ),
+          child: Obx(() {
+            // If current user has blocked them, use static data instead of stream
+            if (hasBlockedThem.value) {
+              return ListTile(
+                leading: _buildStaticAvatar(),
+                title: Text(
+                  user.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: _buildSubtitle(controller, isBlockedByOther.value),
+                trailing: _buildTrailing(controller, context, isBlockedByOther.value),
+              );
+            }
+
+            // Otherwise, use the stream for real-time updates
+            return StreamBuilder(
+              stream: chatViewModel.getUserInfoStream(user.id),
+              builder: (context, snapshot) {
+                final data = snapshot.data?.docs;
+                final list = data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
+
+                // Use real-time data if available, otherwise fallback to cached data
+                final displayUser = list.isNotEmpty ? list[0] : user;
+
+                return ListTile(
+                  leading: _buildAvatar(isBlockedByOther.value, displayUser),
+                  title: Text(
+                    displayUser.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: _buildSubtitle(controller, isBlockedByOther.value),
+                  trailing: _buildTrailing(controller, context, isBlockedByOther.value),
+                );
+              },
+            );
+          }),
         ),
       ),
     );
@@ -147,41 +196,41 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
-  // Widget _buildAvatar() {
-  //   return Stack(
-  //     children: [
-  //       CircleAvatar(
-  //         radius: 25,
-  //         backgroundColor: Colors.transparent,
-  //         foregroundImage: user.image.isEmpty
-  //             ? const NetworkImage(AppConstants.profileImg)
-  //             : NetworkImage(user.image),
-  //       ),
-  //       if (user.isOnline)
-  //         Positioned(
-  //           right: 0,
-  //           bottom: 0,
-  //           child: Container(
-  //             height: 8,
-  //             width: 8,
-  //             decoration: BoxDecoration(
-  //               borderRadius: BorderRadius.circular(8),
-  //               color: Colors.green,
-  //             ),
-  //           ),
-  //         ),
-  //     ],
-  //   );
-  // }
-  Widget _buildAvatar() {
+  // Static avatar for blocked users (no online status)
+  Widget _buildStaticAvatar() {
+    return CircleAvatar(
+      radius: 25,
+      backgroundColor: Colors.grey[300],
+      foregroundImage: provider(),
+      child: user.image.isEmpty
+          ? const Icon(
+        Icons.person,
+        color: Colors.grey,
+        size: 30,
+      )
+          : null,
+    );
+  }
+
+  Widget _buildAvatar(bool isBlockedByOther, [ChatUser? displayUser]) {
+    final userToDisplay = displayUser ?? user;
+
     return Stack(
       children: [
         CircleAvatar(
           radius: 25,
-          backgroundColor: Colors.transparent,
-          foregroundImage: provider(), // Using the provider method here
+          backgroundColor: Colors.grey[300],
+          foregroundImage: isBlockedByOther ? null : provider(userToDisplay),
+          child: isBlockedByOther
+              ? const Icon(
+            Icons.person,
+            color: Colors.grey,
+            size: 30,
+          )
+              : null,
         ),
-        if (user.isOnline)
+        // Only show online indicator if not blocked and user is online
+        if (!isBlockedByOther && userToDisplay.isOnline)
           Positioned(
             right: 0,
             bottom: 0,
@@ -198,89 +247,110 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
-  ImageProvider? provider() {
-    return user.image.isEmpty
+  ImageProvider? provider([ChatUser? displayUser]) {
+    final userToDisplay = displayUser ?? user;
+    return userToDisplay.image.isEmpty
         ? const NetworkImage(AppConstants.profileImg)
-        : NetworkImage(user.image);
+        : NetworkImage(userToDisplay.image);
   }
-  Widget _buildSubtitle(ChatListController controller) {
-    final lastMessage = controller.getLastMessageReactive(user.id).value;
 
-    if (lastMessage == null) {
-      return Text(
-        user.about,
-        style: const TextStyle(fontSize: 14, color: Colors.grey),
+  Widget _buildSubtitle(ChatListController controller, bool isBlockedByOther) {
+    if (isBlockedByOther) {
+      return const Text(
+        'Account not available',
+        style: TextStyle(fontSize: 14, color: Colors.grey),
         overflow: TextOverflow.ellipsis,
       );
     }
 
-    final isMe = lastMessage.fromId == currentUID;
+    return Obx(() {
+      final lastMessage = controller.getLastMessageReactive(user.id).value;
 
-    if (lastMessage.type == Type.image) {
+      if (lastMessage == null) {
+        return Text(
+          user.about,
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+          overflow: TextOverflow.ellipsis,
+        );
+      }
+
+      final isMe = lastMessage.fromId == currentUID;
+
+      if (lastMessage.type == Type.image) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isMe) _buildTickIcon(lastMessage.read.isNotEmpty),
+            const Icon(Icons.image_rounded, color: Colors.grey, size: 16),
+            const SizedBox(width: 4),
+            const Text('Photo', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          ],
+        );
+      }
+
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isMe) _buildTickIcon(lastMessage.read.isNotEmpty),
-          const Icon(Icons.image_rounded, color: Colors.grey, size: 16),
-          const SizedBox(width: 4),
-          const Text('Photo', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          Flexible(
+            child: Text(
+              lastMessage.msg,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                fontWeight: lastMessage.read.isEmpty && !isMe
+                    ? FontWeight.w600
+                    : FontWeight.normal,
+              ),
+            ),
+          ),
         ],
       );
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (isMe) _buildTickIcon(lastMessage.read.isNotEmpty),
-        Flexible(
-          child: Text(
-            lastMessage.msg,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-              fontWeight: lastMessage.read.isEmpty && !isMe
-                  ? FontWeight.w600
-                  : FontWeight.normal,
-            ),
-          ),
-        ),
-      ],
-    );
+    });
   }
 
-  Widget _buildTrailing(ChatListController controller, BuildContext context) {
-    final lastMessage = controller.getLastMessageReactive(user.id).value;
+  Widget _buildTrailing(ChatListController controller, BuildContext context, bool isBlockedByOther) {
+    return Obx(() {
+      final lastMessage = controller.getLastMessageReactive(user.id).value;
 
-    if (lastMessage == null) return const SizedBox.shrink();
+      if (lastMessage == null) return const SizedBox.shrink();
 
-    final isUnread = lastMessage.read.isEmpty && lastMessage.fromId != currentUID;
+      final isUnread = lastMessage.read.isEmpty && lastMessage.fromId != currentUID;
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          MyDateUtill.getLastMessageTime(context, lastMessage.sent),
-          style: TextStyle(
-            fontSize: 12,
-            color: isUnread ? Colors.green : Colors.grey,
-            fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        if (isUnread) ...[
-          const SizedBox(height: 2),
-          Container(
-            height: 8,
-            width: 8,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.green,
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isBlockedByOther)
+            Text(
+              MyDateUtill.getLastMessageTime(context, lastMessage.sent),
+              style: TextStyle(
+                fontSize: 12,
+                color: isUnread ? Colors.green : Colors.grey,
+                fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
-          ),
+          if (isUnread && !isBlockedByOther) ...[
+            const SizedBox(height: 2),
+            Container(
+              height: 8,
+              width: 8,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.green,
+              ),
+            ),
+          ],
+          if (isBlockedByOther)
+            const Icon(
+              Icons.block,
+              color: Colors.red,
+              size: 20,
+            ),
         ],
-      ],
-    );
+      );
+    });
   }
 
   Widget _buildTickIcon(bool isRead) {
@@ -294,9 +364,18 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
-
   void _navigateToChat(BuildContext context) {
+    if (!Get.isRegistered<ChatViewModel>()) {
+      Get.put(ChatViewModel());
+      debugPrint('💬 ChatViewModel was not registered, now created.');
+    } else if (Get.isPrepared<ChatViewModel>() && Get.isRegistered<ChatViewModel>()) {
+      debugPrint('💬 ChatViewModel is already available.');
+    }
+
     final chatController = Get.find<ChatViewModel>();
+
+    chatController.setInsideChatStatus(true);
+
     Get.to(() => ChattingView(user: user))?.then((_) {
       chatController.setInsideChatStatus(false);
     });
@@ -311,7 +390,10 @@ class ChatUserCard extends StatelessWidget {
         context: context,
         userId: user.id,
         isBlocked: isBlocked,
-        onBlock: () async => await chatController.blockUser(user.id),
+        onBlock: () async {
+          await chatController.blockUser(user.id);
+          Get.back(); // Close chat if open
+        },
         onUnblock: () async => await chatController.unblockUser(user.id),
       );
     }

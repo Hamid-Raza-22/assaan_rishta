@@ -164,7 +164,7 @@ class AddressPreferencesView extends GetView<SignupViewModel> {
                     if (controller.otherInfoFormKey.currentState!.validate()) {
                       controller.signUpUser(context);
                     }
-                    waitForAdminApproval();
+                   // waitForAdminApproval();
                   },
                 ),
                 const SizedBox(height: 10),

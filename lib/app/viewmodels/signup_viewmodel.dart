@@ -324,6 +324,15 @@ class SignupViewModel extends GetxController {
     phoneController.dispose();
     dobController.dispose();
     passwordController.dispose();
+    aboutYourSelfTEC.dispose();
+    aboutYourPartnerTEC.dispose();
+    selectedGender.close();
+    selectedCity.value ="";
+    selectedCountry.value ="";
+    selectedState.value ="";
+    selectedMaritalStatus.value ="";
+    selectedReligion.value ="";
+    selectedCaste.value ="";
     super.onClose();
   }
 }

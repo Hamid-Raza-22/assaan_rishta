@@ -1051,6 +1051,8 @@ class FirebaseService {
   // Block/Unblock methods remain the same
   static Future<void> blockUser(String userIdToBlock) async {
     try {
+      final currentUserId = useCase.getUserId().toString();
+
       await firestore
           .collection('Hamid_users')
           .doc(useCase.getUserId().toString())
@@ -1058,9 +1060,9 @@ class FirebaseService {
         'blockedUsers.$userIdToBlock': true,
       });
 
-      await firestore.collection('Hamid_users').doc(userIdToBlock).update({
-        'blockedUsers.${useCase.getUserId().toString()}': true,
-      });
+      // await firestore.collection('Hamid_users').doc(userIdToBlock).update({
+      //   'blockedUsers.${useCase.getUserId().toString()}': true,
+      // });
 
       log('User blocked successfully');
     } catch (e) {
@@ -1070,6 +1072,7 @@ class FirebaseService {
 
   static Future<void> unblockUser(String userIdToUnblock) async {
     try {
+      final currentUserId = useCase.getUserId().toString();
       await firestore
           .collection('Hamid_users')
           .doc(useCase.getUserId().toString())
@@ -1077,9 +1080,11 @@ class FirebaseService {
         'blockedUsers.$userIdToUnblock': FieldValue.delete(),
       });
 
-      await firestore.collection('Hamid_users').doc(userIdToUnblock).update({
-        'blockedUsers.${useCase.getUserId().toString()}': FieldValue.delete(),
-      });
+      // DO NOT update the other user's blockedUsers
+      // Remove this part:
+      // await firestore.collection('Hamid_users').doc(userIdToUnblock).update({
+      //   'blockedUsers.${useCase.getUserId().toString()}': FieldValue.delete(),
+      // });
 
       log('User unblocked successfully');
     } catch (e) {
@@ -1088,6 +1093,8 @@ class FirebaseService {
   }
 
   static Future<bool> isUserBlocked(String userId) async {
+    final currentUserId = useCase.getUserId().toString();
+
     final userDoc = await firestore
         .collection('Hamid_users')
         .doc(useCase.getUserId().toString())
@@ -1099,12 +1106,31 @@ class FirebaseService {
       return false;
     }
   }
+  // FIXED: Check if current user is blocked by someone
+  static Future<bool> isBlockedByUser(String userId) async {
+    try {
+      final currentUserId = useCase.getUserId().toString();
+      final otherUserDoc = await firestore
+          .collection('Hamid_users')
+          .doc(userId)
+          .get();
 
-  static Future<bool> isMyFriendBlocked(String userId) async {
-    final userDoc = await firestore.collection('Hamid_users').doc(userId).get();
-    final blockedUsers = userDoc.data()?['blockedUsers'] ?? {};
-    return blockedUsers.containsKey(useCase.getUserId().toString());
+      final blockedUsers = otherUserDoc.data()?['blockedUsers'] ?? {};
+      return blockedUsers.containsKey(currentUserId);
+    } catch (e) {
+      log('Error checking if blocked by user: $e');
+      return false;
+    }
   }
+  // DEPRECATED: Use isBlockedByUser instead
+  static Future<bool> isMyFriendBlocked(String userId) async {
+    return isBlockedByUser(userId);
+  }
+  // static Future<bool> isMyFriendBlocked(String userId) async {
+  //   final userDoc = await firestore.collection('Hamid_users').doc(userId).get();
+  //   final blockedUsers = userDoc.data()?['blockedUsers'] ?? {};
+  //   return blockedUsers.containsKey(useCase.getUserId().toString());
+  // }
 
   deductConnects({required userForId}) async {
     final response = await systemUseCase.deductConnects(

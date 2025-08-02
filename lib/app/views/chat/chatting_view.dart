@@ -1,4 +1,4 @@
-// Fixed ChattingView with optimized loading
+// Optimized ChattingView with better state management and caching
 // chatting_view.dart
 
 import 'dart:async';
@@ -39,11 +39,19 @@ class _ChattingViewState extends State<ChattingView>
   final RxBool _uploading = false.obs;
   final RxBool _paused = false.obs;
   final RxBool isBlocked = false.obs;
+  final RxBool isBlockedByOther = false.obs;
 
-  // Add these variables to manage loading state
+  // Improved loading state management
   final RxBool _isInitialLoading = true.obs;
+  final RxBool _isBlockStatusLoaded = false.obs;
+  final RxBool _showLoading = false.obs;
+
   final RxList<Message> _cachedMessages = <Message>[].obs;
   StreamSubscription<List<Message>>? _messagesSubscription;
+
+  // Cache for user data
+  final Rx<ChatUser?> _cachedUserData = Rx<ChatUser?>(null);
+  StreamSubscription? _userStreamSubscription;
 
   String currentUID = "";
 
@@ -54,26 +62,100 @@ class _ChattingViewState extends State<ChattingView>
     currentUID = useCase.getUserId().toString();
     _textController = TextEditingController();
 
-    // Set chat status and check deletion
+    // Initialize everything in parallel
+    _initializeChat();
+  }
+
+  // Initialize chat with proper loading states
+  Future<void> _initializeChat() async {
+    isBlocked.value = false;
+    isBlockedByOther.value = false;
+    _isBlockStatusLoaded.value = true;
+    // Immediately show cached messages if available
+    if (chatController.cachedMessagesPerUser.containsKey(widget.user.id)) {
+      _cachedMessages.value = chatController.cachedMessagesPerUser[widget.user.id]!;
+    }
+
+    // Set chat status first
     chatController.setInsideChatStatus(true, chatUserId: widget.user.id);
     chatController.checkDeletionRecord();
 
-    // Initialize messages stream
+    // Start all operations in parallel
+    // Start all operations
+     await _checkBlockStatus();
     _initializeMessagesStream();
+    _initializeUserStream();
+  }
+
+  // Check both block statuses with loading state
+  Future<void> _checkBlockStatus() async {
+    try {
+      final results = await Future.wait([
+        chatController.isUserBlocked(widget.user.id),
+        chatController.isBlockedByFriend(widget.user.id),
+      ]);
+
+      isBlocked.value = results[0];
+      isBlockedByOther.value = results[1];
+       //_isBlockStatusLoaded.value = true;
+    } catch (e) {
+      debugPrint('Error checking block status: $e');
+      //_isBlockStatusLoaded.value = true;
+      isBlocked.value = false;
+      isBlockedByOther.value = false;
+    }
+  }
+
+  // Initialize user data stream
+  void _initializeUserStream() {
+    try {
+      _userStreamSubscription = chatController
+          .getUserInfoStream(widget.user.id)
+          .listen((snapshot) {
+        final data = snapshot.docs;
+        if (data.isNotEmpty) {
+          _cachedUserData.value = ChatUser.fromJson(data.first.data());
+
+          // Update block status if user data changes
+          if (_isBlockStatusLoaded.value) {
+            _checkBlockStatus();
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint('Error initializing user stream: $e');
+    }
   }
 
   void _initializeMessagesStream() {
-    _messagesSubscription = chatController
-        .getFilteredMessagesStream(widget.user)
-        .listen((messages) {
-      _cachedMessages.value = messages;
-      if (_isInitialLoading.value) {
+    try {
+      if (chatController.cachedMessagesPerUser.containsKey(widget.user.id)) {
+        _cachedMessages.value = chatController.cachedMessagesPerUser[widget.user.id]!;
         _isInitialLoading.value = false;
       }
 
-      // Mark messages as read
-      _markMessagesAsRead(messages);
-    });
+      _messagesSubscription = chatController
+          .getFilteredMessagesStream(widget.user)
+          .listen((messages) {
+        _cachedMessages.value = messages;
+
+        // Save in controller-level cache
+        chatController.cachedMessagesPerUser[widget.user.id] = messages;
+
+        if (_isInitialLoading.value && _isBlockStatusLoaded.value) {
+          debugPrint('✅ Message stream delivered. Turning off loading.');
+          _isInitialLoading.value = false;
+        }
+
+        if (!_paused.value) {
+          _markMessagesAsRead(messages);
+        }
+      });
+
+    } catch (e) {
+      debugPrint('Error initializing messages stream: $e');
+      _isInitialLoading.value = false;
+    }
   }
 
   @override
@@ -83,6 +165,7 @@ class _ChattingViewState extends State<ChattingView>
     WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
     _messagesSubscription?.cancel();
+    _userStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -92,6 +175,8 @@ class _ChattingViewState extends State<ChattingView>
       case AppLifecycleState.resumed:
         chatController.setInsideChatStatus(true, chatUserId: widget.user.id);
         _paused.value = false;
+        // Mark messages as read when app resumes
+        _markMessagesAsRead(_cachedMessages);
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
@@ -104,11 +189,16 @@ class _ChattingViewState extends State<ChattingView>
   }
 
   void _markMessagesAsRead(List<Message> messages) {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      for (var message in messages) {
-        if (message.fromId != currentUID && message.read.isEmpty) {
-          chatController.markMessageAsRead(message);
-        }
+    if (messages.isEmpty) return;
+
+    // Use a single batch operation for better performance
+    Future.delayed(const Duration(milliseconds: 300), () {
+      final unreadMessages = messages
+          .where((msg) => msg.fromId != currentUID && msg.read.isEmpty)
+          .toList();
+
+      for (var message in unreadMessages) {
+        chatController.markMessageAsRead(message);
       }
     });
   }
@@ -136,61 +226,69 @@ class _ChattingViewState extends State<ChattingView>
           children: [
             Expanded(
               child: Obx(() {
-                // Show loading only on initial load
-                if (_isInitialLoading.value) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                // Only show loading if we have no messages at all (initial load)
+                if (_cachedMessages.isEmpty && _showLoading.value&& !_isBlockStatusLoaded.value) {
+                  return const Center(child: CircularProgressIndicator());
                 }
 
+
                 final messages = _cachedMessages;
+                final blocked = isBlocked.value || isBlockedByOther.value;
 
                 if (messages.isEmpty) {
-                  return Obx(() => Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          chatController.currentChatDeletionTime.value != null
+                          blocked
+                              ? Icons.block_rounded
+                              : chatController.currentChatDeletionTime.value != null
                               ? Icons.restart_alt
                               : Icons.chat_bubble_outline,
                           size: 80,
-                          color: Colors.grey[400],
+                          color: blocked ? Colors.red[300] : Colors.grey[400],
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          chatController.currentChatDeletionTime.value != null
+                          blocked
+                              ? isBlockedByOther.value
+                              ? 'You can no longer message this user'
+                              : 'You have blocked this user'
+                              : chatController.currentChatDeletionTime.value != null
                               ? 'Chat history cleared'
                               : 'No messages yet',
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey[600],
+                            color: blocked ? Colors.red[700] : Colors.grey[600],
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Text(
-                          chatController.currentChatDeletionTime.value != null
-                              ? 'Send a message to start fresh'
-                              : 'Start the conversation',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
+                        if (!blocked)
+                          Text(
+                            chatController.currentChatDeletionTime.value != null
+                                ? 'Send a message to start fresh'
+                                : 'Start the conversation',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 20),
-                        TextButton(
-                          onPressed: () async {
-                            await createUserChat('Hi! 👋');
-                          },
-                          child: const Text(
-                            'Say Hi! 👋',
-                            style: TextStyle(fontSize: 24),
+                        if (!blocked)
+                          TextButton(
+                            onPressed: () async {
+                              await createUserChat('Hi! 👋');
+                            },
+                            child: const Text(
+                              'Say Hi! 👋',
+                              style: TextStyle(fontSize: 24),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                  ));
+                  );
                 }
 
                 return ListView.builder(
@@ -198,10 +296,10 @@ class _ChattingViewState extends State<ChattingView>
                   itemCount: messages.length,
                   padding: EdgeInsets.only(top: chatMq.height * .01),
                   physics: const BouncingScrollPhysics(),
-                  itemBuilder: (ctx, i) => Obx(() => MessageCard(
+                  itemBuilder: (ctx, i) => MessageCard(
                     message: messages[i],
                     pause: _paused.value,
-                  )),
+                  ),
                 );
               }),
             ),
@@ -214,8 +312,22 @@ class _ChattingViewState extends State<ChattingView>
               ),
             )
                 : const SizedBox.shrink()),
-            Obx(() => isBlocked.value ? _buildBlockContainer() : _buildChatInput()),
-            Obx(() => _showEmoji.value ? _buildEmojiPicker(chatMq) : const SizedBox.shrink()),
+            Obx(() {
+              // Show loading while checking block status
+              if (!_isBlockStatusLoaded.value) {
+                return const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(),
+                );
+              }
+
+              return (isBlocked.value || isBlockedByOther.value)
+                  ? _buildBlockContainer()
+                  : _buildChatInput();
+            }),
+            Obx(() => _showEmoji.value
+                ? _buildEmojiPicker(chatMq)
+                : const SizedBox.shrink()),
           ],
         ),
       ),
@@ -225,118 +337,109 @@ class _ChattingViewState extends State<ChattingView>
   Widget _buildAppBar() {
     Size chatMq = MediaQuery.of(context).size;
 
-    return StreamBuilder(
-      stream: chatController.getUserInfoStream(widget.user.id),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.docs;
-        final list = data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
+    return Obx(() {
+      // Use cached user data if available
+      final userData = _cachedUserData.value ?? widget.user;
+      final hasBlockedThem = isBlocked.value;
+      final isBlockedByThem = isBlockedByOther.value;
 
-        // FIXED: Update isBlocked after build completes
-        if (list.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            isBlocked.value = list[0].blockedUsers.contains(currentUID);
-          });
-        }
+      // Get image URL with proper validation
+      String imageUrl = userData.image.isNotEmpty
+          ? userData.image
+          : AppConstants.profileImg;
 
-        // Fix: Get image URL with proper validation
-        String imageUrl = '';
-        if (list.isNotEmpty && list[0].image.isNotEmpty) {
-          imageUrl = list[0].image;
-        } else if (widget.user.image.isNotEmpty) {
-          imageUrl = widget.user.image;
-        } else {
-          imageUrl = AppConstants.profileImg; // Use default image
-        }
-
-        return Row(
-          children: [
-            GestureDetector(
-              onTap: () async {
-                // Ensure proper cleanup before navigation
-                if (Navigator.of(context).canPop()) {
-                  // await chatListController.isRefreshing();
-                  // await chatController.exitChat();
-                  Get.back();
-                } else {
-                  // await chatListController.isRefreshing();
-                  // await chatController.exitChat();
-                  Get.to(() => const BottomNavView(index: 2));
-                }
-              },
-              child: const Icon(Icons.arrow_back_ios, color: Colors.black),
-            ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(chatMq.height * .3),
-              child: CachedNetworkImage(
-                fit: BoxFit.cover,
+      return Row(
+        children: [
+          GestureDetector(
+            onTap: () async {
+              if (Navigator.of(context).canPop()) {
+                Get.back();
+              } else {
+                Get.offAll(() => const BottomNavView(index: 2));
+              }
+            },
+            child: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(chatMq.height * .3),
+            child: CachedNetworkImage(
+              fit: BoxFit.cover,
+              height: chatMq.height * .05,
+              width: chatMq.height * .05,
+              imageUrl: imageUrl,
+              errorWidget: (c, url, e) => Container(
                 height: chatMq.height * .05,
                 width: chatMq.height * .05,
-                imageUrl: imageUrl, // Use validated image URL
-                errorWidget: (c, url, e) => Container(
-                  height: chatMq.height * .05,
-                  width: chatMq.height * .05,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(chatMq.height * .3),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.person,
-                    color: Colors.grey,
-                    size: 30,
-                  ),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(chatMq.height * .3),
                 ),
-                placeholder: (c, url) => Container(
-                  height: chatMq.height * .05,
-                  width: chatMq.height * .05,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(chatMq.height * .3),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.person,
-                    color: Colors.grey,
-                    size: 30,
-                  ),
+                child: const Icon(
+                  CupertinoIcons.person,
+                  color: Colors.grey,
+                  size: 30,
+                ),
+              ),
+              placeholder: (c, url) => Container(
+                height: chatMq.height * .05,
+                width: chatMq.height * .05,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(chatMq.height * .3),
+                ),
+                child: const Icon(
+                  CupertinoIcons.person,
+                  color: Colors.grey,
+                  size: 30,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    list.isNotEmpty ? list[0].name : widget.user.name,
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userData.name,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const SizedBox(height: 3),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                if (!isBlockedByThem && _isBlockStatusLoaded.value)
                   Text(
-                    list.isNotEmpty
-                        ? list[0].isOnline
+                    userData.isOnline
                         ? 'Online'
                         : MyDateUtill.getLastActiveTime(
                       context: context,
-                      lastActive: list[0].lastActive,
-                    )
-                        : MyDateUtill.getLastActiveTime(
-                      context: context,
-                      lastActive: widget.user.lastActive,
+                      lastActive: userData.lastActive,
                     ),
-                    style: const TextStyle(color: Colors.black54, fontSize: 15),
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 15,
+                    ),
                   ),
-                ],
+              ],
+            ),
+          ),
+          // Show block icon if either party has blocked
+          if ((hasBlockedThem || isBlockedByThem) && _isBlockStatusLoaded.value)
+            const Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: Icon(
+                Icons.block,
+                color: Colors.red,
+                size: 24,
               ),
             ),
-          ],
-        );
-      },
-    );
+        ],
+      );
+    });
   }
 
   Widget _buildChatInput() {
@@ -420,7 +523,7 @@ class _ChattingViewState extends State<ChattingView>
           _textController.clear();
 
           // Check if this is first message
-          if (chatController.messages.isEmpty) {
+          if (_cachedMessages.isEmpty) {
             await createUserChat(message);
           } else {
             checkChatUser();
@@ -445,13 +548,21 @@ class _ChattingViewState extends State<ChattingView>
 
   Widget _buildBlockContainer() {
     return Container(
-      padding: const EdgeInsets.only(bottom: 40),
-      child: const Row(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.block, color: AppColors.redColor),
-          SizedBox(width: 10),
-          AppText(text: "You can no longer message this user."),
+          const Icon(Icons.block, color: AppColors.redColor, size: 20),
+          const SizedBox(width: 10),
+          Flexible(
+            child: AppText(
+              text: isBlockedByOther.value
+                  ? "You can no longer message this user"
+                  : "You have blocked this user",
+
+            ),
+          ),
         ],
       ),
     );

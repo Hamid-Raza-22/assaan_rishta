@@ -9,7 +9,7 @@ import '../../viewmodels/auth_service.dart';
 class AccountTypeView extends GetView<AccountTypeViewModel> {
   const AccountTypeView({super.key});
 
-  @override
+
 // account_type_view.dart me auto-login check को safe banao
   @override
   Widget build(BuildContext context) {
