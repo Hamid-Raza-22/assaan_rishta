@@ -1057,16 +1057,16 @@ class FirebaseService {
           .collection('Hamid_users')
           .doc(useCase.getUserId().toString())
           .update({
-        'blockedUsers.$userIdToBlock': true,
+        'blockedUsers.$userIdToBlock': FieldValue.serverTimestamp(),
       });
 
       // await firestore.collection('Hamid_users').doc(userIdToBlock).update({
       //   'blockedUsers.${useCase.getUserId().toString()}': true,
       // });
 
-      log('User blocked successfully');
+      debugPrint('✅ User $userIdToBlock blocked successfully');
     } catch (e) {
-      log('Error blocking user: $e');
+      debugPrint('❌ Error blocking user: $e');
     }
   }
 
@@ -1086,9 +1086,9 @@ class FirebaseService {
       //   'blockedUsers.${useCase.getUserId().toString()}': FieldValue.delete(),
       // });
 
-      log('User unblocked successfully');
+      debugPrint('✅ User $userIdToUnblock unblocked successfully');
     } catch (e) {
-      log('Error unblocking user: $e');
+      debugPrint('❌ Error unblocking user: $e');
     }
   }
 
@@ -1122,6 +1122,7 @@ class FirebaseService {
       return false;
     }
   }
+
   // DEPRECATED: Use isBlockedByUser instead
   static Future<bool> isMyFriendBlocked(String userId) async {
     return isBlockedByUser(userId);

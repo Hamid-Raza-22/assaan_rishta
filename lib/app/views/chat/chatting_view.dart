@@ -1,4 +1,4 @@
-// Optimized ChattingView with better state management and caching
+// Optimized ChattingView with instant block status display
 // chatting_view.dart
 
 import 'dart:async';
@@ -19,90 +19,118 @@ import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../widgets/export.dart';
 import '../bottom_nav/export.dart';
 
-class ChattingView extends StatefulWidget {
+// State Management Controller for ChattingView
+class ChattingViewController extends GetxController with WidgetsBindingObserver {
   final ChatUser user;
+  final bool? initialBlockedStatus;
+  final bool? initialBlockedByOtherStatus;
 
-  const ChattingView({super.key, required this.user});
+  ChattingViewController({
+    required this.user,
+    this.initialBlockedStatus,
+    this.initialBlockedByOtherStatus,
+  });
 
-  @override
-  State<ChattingView> createState() => _ChattingViewState();
-}
-
-class _ChattingViewState extends State<ChattingView>
-    with WidgetsBindingObserver {
+  // Dependencies
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
   final chatListController = Get.find<ChatListController>();
 
-  late TextEditingController _textController;
-  final RxBool _showEmoji = false.obs;
-  final RxBool _uploading = false.obs;
-  final RxBool _paused = false.obs;
-  final RxBool isBlocked = false.obs;
-  final RxBool isBlockedByOther = false.obs;
+  // Text controller
+  late TextEditingController textController;
 
-  // Improved loading state management
-  final RxBool _isInitialLoading = true.obs;
-  final RxBool _isBlockStatusLoaded = false.obs;
-  final RxBool _showLoading = false.obs;
+  // Observable states
+  final showEmoji = false.obs;
+  final uploading = false.obs;
+  final paused = false.obs;
+  late final RxBool isBlocked;
+  late final RxBool isBlockedByOther;
+  final isInitialLoading = true.obs;
+  final showLoading = false.obs;
 
-  final RxList<Message> _cachedMessages = <Message>[].obs;
+  // Messages and user data
+  final cachedMessages = <Message>[].obs;
+  final cachedUserData = Rx<ChatUser?>(null);
+
+  // Stream subscriptions
   StreamSubscription<List<Message>>? _messagesSubscription;
-
-  // Cache for user data
-  final Rx<ChatUser?> _cachedUserData = Rx<ChatUser?>(null);
   StreamSubscription? _userStreamSubscription;
 
   String currentUID = "";
 
   @override
-  void initState() {
-    super.initState();
+  void onInit() {
+    super.onInit();
     WidgetsBinding.instance.addObserver(this);
     currentUID = useCase.getUserId().toString();
-    _textController = TextEditingController();
+    textController = TextEditingController();
 
-    // Initialize everything in parallel
+    // Initialize block status with passed values or false
+    isBlocked = (initialBlockedStatus ?? false).obs;
+    isBlockedByOther = (initialBlockedByOtherStatus ?? false).obs;
+
     _initializeChat();
+  }
+
+  @override
+  void onClose() {
+    chatController.exitChat();
+    chatController.setInsideChatStatus(false);
+    WidgetsBinding.instance.removeObserver(this);
+    textController.dispose();
+    _messagesSubscription?.cancel();
+    _userStreamSubscription?.cancel();
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        chatController.setInsideChatStatus(true, chatUserId: user.id);
+
+        paused.value = false;
+        _markMessagesAsRead(cachedMessages);
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        chatController.setInsideChatStatus(false);
+        paused.value = true;
+        break;
+    }
   }
 
   // Initialize chat with proper loading states
   Future<void> _initializeChat() async {
-    isBlocked.value = false;
-    isBlockedByOther.value = false;
-    _isBlockStatusLoaded.value = true;
     // Immediately show cached messages if available
-    if (chatController.cachedMessagesPerUser.containsKey(widget.user.id)) {
-      _cachedMessages.value = chatController.cachedMessagesPerUser[widget.user.id]!;
+    if (chatController.cachedMessagesPerUser.containsKey(user.id)) {
+      cachedMessages.value = chatController.cachedMessagesPerUser[user.id]!;
     }
 
     // Set chat status first
-    chatController.setInsideChatStatus(true, chatUserId: widget.user.id);
+    chatController.setInsideChatStatus(true, chatUserId: user.id);
     chatController.checkDeletionRecord();
 
     // Start all operations in parallel
-    // Start all operations
-     await _checkBlockStatus();
+    _updateBlockStatus(); // Update in background without waiting
     _initializeMessagesStream();
     _initializeUserStream();
   }
 
-  // Check both block statuses with loading state
-  Future<void> _checkBlockStatus() async {
+  // Update block status in background
+  Future<void> _updateBlockStatus() async {
     try {
       final results = await Future.wait([
-        chatController.isUserBlocked(widget.user.id),
-        chatController.isBlockedByFriend(widget.user.id),
+        chatController.isUserBlocked(user.id),
+        chatController.isBlockedByFriend(user.id),
       ]);
 
       isBlocked.value = results[0];
       isBlockedByOther.value = results[1];
-       //_isBlockStatusLoaded.value = true;
     } catch (e) {
       debugPrint('Error checking block status: $e');
-      //_isBlockStatusLoaded.value = true;
-      isBlocked.value = false;
-      isBlockedByOther.value = false;
     }
   }
 
@@ -110,16 +138,13 @@ class _ChattingViewState extends State<ChattingView>
   void _initializeUserStream() {
     try {
       _userStreamSubscription = chatController
-          .getUserInfoStream(widget.user.id)
+          .getUserInfoStream(user.id)
           .listen((snapshot) {
         final data = snapshot.docs;
         if (data.isNotEmpty) {
-          _cachedUserData.value = ChatUser.fromJson(data.first.data());
-
-          // Update block status if user data changes
-          if (_isBlockStatusLoaded.value) {
-            _checkBlockStatus();
-          }
+          cachedUserData.value = ChatUser.fromJson(data.first.data());
+          // Update block status when user data changes
+          _updateBlockStatus();
         }
       });
     } catch (e) {
@@ -129,62 +154,31 @@ class _ChattingViewState extends State<ChattingView>
 
   void _initializeMessagesStream() {
     try {
-      if (chatController.cachedMessagesPerUser.containsKey(widget.user.id)) {
-        _cachedMessages.value = chatController.cachedMessagesPerUser[widget.user.id]!;
-        _isInitialLoading.value = false;
+      if (chatController.cachedMessagesPerUser.containsKey(user.id)) {
+        cachedMessages.value = chatController.cachedMessagesPerUser[user.id]!;
+        isInitialLoading.value = false;
       }
 
       _messagesSubscription = chatController
-          .getFilteredMessagesStream(widget.user)
+          .getFilteredMessagesStream(user)
           .listen((messages) {
-        _cachedMessages.value = messages;
+        cachedMessages.value = messages;
 
         // Save in controller-level cache
-        chatController.cachedMessagesPerUser[widget.user.id] = messages;
+        chatController.cachedMessagesPerUser[user.id] = messages;
 
-        if (_isInitialLoading.value && _isBlockStatusLoaded.value) {
+        if (isInitialLoading.value) {
           debugPrint('✅ Message stream delivered. Turning off loading.');
-          _isInitialLoading.value = false;
+          isInitialLoading.value = false;
         }
 
-        if (!_paused.value) {
+        if (!paused.value) {
           _markMessagesAsRead(messages);
         }
       });
-
     } catch (e) {
       debugPrint('Error initializing messages stream: $e');
-      _isInitialLoading.value = false;
-    }
-  }
-
-  @override
-  void dispose() {
-    chatController.exitChat();
-    chatController.setInsideChatStatus(false);
-    WidgetsBinding.instance.removeObserver(this);
-    _textController.dispose();
-    _messagesSubscription?.cancel();
-    _userStreamSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        chatController.setInsideChatStatus(true, chatUserId: widget.user.id);
-        _paused.value = false;
-        // Mark messages as read when app resumes
-        _markMessagesAsRead(_cachedMessages);
-        break;
-      case AppLifecycleState.paused:
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.detached:
-      case AppLifecycleState.hidden:
-        chatController.setInsideChatStatus(false);
-        _paused.value = true;
-        break;
+      isInitialLoading.value = false;
     }
   }
 
@@ -203,161 +197,177 @@ class _ChattingViewState extends State<ChattingView>
     });
   }
 
+  // Message sending methods
+  Future<void> sendMessage() async {
+    final message = textController.text.trim();
+    if (message.isNotEmpty) {
+      textController.clear();
+
+      // Check if this is first message
+      if (cachedMessages.isEmpty) {
+        await createUserChat(message);
+      } else {
+        checkChatUser();
+        await chatController.sendMessage(message);
+      }
+    }
+  }
+
+  Future<void> sendHiMessage() async {
+    await createUserChat('Hi! 👋');
+  }
+
+  Future<void> createUserChat(String firstMsg) async {
+    bool isAdded = await chatController.addChatUser(user.id);
+    if (isAdded) {
+      chatController.selectedUser.value = user;
+      await chatController.sendFirstMessage(firstMsg);
+    }
+  }
+
+  void checkChatUser() {
+    unawaited(chatController.addChatUser(user.id));
+  }
+
+  // UI state methods
+  void toggleEmoji() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    showEmoji.value = !showEmoji.value;
+  }
+
+  void hideEmoji() {
+    if (showEmoji.value) {
+      showEmoji.value = false;
+    }
+  }
+
+  void onTextFieldTap() {
+    if (showEmoji.value) {
+      showEmoji.value = false;
+    }
+  }
+
+  // Navigation methods
+  void navigateBack() {
+    if (Navigator.of(Get.context!).canPop()) {
+      Get.back();
+    } else {
+      Get.offAll(() => const BottomNavView(index: 2));
+    }
+  }
+
+  // Getters for computed values
+  ChatUser get currentUserData => cachedUserData.value ?? user;
+
+  bool get isAnyBlocked => isBlocked.value || isBlockedByOther.value;
+
+  String get userImageUrl => currentUserData.image.isNotEmpty
+      ? currentUserData.image
+      : AppConstants.profileImg;
+
+  String get blockMessage => isBlockedByOther.value
+      ? "You can no longer message this user"
+      : "You have blocked this user";
+
+  String get emptyStateMessage {
+    if (isAnyBlocked) {
+      return isBlockedByOther.value
+          ? 'You can no longer message this user'
+          : 'You have blocked this user';
+    }
+
+    if (chatController.currentChatDeletionTime.value != null) {
+      return 'Chat history cleared';
+    }
+
+    return 'No messages yet';
+  }
+
+  String get emptyStateSubtitle {
+    if (isAnyBlocked) return '';
+
+    return chatController.currentChatDeletionTime.value != null
+        ? 'Send a message to start fresh'
+        : 'Start the conversation';
+  }
+
+  IconData get emptyStateIcon {
+    if (isAnyBlocked) return Icons.block_rounded;
+    if (chatController.currentChatDeletionTime.value != null) return Icons.restart_alt;
+    return Icons.chat_bubble_outline;
+  }
+
+  Color? get emptyStateIconColor {
+    return isAnyBlocked ? Colors.red[300] : Colors.grey[400];
+  }
+
+  Color? get emptyStateTextColor {
+    return isAnyBlocked ? Colors.red[700] : Colors.grey[600];
+  }
+}
+
+// Modified ChattingView to accept initial block status
+class ChattingView extends StatelessWidget {
+  final ChatUser user;
+  final bool? isBlocked;
+  final bool? isBlockedByOther;
+
+  const ChattingView({
+    super.key,
+    required this.user,
+    this.isBlocked,
+    this.isBlockedByOther,
+  });
+
   @override
   Widget build(BuildContext context) {
-    Size chatMq = MediaQuery.of(context).size;
+    // Initialize controller with user data and block status
+    final controller = Get.put(
+      ChattingViewController(
+        user: user,
+        initialBlockedStatus: isBlocked,
+        initialBlockedByOtherStatus: isBlockedByOther,
+      ),
+      tag: user.id,
+    );
+
+    // chatting_view.dart - Updated UI components with better empty state handling
+
+    final Size chatMq = MediaQuery.of(context).size;
 
     return PopScope(
-      canPop: !_showEmoji.value,
-      onPopInvoked: (_) {
-        if (_showEmoji.value) {
-          _showEmoji.value = false;
-        }
-      },
+      canPop: !controller.showEmoji.value,
+      onPopInvoked: (_) => controller.hideEmoji(),
       child: Scaffold(
         backgroundColor: AppColors.whiteColor,
         appBar: AppBar(
           backgroundColor: AppColors.whiteColor,
           surfaceTintColor: AppColors.whiteColor,
           automaticallyImplyLeading: false,
-          title: _buildAppBar(),
+          title: _buildAppBar(controller, chatMq),
         ),
         body: Column(
           children: [
-            Expanded(
-              child: Obx(() {
-                // Only show loading if we have no messages at all (initial load)
-                if (_cachedMessages.isEmpty && _showLoading.value&& !_isBlockStatusLoaded.value) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-
-                final messages = _cachedMessages;
-                final blocked = isBlocked.value || isBlockedByOther.value;
-
-                if (messages.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          blocked
-                              ? Icons.block_rounded
-                              : chatController.currentChatDeletionTime.value != null
-                              ? Icons.restart_alt
-                              : Icons.chat_bubble_outline,
-                          size: 80,
-                          color: blocked ? Colors.red[300] : Colors.grey[400],
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          blocked
-                              ? isBlockedByOther.value
-                              ? 'You can no longer message this user'
-                              : 'You have blocked this user'
-                              : chatController.currentChatDeletionTime.value != null
-                              ? 'Chat history cleared'
-                              : 'No messages yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: blocked ? Colors.red[700] : Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (!blocked)
-                          Text(
-                            chatController.currentChatDeletionTime.value != null
-                                ? 'Send a message to start fresh'
-                                : 'Start the conversation',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
-                            ),
-                          ),
-                        const SizedBox(height: 20),
-                        if (!blocked)
-                          TextButton(
-                            onPressed: () async {
-                              await createUserChat('Hi! 👋');
-                            },
-                            child: const Text(
-                              'Say Hi! 👋',
-                              style: TextStyle(fontSize: 24),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  reverse: true,
-                  itemCount: messages.length,
-                  padding: EdgeInsets.only(top: chatMq.height * .01),
-                  physics: const BouncingScrollPhysics(),
-                  itemBuilder: (ctx, i) => MessageCard(
-                    message: messages[i],
-                    pause: _paused.value,
-                  ),
-                );
-              }),
-            ),
-            Obx(() => _uploading.value
-                ? const Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-                : const SizedBox.shrink()),
-            Obx(() {
-              // Show loading while checking block status
-              if (!_isBlockStatusLoaded.value) {
-                return const Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(),
-                );
-              }
-
-              return (isBlocked.value || isBlockedByOther.value)
-                  ? _buildBlockContainer()
-                  : _buildChatInput();
-            }),
-            Obx(() => _showEmoji.value
-                ? _buildEmojiPicker(chatMq)
-                : const SizedBox.shrink()),
+            Expanded(child: _buildMessagesList(controller, chatMq)),
+            _buildUploadingIndicator(controller),
+            _buildBottomSection(controller),
+            _buildEmojiPicker(controller, chatMq),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAppBar() {
-    Size chatMq = MediaQuery.of(context).size;
-
+  Widget _buildAppBar(ChattingViewController controller, Size chatMq) {
     return Obx(() {
-      // Use cached user data if available
-      final userData = _cachedUserData.value ?? widget.user;
-      final hasBlockedThem = isBlocked.value;
-      final isBlockedByThem = isBlockedByOther.value;
-
-      // Get image URL with proper validation
-      String imageUrl = userData.image.isNotEmpty
-          ? userData.image
-          : AppConstants.profileImg;
+      final userData = controller.currentUserData;
+      final hasBlockedThem = controller.isBlocked.value;
+      final isBlockedByThem = controller.isBlockedByOther.value;
 
       return Row(
         children: [
           GestureDetector(
-            onTap: () async {
-              if (Navigator.of(context).canPop()) {
-                Get.back();
-              } else {
-                Get.offAll(() => const BottomNavView(index: 2));
-              }
-            },
+            onTap: controller.navigateBack,
             child: const Icon(Icons.arrow_back_ios, color: Colors.black),
           ),
           ClipRRect(
@@ -366,7 +376,7 @@ class _ChattingViewState extends State<ChattingView>
               fit: BoxFit.cover,
               height: chatMq.height * .05,
               width: chatMq.height * .05,
-              imageUrl: imageUrl,
+              imageUrl: controller.userImageUrl,
               errorWidget: (c, url, e) => Container(
                 height: chatMq.height * .05,
                 width: chatMq.height * .05,
@@ -411,12 +421,12 @@ class _ChattingViewState extends State<ChattingView>
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
-                if (!isBlockedByThem && _isBlockStatusLoaded.value)
+                if (!isBlockedByThem)
                   Text(
                     userData.isOnline
                         ? 'Online'
                         : MyDateUtill.getLastActiveTime(
-                      context: context,
+                      context: Get.context!,
                       lastActive: userData.lastActive,
                     ),
                     style: const TextStyle(
@@ -427,8 +437,7 @@ class _ChattingViewState extends State<ChattingView>
               ],
             ),
           ),
-          // Show block icon if either party has blocked
-          if ((hasBlockedThem || isBlockedByThem) && _isBlockStatusLoaded.value)
+          if (hasBlockedThem || isBlockedByThem)
             const Padding(
               padding: EdgeInsets.only(right: 10),
               child: Icon(
@@ -442,8 +451,136 @@ class _ChattingViewState extends State<ChattingView>
     });
   }
 
-  Widget _buildChatInput() {
-    Size chatMq = MediaQuery.of(context).size;
+  // FIXED: Better messages list with improved empty state
+  Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
+    return Obx(() {
+      final messages = controller.cachedMessages;
+      final isLoading = controller.isInitialLoading.value;
+
+      // Show loading indicator only on first load without cached data
+      if (isLoading && messages.isEmpty) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      }
+
+      // Show messages if available
+      if (messages.isNotEmpty) {
+        return ListView.builder(
+          reverse: true,
+          itemCount: messages.length,
+          padding: EdgeInsets.only(top: chatMq.height * .01),
+          physics: const BouncingScrollPhysics(),
+          itemBuilder: (ctx, i) => MessageCard(
+            message: messages[i],
+            pause: controller.paused.value,
+          ),
+        );
+      }
+
+      // Show appropriate empty state
+      return _buildEmptyState(controller);
+    });
+  }
+
+  // FIXED: Smarter empty state that distinguishes between different scenarios
+  Widget _buildEmptyState(ChattingViewController controller) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            controller.emptyStateIcon,
+            size: 80,
+            color: controller.emptyStateIconColor,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            controller.emptyStateMessage,
+            style: TextStyle(
+              fontSize: 18,
+              color: controller.emptyStateTextColor,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          if (controller.emptyStateSubtitle.isNotEmpty)
+            Text(
+              controller.emptyStateSubtitle,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 20),
+
+          // FIXED: Show different actions based on state
+          if (!controller.isAnyBlocked) ...[
+            // For deleted chats, show restore option
+            if (controller.chatController.shouldShowHistoryCleared(controller.user.id)) ...[
+              TextButton.icon(
+                onPressed: () async {
+                  await controller.chatController.clearDeletionRecord();
+                  Get.snackbar(
+                    'Chat Restored',
+                    'All message history is now visible',
+                    backgroundColor: Colors.green,
+                    colorText: Colors.white,
+                    duration: const Duration(seconds: 2),
+                  );
+                },
+                icon: const Icon(Icons.restore),
+                label: const Text('Show All Messages'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'or',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // Show "Say Hi" button for all non-blocked chats
+            TextButton(
+              onPressed: controller.sendHiMessage,
+              child: const Text(
+                'Say Hi! 👋',
+                style: TextStyle(fontSize: 24),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadingIndicator(ChattingViewController controller) {
+    return Obx(() => controller.uploading.value
+        ? const Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    )
+        : const SizedBox.shrink());
+  }
+
+  Widget _buildBottomSection(ChattingViewController controller) {
+    return Obx(() {
+      return controller.isAnyBlocked
+          ? _buildBlockContainer(controller)
+          : _buildChatInput(controller);
+    });
+  }
+
+  Widget _buildChatInput(ChattingViewController controller) {
+    final Size chatMq = MediaQuery.of(Get.context!).size;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -464,15 +601,11 @@ class _ChattingViewState extends State<ChattingView>
                   SizedBox(width: chatMq.width * .02),
                   Expanded(
                     child: TextField(
-                      controller: _textController,
+                      controller: controller.textController,
                       textCapitalization: TextCapitalization.sentences,
                       keyboardType: TextInputType.multiline,
                       maxLines: null,
-                      onTap: () {
-                        if (_showEmoji.value) {
-                          _showEmoji.value = false;
-                        }
-                      },
+                      onTap: controller.onTextFieldTap,
                       decoration: InputDecoration(
                         hintText: 'Write here ...',
                         hintStyle: GoogleFonts.poppins(
@@ -484,10 +617,7 @@ class _ChattingViewState extends State<ChattingView>
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                      _showEmoji.value = !_showEmoji.value;
-                    },
+                    onTap: controller.toggleEmoji,
                     child: Container(
                       height: 30,
                       width: 30,
@@ -509,28 +639,15 @@ class _ChattingViewState extends State<ChattingView>
             ),
           ),
           const SizedBox(width: 5),
-          _buildSendButton(),
+          _buildSendButton(controller),
         ],
       ),
     );
   }
 
-  Widget _buildSendButton() {
+  Widget _buildSendButton(ChattingViewController controller) {
     return GestureDetector(
-      onTap: () async {
-        final message = _textController.text.trim();
-        if (message.isNotEmpty) {
-          _textController.clear();
-
-          // Check if this is first message
-          if (_cachedMessages.isEmpty) {
-            await createUserChat(message);
-          } else {
-            checkChatUser();
-            await chatController.sendMessage(message);
-          }
-        }
-      },
+      onTap: controller.sendMessage,
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
@@ -546,7 +663,7 @@ class _ChattingViewState extends State<ChattingView>
     );
   }
 
-  Widget _buildBlockContainer() {
+  Widget _buildBlockContainer(ChattingViewController controller) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       margin: const EdgeInsets.only(bottom: 20),
@@ -557,10 +674,7 @@ class _ChattingViewState extends State<ChattingView>
           const SizedBox(width: 10),
           Flexible(
             child: AppText(
-              text: isBlockedByOther.value
-                  ? "You can no longer message this user"
-                  : "You have blocked this user",
-
+              text: controller.blockMessage,
             ),
           ),
         ],
@@ -568,11 +682,12 @@ class _ChattingViewState extends State<ChattingView>
     );
   }
 
-  Widget _buildEmojiPicker(Size chatMq) {
-    return SizedBox(
+  Widget _buildEmojiPicker(ChattingViewController controller, Size chatMq) {
+    return Obx(() => controller.showEmoji.value
+        ? SizedBox(
       height: chatMq.height * .35,
       child: EmojiPicker(
-        textEditingController: _textController,
+        textEditingController: controller.textController,
         config: Config(
           bottomActionBarConfig: const BottomActionBarConfig(
             showBackspaceButton: false,
@@ -599,18 +714,26 @@ class _ChattingViewState extends State<ChattingView>
           ),
         ),
       ),
-    );
+    )
+        : const SizedBox.shrink());
   }
+}
 
-  Future<void> createUserChat(String firstMsg) async {
-    bool isAdded = await chatController.addChatUser(widget.user.id);
-    if (isAdded) {
-      chatController.selectedUser.value = widget.user;
-      await chatController.sendFirstMessage(firstMsg);
-    }
-  }
+// Helper extension for navigation with block status
+extension ChattingViewNavigation on ChattingView {
+  static Future<void> navigateWithBlockStatus({
+    required ChatUser user,
+    required ChatViewModel chatController,
+  }) async {
+    final results = await Future.wait([
+      chatController.isUserBlocked(user.id),
+      chatController.isBlockedByFriend(user.id),
+    ]);
 
-  void checkChatUser() {
-    unawaited(chatController.addChatUser(widget.user.id));
+    Get.to(() => ChattingView(
+      user: user,
+      isBlocked: results[0],
+      isBlockedByOther: results[1],
+    ));
   }
 }

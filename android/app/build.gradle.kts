@@ -8,6 +8,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+
 android {
     namespace = "com.hamid.assaan_rishta"
     compileSdk = 36  // Updated from 36 to 34 (stable version)
@@ -54,8 +55,7 @@ android {
             isUniversalApk = false
         }
     }
-}Assalamualaikum we may have Akshay Kumar Job disintegration Bal application for test current police apna blog bolla function V dash E Jessica patient complete Udayan Farm Kijera Hermane finalized Virginia Hirumani finalize
-
+}
 flutter {
     source = "../.."
 }
@@ -64,11 +64,6 @@ dependencies {
     // Core Android and Kotlin dependencies
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10")
-
-    // Flutter Engine dependencies (ESSENTIAL for fixing unresolved references)
-//    implementation("io.flutter:flutter_embedding_debug:1.0.0-4f9d92fbbf951021ca5b2c659e1b95ddd6c1b296")
-//    implementation("io.flutter:flutter_embedding_profile:1.0.0-4f9d92fbbf951021ca5b2c659e1b95ddd6c1b1296")
-//    implementation("io.flutter:flutter_embedding_release:1.0.0-4f9d92fbbf951021ca5b2c659e1b95ddd6c1b1296")
 
     // AndroidX dependencies for better compatibility
     implementation("androidx.core:core-ktx:1.12.0")
