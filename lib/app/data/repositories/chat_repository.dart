@@ -192,5 +192,6 @@ class ChatRepository {
 
   Future<bool> isMyFriendBlocked(String userId) =>
       FirebaseService.isMyFriendBlocked(userId);
+
 }
 

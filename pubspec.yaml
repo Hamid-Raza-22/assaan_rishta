@@ -78,6 +78,7 @@ dependencies:
   intl_phone_field: ^3.2.0
   flutter_inappwebview: ^6.1.5
   photo_view: ^0.15.0
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:

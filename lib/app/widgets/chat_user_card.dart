@@ -1,5 +1,7 @@
-// chat_user_card.dart - Fixed to hide online status for blocked users
+// chat_user_card.dart - FIXED: Block status listeners to match actual Firestore structure
 
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -9,6 +11,243 @@ import '../viewmodels/chat_list_viewmodel.dart';
 import '../viewmodels/chat_viewmodel.dart';
 import '../views/chat/export.dart';
 import 'export.dart';
+
+// Controller for managing ChatUserCard state
+class ChatUserCardController extends GetxController {
+  final String userId;
+  final String currentUID;
+  final ChatUser user;
+
+  ChatUserCardController({
+    required this.userId,
+    required this.currentUID,
+    required this.user,
+  });
+
+  late final ChatListController listController;
+  late final ChatViewModel chatViewModel;
+
+  final RxBool isBlockedByOther = false.obs;
+  final RxBool hasBlockedThem = false.obs;
+  final RxBool isBlockStatusLoaded = false.obs;
+
+  StreamSubscription? _userStreamSubscription;
+  StreamSubscription? _blockStatusSubscription;
+  StreamSubscription? _blockedByOtherSubscription;
+
+  @override
+  void onInit() {
+    super.onInit();
+
+    if (!Get.isRegistered<ChatViewModel>()) {
+      Get.put(ChatViewModel());
+      debugPrint('💬 ChatViewModel created in ChatUserCard');
+    }
+
+    listController = Get.find<ChatListController>();
+    chatViewModel = Get.find<ChatViewModel>();
+
+    // Check block status once on init
+    _checkBlockStatus();
+
+    // Setup real-time listeners for block status
+    _setupBlockStatusListeners();
+  }
+
+  @override
+  void onClose() {
+    // Cancel all subscriptions first
+    _userStreamSubscription?.cancel();
+    _blockStatusSubscription?.cancel();
+    _blockedByOtherSubscription?.cancel();
+
+    // Clear references
+    _userStreamSubscription = null;
+    _blockStatusSubscription = null;
+    _blockedByOtherSubscription = null;
+
+    super.onClose();
+  }
+
+  Future<void> _checkBlockStatus() async {
+    try {
+      final results = await Future.wait([
+        chatViewModel.isBlockedByFriend(userId),
+        chatViewModel.isUserBlocked(userId),
+      ]);
+
+      isBlockedByOther.value = results[0];
+      hasBlockedThem.value = results[1];
+      isBlockStatusLoaded.value = true;
+
+      debugPrint('🔍 Block status checked - BlockedByOther: ${isBlockedByOther.value}, HasBlockedThem: ${hasBlockedThem.value}');
+
+      // Only setup stream if not blocked
+      if (!hasBlockedThem.value && !isBlockedByOther.value) {
+        _setupUserStream();
+      }
+    } catch (e) {
+      debugPrint('Error checking block status: $e');
+      isBlockStatusLoaded.value = true;
+    }
+  }
+
+  // FIXED: Listen to the correct Firestore structure
+  void _setupBlockStatusListeners() {
+    // Cancel any existing subscriptions first
+    _blockStatusSubscription?.cancel();
+    _blockedByOtherSubscription?.cancel();
+
+    // FIXED: Listen to the main user document's blockedUsers field (not subcollection)
+    _blockStatusSubscription = FirebaseFirestore.instance
+        .collection('Hamid_users')
+        .doc(currentUID)
+        .snapshots()
+        .listen(
+          (snapshot) {
+        // Check if controller is still registered
+        if (!Get.isRegistered<ChatUserCardController>(tag: 'chat_card_$userId')) {
+          return;
+        }
+
+        if (!snapshot.exists) return;
+
+        final userData = snapshot.data();
+        final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
+
+        final wasBlocked = hasBlockedThem.value;
+        hasBlockedThem.value = blockedUsers.containsKey(userId);
+
+        debugPrint('📱 Block status updated - User $userId blocked by me: ${hasBlockedThem.value}');
+
+        // Force UI update when unblocking
+        if (wasBlocked && !hasBlockedThem.value) {
+          debugPrint('🔓 User unblocked, forcing UI update');
+          Future.delayed(const Duration(milliseconds: 100), () {
+            update(); // Force GetX to rebuild
+          });
+        }
+
+        // Update stream based on block status
+        if (hasBlockedThem.value) {
+          _userStreamSubscription?.cancel();
+          _userStreamSubscription = null;
+        } else if (!isBlockedByOther.value) {
+          _setupUserStream();
+        }
+      },
+      onError: (error) {
+        debugPrint('Error in block status stream: $error');
+      },
+      cancelOnError: false,
+    );
+
+    // FIXED: Listen to other user's main document blockedUsers field
+    _blockedByOtherSubscription = FirebaseFirestore.instance
+        .collection('Hamid_users')
+        .doc(userId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+        // Check if controller is still registered
+        if (!Get.isRegistered<ChatUserCardController>(tag: 'chat_card_$userId')) {
+          return;
+        }
+
+        if (!snapshot.exists) return;
+
+        final userData = snapshot.data();
+        final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
+
+        final wasBlockedByOther = isBlockedByOther.value;
+        isBlockedByOther.value = blockedUsers.containsKey(currentUID);
+
+        debugPrint('👤 Blocked by other status updated - User $userId blocked me: ${isBlockedByOther.value}');
+
+        // Force UI update when other user unblocks
+        if (wasBlockedByOther && !isBlockedByOther.value) {
+          debugPrint('🔓 Unblocked by other user, forcing UI update');
+          Future.delayed(const Duration(milliseconds: 100), () {
+            update(); // Force GetX to rebuild
+          });
+        }
+
+        // Update stream based on block status
+        if (isBlockedByOther.value) {
+          _userStreamSubscription?.cancel();
+          _userStreamSubscription = null;
+        } else if (!hasBlockedThem.value) {
+          _setupUserStream();
+        }
+      },
+      onError: (error) {
+        debugPrint('Error in blocked by other stream: $error');
+      },
+      cancelOnError: false,
+    );
+  }
+
+  void _setupUserStream() {
+    // Cancel existing subscription
+    _userStreamSubscription?.cancel();
+    _userStreamSubscription = null;
+
+    // Only setup stream if not blocked and controller is still registered
+    if (!hasBlockedThem.value && !isBlockedByOther.value &&
+        Get.isRegistered<ChatUserCardController>(tag: 'chat_card_$userId')) {
+
+      debugPrint('📺 Setting up user stream for $userId');
+
+      _userStreamSubscription = chatViewModel
+          .getUserInfoStream(userId)
+          .listen((snapshot) {
+        // Check if controller is still registered before updating
+        if (!Get.isRegistered<ChatUserCardController>(tag: 'chat_card_$userId')) {
+          _userStreamSubscription?.cancel();
+          _userStreamSubscription = null;
+          return;
+        }
+
+        if (snapshot.docs.isNotEmpty) {
+          debugPrint('👤 User data updated for $userId');
+          // Force UI update when user data changes
+          update();
+        }
+      });
+    }
+  }
+
+  Future<void> handleBlock() async {
+    debugPrint('🚫 Blocking user $userId');
+    await chatViewModel.blockUser(userId);
+    // Cancel stream when blocking
+    _userStreamSubscription?.cancel();
+    _userStreamSubscription = null;
+
+    // Force immediate UI update
+    hasBlockedThem.value = true;
+    update();
+  }
+
+  Future<void> handleUnblock() async {
+    debugPrint('✅ Unblocking user $userId');
+    await chatViewModel.unblockUser(userId);
+
+    // Force immediate UI update
+    hasBlockedThem.value = false;
+    update();
+
+    // Re-setup stream when unblocking with a small delay
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!hasBlockedThem.value && !isBlockedByOther.value) {
+        _setupUserStream();
+      }
+    });
+  }
+
+  // Helper method to get current block status
+  bool get isCurrentlyBlocked => hasBlockedThem.value || isBlockedByOther.value;
+}
 
 class ChatUserCard extends StatelessWidget {
   final String currentUID;
@@ -22,35 +261,34 @@ class ChatUserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<ChatViewModel>()) {
-      Get.put(ChatViewModel());
-      debugPrint('💬 ChatViewModel created in _navigateToChat');
+    // Create unique controller for this card
+    final String tag = 'chat_card_${user.id}';
+
+    if (!Get.isRegistered<ChatUserCardController>(tag: tag)) {
+      Get.put(
+        ChatUserCardController(
+          userId: user.id,
+          currentUID: currentUID,
+          user: user,
+        ),
+        tag: tag,
+      );
     }
 
-    final controller = Get.find<ChatListController>();
-    final chatViewModel = Get.find<ChatViewModel>();
+    final controller = Get.find<ChatUserCardController>(tag: tag);
     final size = MediaQuery.of(context).size;
-
-    // Check if blocked - both ways
-    final RxBool isBlockedByOther = false.obs;
-    final RxBool hasBlockedThem = false.obs;
-
-    // Check block status
-    chatViewModel.isBlockedByFriend(user.id).then((value) {
-      isBlockedByOther.value = value;
-    });
-
-    chatViewModel.isUserBlocked(user.id).then((value) {
-      hasBlockedThem.value = value;
-    });
 
     return Dismissible(
       key: Key('dismissible_${user.id}'),
       direction: DismissDirection.endToStart,
       background: _buildDismissBackground(),
-      confirmDismiss: (direction) => _showDeleteConfirmDialog(context),
+      confirmDismiss: (direction) => _showDeleteConfirmDialog(context, controller),
       onDismissed: (direction) {
-        controller.deleteChat(user);
+        // Clean up controller first before deleting chat
+        if (Get.isRegistered<ChatUserCardController>(tag: tag)) {
+          Get.delete<ChatUserCardController>(tag: tag, force: true);
+        }
+        controller.listController.deleteChat(user);
       },
       child: Card(
         key: ValueKey('chat_card_${user.id}'),
@@ -63,52 +301,65 @@ class ChatUserCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(15),
         ),
         child: InkWell(
-          onTap: () => _navigateToChat(context),
-          onLongPress: () => _showBlockOptions(context),
-          child: Obx(() {
-            // If current user has blocked them, use static data instead of stream
-            if (hasBlockedThem.value) {
-              return ListTile(
-                leading: _buildStaticAvatar(),
-                title: Text(
-                  user.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: _buildSubtitle(controller, isBlockedByOther.value),
-                trailing: _buildTrailing(controller, context, isBlockedByOther.value),
-              );
-            }
+          onTap: () => _navigateToChat(context, controller),
+          onLongPress: () => _showBlockOptions(context, controller),
+          child: GetBuilder<ChatUserCardController>(
+            tag: tag,
+            builder: (ctrl) {
+              return Obx(() {
+                final isBlocked = ctrl.isCurrentlyBlocked;
 
-            // Otherwise, use the stream for real-time updates
-            return StreamBuilder(
-              stream: chatViewModel.getUserInfoStream(user.id),
-              builder: (context, snapshot) {
-                final data = snapshot.data?.docs;
-                final list = data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
+                debugPrint('🎯 Building UI for ${user.id} - isBlocked: $isBlocked, hasBlockedThem: ${ctrl.hasBlockedThem.value}, isBlockedByOther: ${ctrl.isBlockedByOther.value}');
 
-                // Use real-time data if available, otherwise fallback to cached data
-                final displayUser = list.isNotEmpty ? list[0] : user;
-
-                return ListTile(
-                  leading: _buildAvatar(isBlockedByOther.value, displayUser),
-                  title: Text(
-                    displayUser.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                // If blocked, show static data
+                if (isBlocked) {
+                  return ListTile(
+                    leading: _buildBlockedAvatar(),
+                    title: Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: _buildSubtitle(controller, isBlockedByOther.value),
-                  trailing: _buildTrailing(controller, context, isBlockedByOther.value),
+                    subtitle: _buildSubtitle(ctrl.listController, ctrl.isBlockedByOther.value),
+                    trailing: _buildTrailing(
+                        ctrl.listController,
+                        context,
+                        true
+                    ),
+                  );
+                }
+
+                // Only use stream for non-blocked users
+                return StreamBuilder(
+                  stream: ctrl.chatViewModel.getUserInfoStream(user.id),
+                  builder: (context, snapshot) {
+                    final data = snapshot.data?.docs;
+                    final list = data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
+
+                    // Use real-time data if available, otherwise fallback to cached data
+                    final displayUser = list.isNotEmpty ? list[0] : user;
+
+                    return ListTile(
+                      leading: _buildAvatar(false, displayUser),
+                      title: Text(
+                        displayUser.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: _buildSubtitle(ctrl.listController, false),
+                      trailing: _buildTrailing(ctrl.listController, context, false),
+                    );
+                  },
                 );
-              },
-            );
-          }),
+              });
+            },
+          ),
         ),
       ),
     );
@@ -145,7 +396,7 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
-  Future<bool?> _showDeleteConfirmDialog(BuildContext context) async {
+  Future<bool?> _showDeleteConfirmDialog(BuildContext context, ChatUserCardController controller) async {
     return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -196,23 +447,20 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
-  // Static avatar for blocked users (no online status)
-  Widget _buildStaticAvatar() {
+  // Blocked avatar - completely hide image and show only icon
+  Widget _buildBlockedAvatar() {
     return CircleAvatar(
       radius: 25,
       backgroundColor: Colors.grey[300],
-      foregroundImage: provider(),
-      child: user.image.isEmpty
-          ? const Icon(
+      child: const Icon(
         Icons.person,
         color: Colors.grey,
         size: 30,
-      )
-          : null,
+      ),
     );
   }
 
-  Widget _buildAvatar(bool isBlockedByOther, [ChatUser? displayUser]) {
+  Widget _buildAvatar(bool isBlocked, [ChatUser? displayUser]) {
     final userToDisplay = displayUser ?? user;
 
     return Stack(
@@ -220,8 +468,8 @@ class ChatUserCard extends StatelessWidget {
         CircleAvatar(
           radius: 25,
           backgroundColor: Colors.grey[300],
-          foregroundImage: isBlockedByOther ? null : provider(userToDisplay),
-          child: isBlockedByOther
+          foregroundImage: isBlocked ? null : provider(userToDisplay),
+          child: isBlocked || userToDisplay.image.isEmpty
               ? const Icon(
             Icons.person,
             color: Colors.grey,
@@ -230,7 +478,7 @@ class ChatUserCard extends StatelessWidget {
               : null,
         ),
         // Only show online indicator if not blocked and user is online
-        if (!isBlockedByOther && userToDisplay.isOnline)
+        if (!isBlocked && userToDisplay.isOnline)
           Positioned(
             right: 0,
             bottom: 0,
@@ -254,8 +502,8 @@ class ChatUserCard extends StatelessWidget {
         : NetworkImage(userToDisplay.image);
   }
 
-  Widget _buildSubtitle(ChatListController controller, bool isBlockedByOther) {
-    if (isBlockedByOther) {
+  Widget _buildSubtitle(ChatListController controller, bool isBlocked) {
+    if (isBlocked) {
       return const Text(
         'Account not available',
         style: TextStyle(fontSize: 14, color: Colors.grey),
@@ -310,9 +558,25 @@ class ChatUserCard extends StatelessWidget {
     });
   }
 
-  Widget _buildTrailing(ChatListController controller, BuildContext context, bool isBlockedByOther) {
+  Widget _buildTrailing(ChatListController controller, BuildContext context, bool isBlocked) {
     return Obx(() {
       final lastMessage = controller.getLastMessageReactive(user.id).value;
+
+      // If blocked, show block icon prominently
+      if (isBlocked) {
+        return const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Icon(
+              Icons.block,
+              color: Colors.red,
+              size: 24,
+            ),
+            SizedBox(height: 2),
+          ],
+        );
+      }
 
       if (lastMessage == null) return const SizedBox.shrink();
 
@@ -322,16 +586,15 @@ class ChatUserCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isBlockedByOther)
-            Text(
-              MyDateUtill.getLastMessageTime(context, lastMessage.sent),
-              style: TextStyle(
-                fontSize: 12,
-                color: isUnread ? Colors.green : Colors.grey,
-                fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
-              ),
+          Text(
+            MyDateUtill.getLastMessageTime(context, lastMessage.sent),
+            style: TextStyle(
+              fontSize: 12,
+              color: isUnread ? Colors.green : Colors.grey,
+              fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
             ),
-          if (isUnread && !isBlockedByOther) ...[
+          ),
+          if (isUnread) ...[
             const SizedBox(height: 2),
             Container(
               height: 8,
@@ -342,12 +605,6 @@ class ChatUserCard extends StatelessWidget {
               ),
             ),
           ],
-          if (isBlockedByOther)
-            const Icon(
-              Icons.block,
-              color: Colors.red,
-              size: 20,
-            ),
         ],
       );
     });
@@ -364,24 +621,44 @@ class ChatUserCard extends StatelessWidget {
     );
   }
 
-  void _navigateToChat(BuildContext context) {
+  void _navigateToChat(BuildContext context, ChatUserCardController controller) async {
     if (!Get.isRegistered<ChatViewModel>()) {
       Get.put(ChatViewModel());
       debugPrint('💬 ChatViewModel was not registered, now created.');
-    } else if (Get.isPrepared<ChatViewModel>() && Get.isRegistered<ChatViewModel>()) {
-      debugPrint('💬 ChatViewModel is already available.');
     }
 
     final chatController = Get.find<ChatViewModel>();
-
     chatController.setInsideChatStatus(true);
 
-    Get.to(() => ChattingView(user: user))?.then((_) {
+    // Pre-fetch block status before navigation
+    bool? isBlocked;
+    bool? isBlockedByOther;
+
+    try {
+      // Fetch both block statuses in parallel
+      final results = await Future.wait([
+        chatController.isUserBlocked(user.id),
+        chatController.isBlockedByFriend(user.id),
+      ]);
+
+      isBlocked = results[0];
+      isBlockedByOther = results[1];
+    } catch (e) {
+      debugPrint('Error fetching block status: $e');
+      // Continue with null values if error occurs
+    }
+
+    // Navigate with pre-fetched block status
+    Get.to(() => ChattingView(
+      user: user,
+      isBlocked: isBlocked,
+      isBlockedByOther: isBlockedByOther,
+    ))?.then((_) {
       chatController.setInsideChatStatus(false);
     });
   }
 
-  void _showBlockOptions(BuildContext context) async {
+  void _showBlockOptions(BuildContext context, ChatUserCardController controller) async {
     final chatController = Get.find<ChatViewModel>();
     final isBlocked = await chatController.isUserBlocked(user.id);
 
@@ -391,10 +668,11 @@ class ChatUserCard extends StatelessWidget {
         userId: user.id,
         isBlocked: isBlocked,
         onBlock: () async {
-          await chatController.blockUser(user.id);
-          Get.back(); // Close chat if open
+          await controller.handleBlock();
         },
-        onUnblock: () async => await chatController.unblockUser(user.id),
+        onUnblock: () async {
+          await controller.handleUnblock();
+        },
       );
     }
   }

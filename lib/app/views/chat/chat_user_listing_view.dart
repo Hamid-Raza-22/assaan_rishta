@@ -41,6 +41,7 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // Reconnect listeners when app resumes
+
       listController.reconnectListeners();
     }
   }
