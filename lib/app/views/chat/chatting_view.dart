@@ -484,6 +484,7 @@ class ChattingView extends StatelessWidget {
   }
 
   // FIXED: Smarter empty state that distinguishes between different scenarios
+// FIXED: Updated empty state without "Show All Messages" button
   Widget _buildEmptyState(ChattingViewController controller) {
     return Center(
       child: Column(
@@ -516,36 +517,9 @@ class ChattingView extends StatelessWidget {
             ),
           const SizedBox(height: 20),
 
-          // FIXED: Show different actions based on state
+          // REMOVED: Show All Messages button functionality
+          // Only show "Say Hi" button for non-blocked chats
           if (!controller.isAnyBlocked) ...[
-            // For deleted chats, show restore option
-            if (controller.chatController.shouldShowHistoryCleared(controller.user.id)) ...[
-              TextButton.icon(
-                onPressed: () async {
-                  await controller.chatController.clearDeletionRecord();
-                  Get.snackbar(
-                    'Chat Restored',
-                    'All message history is now visible',
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                    duration: const Duration(seconds: 2),
-                  );
-                },
-                icon: const Icon(Icons.restore),
-                label: const Text('Show All Messages'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.blue,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'or',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 10),
-            ],
-
-            // Show "Say Hi" button for all non-blocked chats
             TextButton(
               onPressed: controller.sendHiMessage,
               child: const Text(
@@ -558,7 +532,6 @@ class ChattingView extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildUploadingIndicator(ChattingViewController controller) {
     return Obx(() => controller.uploading.value
         ? const Align(

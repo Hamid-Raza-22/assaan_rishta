@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import '../core/export.dart';
 import '../domain/export.dart';
+import 'chat_viewmodel.dart';
 
 class ChatListController extends GetxController {
   final useCase = Get.find<UserManagementUseCase>();
@@ -61,11 +62,19 @@ class ChatListController extends GetxController {
   }
 
   // Updated delete method with GetX
+  // Updated deleteChat method in ChatListController
   Future<void> deleteChat(ChatUser user) async {
     try {
       debugPrint('🗑️ Deleting chat with ${user.name}...');
 
-      // Stop listening
+      // ADDED: Clear cached messages from ChatViewModel
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatController = Get.find<ChatViewModel>();
+        chatController.cachedMessagesPerUser.remove(user.id);
+        debugPrint('🧹 Cleared cached messages for user: ${user.id}');
+      }
+
+      // Stop listening to this user's messages
       _messageListeners[user.id]?.cancel();
       _messageListeners.remove(user.id);
       _lastMessages.remove(user.id);
@@ -154,6 +163,12 @@ class ChatListController extends GetxController {
           .delete();
 
       deletionTimestamps.remove(userId);
+      // ADDED: Also clear any cached messages for this user when clearing deletion record
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatController = Get.find<ChatViewModel>();
+        chatController.cachedMessagesPerUser.remove(userId);
+        debugPrint('🧹 Cleared cached messages when clearing deletion record for: $userId');
+      }
       debugPrint('✅ Deletion record cleared for $userId');
     } catch (e) {
       debugPrint('❌ Error clearing deletion record: $e');

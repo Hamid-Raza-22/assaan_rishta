@@ -1,3 +1,5 @@
+// edit_profile_controller.dart - FIXED: Real-time Firebase updates for chat system
+
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -194,10 +196,10 @@ class EditProfileController extends GetxController {
     isLoading.value = true;
     final response = await useCases.getCurrentUserProfile();
     return response.fold(
-      (error) {
+          (error) {
         isLoading.value = false;
       },
-      (success) {
+          (success) {
         profileDetails.value = success;
         setGeneralInfo(success);
         setPersonalInfo(success);
@@ -219,10 +221,10 @@ class EditProfileController extends GetxController {
     castNameList.clear();
     final response = await systemConfigUseCases.getAllCasts();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.castNames!.isNotEmpty) {
           castNameList.addAll(success.castNames!);
           castNameList.sort((a, b) => a.compareTo(b));
@@ -237,10 +239,10 @@ class EditProfileController extends GetxController {
     degreesList.clear();
     final response = await systemConfigUseCases.getAllDegrees();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.degreeNames!.isNotEmpty) {
           degreesList.addAll(success.degreeNames!);
           degreesList.sort((a, b) => a.compareTo(b));
@@ -255,10 +257,10 @@ class EditProfileController extends GetxController {
     occupationList.clear();
     final response = await systemConfigUseCases.getAllOccupations();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.occupationNames!.isNotEmpty) {
           occupationList.addAll(success.occupationNames!);
           update();
@@ -272,10 +274,10 @@ class EditProfileController extends GetxController {
     countryList.clear();
     final response = await systemConfigUseCases.getAllCountries();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.isNotEmpty) {
           countryList.addAll(success);
           update();
@@ -292,10 +294,10 @@ class EditProfileController extends GetxController {
       countryId: countryId,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         if (success.isNotEmpty) {
           stateList.addAll(success);
@@ -310,10 +312,10 @@ class EditProfileController extends GetxController {
     cityList.clear();
     final response = await systemConfigUseCases.getAllCities(stateId: stateId);
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         if (success.isNotEmpty) {
           cityList.addAll(success);
@@ -323,6 +325,7 @@ class EditProfileController extends GetxController {
     );
   }
 
+  // FIXED: Update both backend API and Firebase chat collection
   updateGeneralInfo(context) async {
     AppUtils.onLoading(context);
 
@@ -352,26 +355,126 @@ class EditProfileController extends GetxController {
       endPoint: "updateuser",
       payload: payload,
     );
+
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
+        debugPrint('❌ Error updating profile: $error');
       },
-      (success) async {
+          (success) async {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "General Information",
           message: "General information updated.",
         );
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(useCases.getUserId().toString())
-            .update({'name': '${firstNameTEC.text} ${lastNameTEC.text}'});
+        // FIXED: Update Firebase chat collection with correct collection name
+        try {
+          final userId = useCases.getUserId().toString();
+          final fullName = '${firstNameTEC.text.trim()} ${lastNameTEC.text.trim()}';
+          final aboutText = userKaTarufTEC.text.trim();
+
+          debugPrint('🔄 Updating Firebase for user: $userId');
+          debugPrint('📝 New name: $fullName');
+          debugPrint('📝 New about: $aboutText');
+
+          // Update in the correct Hamid_users collection
+          await FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(userId)
+              .update({
+            'name': fullName,
+            'about': aboutText.isNotEmpty ? aboutText : "Hey, I am using We Chat !!",
+            'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+          });
+
+          debugPrint('✅ Firebase updated successfullyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy');
+
+          // Force update in local profile
+          profileDetails.value.firstName = firstNameTEC.text;
+          profileDetails.value.lastName = lastNameTEC.text;
+          profileDetails.value.userKaTaruf = userKaTarufTEC.text;
+
+        } catch (e) {
+          debugPrint('❌ Error updating Firebase: $e');
+
+          // Show error to user
+          AppUtils.successData(
+            title: "Warning",
+            message: "Profile updated but chat data sync failed. Please restart the app.",
+          );
+        }
 
         update();
       },
     );
   }
+
+  // FIXED: Add method to update profile image in Firebase
+  // Future<void> updateProfileImageInFirebase(String imageUrl) async {
+  //   try {
+  //     final userId = useCases.getUserId().toString();
+  //
+  //     debugPrint('🖼️ Updating profile image in Firebase for user: $userId');
+  //     debugPrint('🔗 Image URL: $imageUrl');
+  //
+  //     await FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(userId)
+  //         .update({
+  //       'image': imageUrl,
+  //       'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+  //     });
+  //
+  //     debugPrint('✅ Profile image updated in Firebase successfully');
+  //
+  //   } catch (e) {
+  //     debugPrint('❌ Error updating profile image in Firebase: $e');
+  //
+  //     // Show error to user
+  //     AppUtils.successData(
+  //       title: "Warning",
+  //       message: "Image updated but chat sync failed. Please restart the app.",
+  //     );
+  //   }
+  // }
+
+  // FIXED: Method to sync complete profile data to Firebase
+  // Future<void> syncProfileToFirebase() async {
+  //   try {
+  //     final userId = useCases.getUserId().toString();
+  //     final profile = profileDetails.value;
+  //
+  //     debugPrint('🔄 Syncing complete profile to Firebase...');
+  //
+  //     final updateData = <String, dynamic>{
+  //       'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+  //     };
+  //
+  //     // Add name if available
+  //     if (profile.firstName != null && profile.lastName != null) {
+  //       updateData['name'] = '${profile.firstName} ${profile.lastName}';
+  //     }
+  //
+  //     // Add about if available
+  //     if (profile.userKaTaruf != null && profile.userKaTaruf!.isNotEmpty) {
+  //       updateData['about'] = profile.userKaTaruf!;
+  //     }
+  //
+  //     // Add image if available (you might need to get this from another source)
+  //     // updateData['image'] = profile.imageUrl ?? "";
+  //
+  //     await FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(userId)
+  //         .update(updateData);
+  //
+  //     debugPrint('✅ Profile synced to Firebase successfully');
+  //
+  //   } catch (e) {
+  //     debugPrint('❌ Error syncing profile to Firebase: $e');
+  //   }
+  // }
 
   updatePersonalInfo(context) async {
     AppUtils.onLoading(context);
@@ -394,15 +497,35 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) async {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Personal Information",
           message: "Personal information updated.",
         );
+
+        // FIXED: Update about in Firebase if profile name changed
+        try {
+          if (profileNameTEC.text.trim().isNotEmpty) {
+            final userId = useCases.getUserId().toString();
+
+            await FirebaseFirestore.instance
+                .collection('Hamid_users')
+                .doc(userId)
+                .update({
+              'about': profileNameTEC.text.trim(),
+              'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+            });
+
+            debugPrint('✅ Profile name updated in Firebase');
+          }
+        } catch (e) {
+          debugPrint('❌ Error updating profile name in Firebase: $e');
+        }
+
         update();
       },
     );
@@ -423,15 +546,35 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) async {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "About My Self",
           message: "About my self information updated.",
         );
+
+        // FIXED: Update about in Firebase
+        try {
+          final userId = useCases.getUserId().toString();
+
+          await FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(userId)
+              .update({
+            'about': aboutMyselfTEC.text.trim().isEmpty
+                ? "Hey, I am using We Chat !!"
+                : aboutMyselfTEC.text.trim(),
+            'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+          });
+
+          debugPrint('✅ About myself updated in Firebase');
+        } catch (e) {
+          debugPrint('❌ Error updating about in Firebase: $e');
+        }
+
         update();
       },
     );
@@ -459,10 +602,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Personal Information",
@@ -489,10 +632,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Financial Status",
@@ -522,10 +665,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Physical Appearance",
@@ -562,10 +705,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Family Details",
@@ -601,10 +744,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Habit Details",
@@ -641,10 +784,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Health Information",
@@ -673,7 +816,7 @@ class EditProfileController extends GetxController {
       'dual_nationality': getBoolString(dualNationality.value),
       'social_security_no': socialSecurityNoTEC.text,
       'international_driving_license':
-          getBoolString(internationalDrivingLicense.value),
+      getBoolString(internationalDrivingLicense.value),
       'international_driving_license_no': internationalDrivingLicenseNoTEC.text,
       'international_passport': getBoolString(internationalPassport.value),
       'international_passport_no': internationalPassportNoTEC.text,
@@ -684,10 +827,10 @@ class EditProfileController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Origin information",
@@ -730,9 +873,9 @@ class EditProfileController extends GetxController {
     selectedLanguages = (profile.languages ?? "");
     languages.value = profile.languages != null
         ? profile.languages!
-            .split(',')
-            .map((e) => e.replaceAll('"', '').trim())
-            .toList()
+        .split(',')
+        .map((e) => e.replaceAll('"', '').trim())
+        .toList()
         : [];
     update();
   }
