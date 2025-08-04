@@ -255,6 +255,7 @@ class ChatUserCardController extends GetxController {
     );
   }
 
+
   Future<void> handleBlock() async {
     debugPrint('🚫 Blocking user $userId');
     await chatViewModel.blockUser(userId);
