@@ -71,26 +71,20 @@ class SplashView extends GetView<SplashController> {
                           // (controller.useCase.userManagementRepo
                           //             .getUserLoggedInStatus() ==
                           //         false)
-                          (!authService.isInitialized.value)
+                          // const SizedBox(height: 20),
+// Show button only if initialized AND user is NOT logged in
+                          (authService.isInitialized.value && !authService.isUserLoggedIn.value)
                               ? CustomButton(
-                                  text: "Get Started",
-                                  isGradient: true,
-                                  fontColor: AppColors.whiteColor,
-                                  suffixIcon: const Icon(
-                                    Icons.arrow_forward_sharp,
-                                    color: AppColors.whiteColor,
-                                  ),
-                                   onTap: () =>
-                                    Get.offNamed(AppRoutes.ACCOUNT_TYPE)
-                                  //     () => const AccountTypeView(),
-                                  //     binding: AppBindings(),
-                                  //     transition: Transition.circularReveal,
-                                  //     duration:
-                                  //         const Duration(milliseconds: 500),
-                                  //   );
-
-                                )
-                              : const SizedBox.shrink()
+                              text: "Get Started",
+                              isGradient: true,
+                              fontColor: AppColors.whiteColor,
+                              suffixIcon: const Icon(
+                                Icons.arrow_forward_sharp,
+                                color: AppColors.whiteColor,
+                              ),
+                              onTap: () => Get.offNamed(AppRoutes.ACCOUNT_TYPE)
+                          )
+                              : const SizedBox.shrink()// User is logged in, hide button// User is logged in, hide button
                         ],
                       ),
                     ],

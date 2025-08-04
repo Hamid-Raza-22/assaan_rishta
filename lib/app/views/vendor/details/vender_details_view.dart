@@ -357,7 +357,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                       text: controller.questionsList[index].qusetion1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.start,
-                      maxLines: 2,
+                      maxLines: 10,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.blackColor,
@@ -367,7 +367,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                       text: controller.questionsList[index].answer,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.start,
-                      maxLines: 2,
+                      maxLines: 10,
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: AppColors.blackColor,
@@ -392,18 +392,18 @@ class VendorDetailView extends GetView<VendorDetailController> {
             ),
             itemBuilder: (context, index) {
               return GestureDetector(
-                // onTap: () {
-                //   Get.to(
-                //     () => PhotoGalleryView(
-                //       imageList: controller.albumList,
-                //       context: context,
-                //       selectedIndex: index,
-                //     ),
-                //     binding: AppBindings(),
-                //     transition: Transition.circularReveal,
-                //     duration: Duration(milliseconds: 500),
-                //   );
-                // },
+                onTap: () {
+                  Get.to(
+                    () => PhotoGalleryView(
+                      imageList: controller.albumList,
+                      context: context,
+                      selectedIndex: index,
+                    ),
+                    // binding: AppBindings(),
+                    transition: Transition.circularReveal,
+                    duration: Duration(milliseconds: 500),
+                  );
+                },
                 child: Container(
                   margin: const EdgeInsets.all(03),
                   color: AppColors.whiteColor,

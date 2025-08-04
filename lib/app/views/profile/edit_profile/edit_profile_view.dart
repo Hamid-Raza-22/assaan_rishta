@@ -2306,6 +2306,8 @@ class EditProfileView extends GetView<EditProfileController> {
               onTap: () {
                 if (controller.originFormKey.currentState!.validate()) {
                   controller.updateOriginInfo(context);
+                  // After image upload succeeds
+
                 }
               },
             ),
