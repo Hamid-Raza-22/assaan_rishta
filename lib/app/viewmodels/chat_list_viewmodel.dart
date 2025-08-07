@@ -297,10 +297,12 @@ class ChatListController extends GetxController {
     if (!_streamsActive || _myUsersSubscription == null) {
       debugPrint('📡 Streams not active, reinitializing...');
       _initializeStreams();
-    } else if (chatUsers.isEmpty && !isLoading.value) {
-      debugPrint('📡 Chat users empty, forcing refresh...');
-      forceRefresh();
-    } else {
+    }
+    //else if (chatUsers.isEmpty && !isLoading.value) {
+    //   debugPrint('📡 Chat users empty, forcing refresh...');
+    //   forceRefresh();
+    //}
+    else {
       debugPrint('✅ Streams are active with ${chatUsers.length} users');
     }
   }

@@ -17,7 +17,6 @@ class ChatViewModel extends GetxController {
   static final Map<String, List<Message>> _persistentMessageCache = {};
   static final Map<String, String?> _persistentDeletionCache = {};
   static final Map<String, StreamSubscription> _activeStreams = {};
-  final RxMap<String, MessageStatus> messageStatuses = <String, MessageStatus>{}.obs;
 
   final ChatRepository _repo = ChatRepository();
   String? get currentChatUserId => selectedUser.value?.id;
@@ -102,22 +101,8 @@ class ChatViewModel extends GetxController {
 
     return _repo.getAllMessages(user).map((snapshot) {
       final allMessages = snapshot.docs
-          .map((doc) {
-
-      final message = Message.fromJson(doc.data());
-      // Update delivery status for received messages
-      if (message.fromId != _repo.currentUserId &&
-          doc.data()['delivered'] == null) {
-        updateMessageDeliveryStatus(message);
-      }
-
-      // Apply stored status if available
-      if (messageStatuses.containsKey(message.sent)) {
-        // message.status = messageStatuses[message.sent]!;
-      }
-
-      return message;
-    }).toList();
+          .map((doc) => Message.fromJson(doc.data()))
+          .toList();
 
       // Apply deletion filter
       final filteredMessages = _applyDeletionFilter(allMessages, user.id);
@@ -344,19 +329,15 @@ class ChatViewModel extends GetxController {
 
     // Optimistically update cache
     final time = DateTime.now().millisecondsSinceEpoch.toString();
-    dynamic optimisticMessage = Message(
+    final optimisticMessage = Message(
       toId: user.id,
       msg: text.trim(),
       read: '',
       type: Type.text,
       fromId: _repo.currentUserId,
       sent: time,
-      status: MessageStatus.sending, // Start with sending status
-
     );
 
-    // Track this message's status
-    messageStatuses[time] = MessageStatus.sending;
     // Update UI immediately
     final currentMessages = List<Message>.from(messages);
     currentMessages.insert(0, optimisticMessage);
@@ -378,29 +359,15 @@ class ChatViewModel extends GetxController {
             listController.updateLastMessageLocally(user.id, message);
           },
         );
-        // Update status to sent
-        messageStatuses[time] = MessageStatus.sent;
-        _updateMessageStatus(time, MessageStatus.sent);
-
-        // Listen for delivery confirmation
-        _listenForDeliveryStatus(user.id, time);
-      }
-      else {
+      } else {
         debugPrint('📨 Using standard message sending...');
         await _repo.sendMessage(user, text.trim(), Type.text);
-        // Update status to sent
-        messageStatuses[time] = MessageStatus.sent;
-        _updateMessageStatus(time, MessageStatus.sent);
-
-        // Listen for delivery confirmation
-        _listenForDeliveryStatus(user.id, time);
       }
 
       debugPrint('✅ Message sent successfully to ${user.name}');
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
-      // Update status to failed (keep as sending or show error)
-      messageStatuses[time] = MessageStatus.sending;
+
       // Remove optimistic message on error
       final updatedMessages = messages.where((m) => m.sent != time).toList();
       messages.assignAll(updatedMessages);
@@ -410,73 +377,7 @@ class ChatViewModel extends GetxController {
       rethrow;
     }
   }
-  // Listen for delivery and read status
-  void _listenForDeliveryStatus(String userId, String messageId) {
-    try {
-      // Listen to the specific message document for status updates
-      final chatId = getConversationId(_repo.currentUserId, userId);
 
-      FirebaseFirestore.instance
-          .collection('Hamid_chats')
-          .doc(chatId)
-          .collection('messages')
-          .doc(messageId)
-          .snapshots()
-          .listen((snapshot) {
-
-        if (!snapshot.exists) return;
-
-        final data = snapshot.data();
-        if (data == null) return;
-
-        // Check if message has been delivered (recipient device received it)
-        if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
-          messageStatuses[messageId] = MessageStatus.delivered;
-          _updateMessageStatus(messageId, MessageStatus.delivered);
-        }
-
-        // Check if message has been read
-        if (data['read'] != null && data['read'].toString().isNotEmpty) {
-          messageStatuses[messageId] = MessageStatus.read;
-          _updateMessageStatus(messageId, MessageStatus.read);
-        }
-      });
-    } catch (e) {
-      debugPrint('Error listening for delivery status: $e');
-    }
-  }
-
-  // Update message delivery status when recipient receives it
-  Future<void> updateMessageDeliveryStatus(Message message) async {
-    if (message.fromId == _repo.currentUserId) return; // Don't update own messages
-
-    try {
-      final chatId = getConversationId(message.fromId, message.toId);
-
-      // Update delivery timestamp if not already set
-      await FirebaseFirestore.instance
-          .collection('Hamid_chats')
-          .doc(chatId)
-          .collection('messages')
-          .doc(message.sent)
-          .update({
-        'delivered': DateTime.now().millisecondsSinceEpoch.toString(),
-      });
-
-      debugPrint('✅ Message marked as delivered');
-    } catch (e) {
-      debugPrint('Error updating delivery status: $e');
-    }
-  }
-
-// Update message status in the UI
-  void _updateMessageStatus(String messageId, MessageStatus status) {
-    final messageIndex = messages.indexWhere((m) => m.sent == messageId);
-    if (messageIndex != -1) {
-      messages[messageIndex].status = status;
-      messages.refresh(); // Trigger UI update
-    }
-  }
   // FIXED: Better first message handling
   // FIXED: Better first message handling
   // FIXED: First message with proper user selection
@@ -811,7 +712,7 @@ class ChatViewModel extends GetxController {
   }
 
   // Helper to force clear all chat state
-  void forceClearChatState() {
+ forceClearChatState() {
     debugPrint('🧹 Force clearing all chat state');
     selectedUser.value = null;
     // currentChatUserId = null;
