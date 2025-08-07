@@ -1,3 +1,4 @@
+// 1. Updated app_routes.dart - Add helper method for dynamic routes
 abstract class AppRoutes {
   static const String ACCOUNT_TYPE = '/account-type';
   static const String SIGNUP = '/signup';
@@ -7,6 +8,8 @@ abstract class AppRoutes {
   static const String SPLASH = '/splash';
   static const String HOME = '/home';
   static const String BOTTOM_NAV = '/bottom-nav';
+  static const String FORGOT_PASSWORD_VIEW = '/forgot-password-view';
+  static const String ENTER_PASSWORD_VIEW = '/enter-password-view';
 
   static const String PROFILE = '/profile';
   static const String PROFILE_DETAIL_VIEW = '/profile-detail-view';
@@ -27,6 +30,6 @@ abstract class AppRoutes {
   static const String ABOUT_US_VIEW = '/about-us-view';
   static const String IN_APP_WEB_VIEW_SITE = '/in_app_web_view_site';
 
-  // Add dynamic route with user ID
+  // Helper method for dynamic chat route with user ID
   static String chattingViewWithUser(String userId) => '/chatting_view/$userId';
 }

@@ -43,7 +43,11 @@ class HomeController extends GetxController {
       isLoading.value = true;
     }
 
-    final response = await userManagementUseCases.getAllProfiles(
+    // final response = await userManagementUseCases.getAllProfiles(
+    //   pageNo: pageNumber ?? currentPage,
+    //   pageLimit: "20",
+    // );
+    final response = await userManagementUseCases.getAllFeaturedProfiles(
       pageNo: pageNumber ?? currentPage,
       pageLimit: "20",
     );

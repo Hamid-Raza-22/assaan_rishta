@@ -12,8 +12,8 @@ Future<void> initializeModelUseCasesDependencies() async {
         () => SystemConfigUseCase(Get.find<SystemConfigRepo>()),
     fenix: true,
   );
-  // Get.put(() => ChatViewModel(), permanent: true);
-  // Get.put(() => ChatListController(), permanent: true);
+  Get.put(() => ChatViewModel(), permanent: true);
+  Get.put(() => ChatListController(), permanent: true);
 
    // Get.lazyPut<ChatViewModel>(() => ChatViewModel(), fenix: true);
    // Get.lazyPut<ChatListController>(() => ChatListController(), fenix: true);

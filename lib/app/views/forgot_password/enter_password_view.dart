@@ -122,7 +122,7 @@ class EnterPasswordView extends GetView<ForgotPasswordController> {
                           fontSize: 18,
                           onTap: () {
                             if (controller.enterPasswordFormKey.currentState!.validate()) {
-
+                         //     controller.updatePassword(context: context);
                             }
                           },
                         ),
