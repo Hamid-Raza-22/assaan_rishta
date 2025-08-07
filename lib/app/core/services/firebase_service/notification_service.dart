@@ -555,7 +555,7 @@ class NotificationServices {
     chatListController.isNavigatingToChat.value = true;
 
     // First go to bottom nav
-    Get.offAll(() => const BottomNavView(index: 2));
+    Get.to(() => const BottomNavView(index: 2));
 
     // Then navigate to chat
     Future.delayed(const Duration(milliseconds: 300), () {

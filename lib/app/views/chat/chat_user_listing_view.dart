@@ -84,7 +84,6 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
         if (listController.isLoading.value && listController.chatUsers.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
-
         return _buildChatList();
       }),
     );

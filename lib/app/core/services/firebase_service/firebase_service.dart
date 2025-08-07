@@ -256,42 +256,42 @@ class FirebaseService {
 // Updated Firebase Service methods to handle smart deletion
 
 // Modified getAllMessages to filter out deleted messages
-//   static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) {
-//     final currentUserId = useCase.getUserId().toString();
-//
-//     return firestore
-//         .collection('Hamid_chats/${getConversationID(user.id)}/messages')
-//         .orderBy('sent', descending: true)
-//         .snapshots()
-//         .asyncMap((snapshot) async {
-//       // Check if this chat was deleted by current user
-//       final deletionDoc = await firestore
-//           .collection('Hamid_users')
-//           .doc(currentUserId)
-//           .collection('deleted_chats')
-//           .doc(user.id)
-//           .get();
-//
-//       if (!deletionDoc.exists) {
-//         // Chat was never deleted, return all messages
-//         return snapshot;
-//       }
-//
-//       // Get deletion timestamp
-//       final deletionTime = deletionDoc.data()!['deleted_at'] as String;
-//       final deletionTimestamp = int.parse(deletionTime);
-//
-//       // Filter messages - only show messages sent after deletion
-//       final filteredDocs = snapshot.docs.where((doc) {
-//         final messageSentTime = doc.data()['sent'] as String;
-//         final messageTimestamp = int.parse(messageSentTime);
-//         return messageTimestamp > deletionTimestamp;
-//       }).toList();
-//
-//       // Create a new QuerySnapshot with filtered documents
-//       return _createFilteredSnapshot(snapshot, filteredDocs);
-//     });
-//   }
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) {
+    final currentUserId = useCase.getUserId().toString();
+
+    return firestore
+        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+        .orderBy('sent', descending: true)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      // Check if this chat was deleted by current user
+      final deletionDoc = await firestore
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('deleted_chats')
+          .doc(user.id)
+          .get();
+
+      if (!deletionDoc.exists) {
+        // Chat was never deleted, return all messages
+        return snapshot;
+      }
+
+      // Get deletion timestamp
+      final deletionTime = deletionDoc.data()!['deleted_at'] as String;
+      final deletionTimestamp = int.parse(deletionTime);
+
+      // Filter messages - only show messages sent after deletion
+      final filteredDocs = snapshot.docs.where((doc) {
+        final messageSentTime = doc.data()['sent'] as String;
+        final messageTimestamp = int.parse(messageSentTime);
+        return messageTimestamp > deletionTimestamp;
+      }).toList();
+
+      // Create a new QuerySnapshot with filtered documents
+      return _createFilteredSnapshot(snapshot, filteredDocs);
+    });
+  }
 
 // Modified getLastMessage to respect deletion time
   static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) {
@@ -686,11 +686,7 @@ class FirebaseService {
       await firestore
           .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
           .doc(time)
-          .set({
-        ...message.toJson(),
-        'status': 'sent', // Initial status
-        'delivered': '', // Will be updated when delivered
-      });
+          .set(message.toJson());
 
       // Update timestamps
       await updateConversationTimestamp(currentUserId, chatUser.id, time);
@@ -943,42 +939,14 @@ class FirebaseService {
       return null;
     }
   }
-// Mark message as delivered when recipient receives it
-  static Future<void> markMessageAsDelivered(String chatId, String messageId) async {
-    try {
-      final deliveryTime = DateTime.now().millisecondsSinceEpoch.toString();
-
-      await firestore
-          .collection('Hamid_chats')
-          .doc(chatId)
-          .collection('messages')
-          .doc(messageId)
-          .update({
-        'delivered': deliveryTime,
-        'status': 'delivered',
-      });
-
-      debugPrint('✅ Message marked as delivered at $deliveryTime');
-    } catch (e) {
-      debugPrint('❌ Error marking message as delivered: $e');
-    }
-  }
 
   // update read status of message
-// Updated updateMessageReadStatus to also update status field
   static Future<void> updateMessageReadStatus(Message message) async {
     try {
-      final readTime = DateTime.now().millisecondsSinceEpoch.toString();
-
       await firestore
           .collection('Hamid_chats/${getConversationID(message.fromId)}/messages')
           .doc(message.sent)
-          .update({
-        'read': readTime,
-        'status': 'read', // Update status to read
-      });
-
-      debugPrint('✅ Message marked as read at $readTime');
+          .update({'read': DateTime.now().millisecondsSinceEpoch.toString()});
     } catch (e) {
       if (e is FirebaseException && e.code == 'not-found') {
         debugPrint('Document not found: ${message.sent}');
@@ -987,99 +955,7 @@ class FirebaseService {
       }
     }
   }
-// Listen to message status changes for real-time updates
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> getMessageStatusStream(
-      String chatId,
-      String messageId,
-      ) {
-    return firestore
-        .collection('Hamid_chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(messageId)
-        .snapshots();
-  }
 
-// Batch update delivery status for multiple messages
-  static Future<void> markMessagesAsDelivered(
-      String chatId,
-      List<String> messageIds,
-      ) async {
-    try {
-      final batch = firestore.batch();
-      final deliveryTime = DateTime.now().millisecondsSinceEpoch.toString();
-
-      for (final messageId in messageIds) {
-        final docRef = firestore
-            .collection('Hamid_chats')
-            .doc(chatId)
-            .collection('messages')
-            .doc(messageId);
-
-        batch.update(docRef, {
-          'delivered': deliveryTime,
-          'status': 'delivered',
-        });
-      }
-
-      await batch.commit();
-      debugPrint('✅ Batch updated ${messageIds.length} messages as delivered');
-    } catch (e) {
-      debugPrint('❌ Error in batch delivery update: $e');
-    }
-  }
-
-// Enhanced getAllMessages with status tracking
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) {
-    final currentUserId = useCase.getUserId().toString();
-    final chatId = getConversationID(user.id);
-
-    return firestore
-        .collection('Hamid_chats/$chatId/messages')
-        .orderBy('sent', descending: true)
-        .snapshots()
-        .asyncMap((snapshot) async {
-
-      // Check deletion record
-      final deletionDoc = await firestore
-          .collection('Hamid_users')
-          .doc(currentUserId)
-          .collection('deleted_chats')
-          .doc(user.id)
-          .get();
-
-      // Mark undelivered messages as delivered
-      final undeliveredMessages = snapshot.docs
-          .where((doc) =>
-      doc.data()['fromId'] != currentUserId &&
-          (doc.data()['delivered'] == null || doc.data()['delivered'] == ''))
-          .map((doc) => doc.id)
-          .toList();
-
-      if (undeliveredMessages.isNotEmpty) {
-        // Non-blocking delivery update
-        markMessagesAsDelivered(chatId, undeliveredMessages).catchError((e) {
-          debugPrint('Error updating delivery status: $e');
-        });
-      }
-
-      if (!deletionDoc.exists) {
-        return snapshot;
-      }
-
-      // Filter messages based on deletion time
-      final deletionTime = deletionDoc.data()!['deleted_at'] as String;
-      final deletionTimestamp = int.parse(deletionTime);
-
-      final filteredDocs = snapshot.docs.where((doc) {
-        final messageSentTime = doc.data()['sent'] as String;
-        final messageTimestamp = int.parse(messageSentTime);
-        return messageTimestamp > deletionTimestamp;
-      }).toList();
-
-      return _createFilteredSnapshot(snapshot, filteredDocs);
-    });
-  }
   // // stream for getting the last message
   // static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) {
   //   return firestore

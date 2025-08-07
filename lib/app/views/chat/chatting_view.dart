@@ -462,12 +462,15 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     _userStreamSubscription?.cancel();
 
     // CRITICAL: Clear chat state before navigating back
-    chatController.forceClearChatState();
+    // await chatController.forceClearChatState();
     // Ensure chat list is ready
-    if (!Get.isRegistered<ChatListController>() && Get.isRegistered<ChatListController>()) {
+    if (!Get.isRegistered<ChatListController>() || Get.isRegistered<ChatListController>()) {
       final listController = Get.find<ChatListController>();
-      // Ensure streams are active before navigating back
-     await listController.ensureStreamsActive();
+      if (!listController.isLoading.value ||
+                    !listController.isRefreshing.value ||
+                    !listController.isNavigatingToChat.value) {
+        await listController.ensureStreamsActive();
+                }
     }
 
     // Small delay for smooth transition
@@ -475,7 +478,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       if (Navigator.of(Get.context!).canPop()) {
         Get.back();
       } else {
-        Get.offAll(() => const BottomNavView(index: 2));
+        Get.to(() => const BottomNavView(index: 2));
       }
     // });
   }
@@ -638,42 +641,60 @@ class _ChattingViewState extends State<ChattingView> {
             onTap: controller.navigateBack,
             child: const Icon(Icons.arrow_back_ios, color: Colors.black),
           ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(chatMq.height * .3),
-            child: CachedNetworkImage(
-              fit: BoxFit.cover,
-              height: chatMq.height * .05,
-              width: chatMq.height * .05,
-              imageUrl: controller.userImageUrl,
-              errorWidget: (c, url, e) => Container(
+          // Only show user image if not blocked by them or deleted
+          if (!isBlockedByThem && !isDelete && !hasBlockedThem)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(chatMq.height * .3),
+              child: CachedNetworkImage(
+                fit: BoxFit.cover,
                 height: chatMq.height * .05,
                 width: chatMq.height * .05,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(chatMq.height * .3),
+                imageUrl: controller.userImageUrl,
+                errorWidget: (c, url, e) => Container(
+                  height: chatMq.height * .05,
+                  width: chatMq.height * .05,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(chatMq.height * .3),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 30,
+                  ),
                 ),
-                child: const Icon(
-                  CupertinoIcons.person,
-                  color: Colors.grey,
-                  size: 30,
-                ),
-              ),
-              placeholder: (c, url) => Container(
-                height: chatMq.height * .05,
-                width: chatMq.height * .05,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(chatMq.height * .3),
-                ),
-                child: const Icon(
-                  CupertinoIcons.person,
-                  color: Colors.grey,
-                  size: 30,
+                placeholder: (c, url) => Container(
+                  height: chatMq.height * .05,
+                  width: chatMq.height * .05,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(chatMq.height * .3),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 30,
+                  ),
                 ),
               ),
             ),
-          ),
+          // Add a placeholder if blocked or deleted
+          if (isBlockedByThem || isDelete || hasBlockedThem)
+            Container(
+              height: chatMq.height * .05,
+              width: chatMq.height * .05,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(chatMq.height * .3),
+              ),
+              child: const Icon(
+                CupertinoIcons.person_fill, // Using person_fill for a more solid look
+                color: Colors.grey,
+                size: 30,
+              ),
+            ),
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -705,7 +726,7 @@ class _ChattingViewState extends State<ChattingView> {
               ],
             ),
           ),
-          if (hasBlockedThem || isBlockedByThem)
+          if (hasBlockedThem || isBlockedByThem || hasBlockedThem)
             const Padding(
               padding: EdgeInsets.only(right: 10),
               child: Icon(

@@ -90,7 +90,7 @@ class AsanRishtaApp extends StatefulWidget {
 }
 
 class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  // final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -98,9 +98,9 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     WidgetsBinding.instance.addObserver(this);
 
     // Initialize notifications after first frame when context is available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeNotifications();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _initializeNotifications();
+    // });
   }
 
   @override
@@ -123,24 +123,24 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     }
   }
 
-  void _initializeNotifications() {
-    try {
-      // Get context from navigator key or use widget's context
-      final currentContext = navigatorKey.currentContext ?? context;
-
-      if (currentContext != null) {
-        debugPrint('🔔 Initializing notifications...');
-        NotificationInitializer.initializeNotifications(currentContext);
-      } else {
-        // Retry after a delay if context not available
-        Future.delayed(const Duration(milliseconds: 500), () {
-          _initializeNotifications();
-        });
-      }
-    } catch (e) {
-      debugPrint('❌ Error initializing notifications: $e');
-    }
-  }
+  // void _initializeNotifications() {
+  //   try {
+  //     // Get context from navigator key or use widget's context
+  //     final currentContext = navigatorKey.currentContext ?? context;
+  //
+  //     if (currentContext != null) {
+  //       debugPrint('🔔 Initializing notifications...');
+  //       NotificationInitializer.initializeNotifications(currentContext);
+  //     } else {
+  //       // Retry after a delay if context not available
+  //       Future.delayed(const Duration(milliseconds: 500), () {
+  //         _initializeNotifications();
+  //       });
+  //     }
+  //   } catch (e) {
+  //     debugPrint('❌ Error initializing notifications: $e');
+  //   }
+  // }
 
   void _handleAppResume() {
     debugPrint('📱 App resumed from background');
@@ -172,7 +172,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Asan Rishta',
-      navigatorKey: navigatorKey,
+      // navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primaryColor,
@@ -200,57 +200,57 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
-// FIXED: Notification initializer with proper static method
-class NotificationInitializer {
-  static NotificationServices? _notificationService;
-
-  static void initializeNotifications(BuildContext context) {
-    try {
-      // Create notification service instance if not exists
-      _notificationService ??= NotificationServices();
-      final notificationService = _notificationService!;
-
-      // Request permissions
-      notificationService.requestNotificationPermission();
-
-      // Setup Firebase init with context
-      notificationService.firebaseInit(context);
-
-      // Setup interaction handler with context
-      notificationService.setupInteractMessage(context);
-
-      // Get and store device token
-      notificationService.getDeviceToken().then((token) {
-        debugPrint('🔑 Device token received: ${token?.substring(0, 20)}...');
-
-        // Store token if user is logged in
-        if (Get.isRegistered<UserManagementUseCase>()) {
-          final useCase = Get.find<UserManagementUseCase>();
-          final userId = useCase.getUserId();
-          if (userId != null && token != null) {
-            NotificationServices.storeFCMToken(userId.toString());
-          }
-        }
-      });
-
-      // Listen for token refresh
-      notificationService.isTokenRefresh();
-
-      debugPrint('✅ Notifications initialized successfully');
-    } catch (e) {
-      debugPrint('❌ Error in notification initialization: $e');
-    }
-  }
-
-  // Method to reinitialize if needed
-  static void reinitialize(BuildContext context) {
-    debugPrint('🔄 Reinitializing notifications...');
-    _notificationService = null;
-    initializeNotifications(context);
-  }
-
-  // Clean up method
-  static void dispose() {
-    _notificationService = null;
-  }
-}
+// // FIXED: Notification initializer with proper static method
+// class NotificationInitializer {
+//   static NotificationServices? _notificationService;
+//
+//   static void initializeNotifications(BuildContext context) {
+//     try {
+//       // Create notification service instance if not exists
+//       _notificationService ??= NotificationServices();
+//       final notificationService = _notificationService!;
+//
+//       // Request permissions
+//       notificationService.requestNotificationPermission();
+//
+//       // Setup Firebase init with context
+//       notificationService.firebaseInit(context);
+//
+//       // Setup interaction handler with context
+//       notificationService.setupInteractMessage(context);
+//
+//       // Get and store device token
+//       notificationService.getDeviceToken().then((token) {
+//         debugPrint('🔑 Device token received: ${token?.substring(0, 20)}...');
+//
+//         // Store token if user is logged in
+//         if (Get.isRegistered<UserManagementUseCase>()) {
+//           final useCase = Get.find<UserManagementUseCase>();
+//           final userId = useCase.getUserId();
+//           if (userId != null && token != null) {
+//             NotificationServices.storeFCMToken(userId.toString());
+//           }
+//         }
+//       });
+//
+//       // Listen for token refresh
+//       notificationService.isTokenRefresh();
+//
+//       debugPrint('✅ Notifications initialized successfully');
+//     } catch (e) {
+//       debugPrint('❌ Error in notification initialization: $e');
+//     }
+//   }
+//
+//   // Method to reinitialize if needed
+//   static void reinitialize(BuildContext context) {
+//     debugPrint('🔄 Reinitializing notifications...');
+//     _notificationService = null;
+//     initializeNotifications(context);
+//   }
+//
+//   // Clean up method
+//   static void dispose() {
+//     _notificationService = null;
+//   }
+// }
