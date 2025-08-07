@@ -1,3 +1,4 @@
+// Updated user_details_view.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +9,6 @@ import '../../viewmodels/user_details_viewmodel.dart';
 import '../../widgets/export.dart';
 
 import '../profile/export.dart';
-
 
 class UserDetailsView extends GetView<UserDetailsController> {
   const UserDetailsView({super.key});
@@ -30,31 +30,34 @@ class UserDetailsView extends GetView<UserDetailsController> {
           ),
           body: controller.isLoading.isFalse
               ? ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  children: [
-                    getProfileImage(context),
-                    const SizedBox(height: 10),
-                    getProfileInfo(),
-                    const SizedBox(height: 10),
-                    getPartnerPreferences(),
-                    const SizedBox(height: 20),
-                  ],
-                )
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            children: [
+              getProfileImage(context),
+              const SizedBox(height: 10),
+              getProfileInfo(),
+              const SizedBox(height: 10),
+              getPartnerPreferences(),
+              const SizedBox(height: 20),
+            ],
+          )
               : const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryColor,
-                  ),
-                ),
+            child: CircularProgressIndicator(
+              color: AppColors.primaryColor,
+            ),
+          ),
         );
       },
     );
   }
 
   getProfileImage(context) {
+    // Check if user is logged in
+    bool isLoggedIn = controller.useCase.userManagementRepo.getUserLoggedInStatus();
+
     return Stack(
       children: [
         Container(
-          height: 240,
+          height: 245, // Increased height to accommodate login text
           margin: const EdgeInsets.only(top: 60),
           decoration: const BoxDecoration(
             color: AppColors.profileContainerColor,
@@ -67,95 +70,38 @@ class UserDetailsView extends GetView<UserDetailsController> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 74),
+                  const SizedBox(height: 55),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       AppText(
                         text:
-                            '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
+                        '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
                         fontSize: 24,
                         fontWeight: FontWeight.w500,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
-                  CustomButton(
-                    text: "Message",
-                    isGradient: true,
-                    fontColor: AppColors.whiteColor,
-                    fontWeight: FontWeight.w500,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ImageHelper(
-                        image: AppAssets.icChat,
-                        imageType: ImageType.asset,
-                        color: AppColors.whiteColor,
-                        height: 24,
-                        width: 24,
+                  const SizedBox(height: 35),
+                  // Message Button - Different based on login status
+                  isLoggedIn ? _buildLoggedInMessageButton(context) : _buildGuestMessageButton(context),
+
+                  // Login prompt text for guest users
+                  if (!isLoggedIn) ...[
+                    const SizedBox(height: 15),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        "Please signup or login to activate messaging",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.greyColor,
+                        ),
                       ),
                     ),
-                    fontSize: 18,
-                    onTap: () {
-                      if (controller.totalConnects.value == 0) {
-                        controller.sendMessageToOtherUser(context);
-                      } else {
-                        showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              backgroundColor: AppColors.whiteColor,
-                              title: Text(
-                                'No Connects',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              content: Text(
-                                'You don\'t have any connects left. Please purchase more to continue.',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context)
-                                        .pop(); // Close the dialog
-                                  },
-                                  child: Text(
-                                    'Cancel',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    // Navigator.of(context).pop();
-                                    // Get.to(
-                                    //   () => const BuyConnectsView(),
-                                    //   binding: AppBindings(),
-                                    // );
-                                  },
-                                  child: Text(
-                                    'Purchase',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      }
-                    },
-                  ),
+                  ],
                 ],
               ),
               const Positioned(
@@ -188,6 +134,108 @@ class UserDetailsView extends GetView<UserDetailsController> {
           ),
         ),
       ],
+    );
+  }
+
+  // Message button for logged in users (original functionality)
+  Widget _buildLoggedInMessageButton(BuildContext context) {
+    return CustomButton(
+      text: "Message",
+      isGradient: true,
+      fontColor: AppColors.whiteColor,
+      fontWeight: FontWeight.w500,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(right: 8.0),
+        child: ImageHelper(
+          image: AppAssets.icChat,
+          imageType: ImageType.asset,
+          color: AppColors.whiteColor,
+          height: 24,
+          width: 24,
+        ),
+      ),
+      fontSize: 18,
+      onTap: () {
+        if (controller.totalConnects.value >= 0) {
+          controller.sendMessageToOtherUser(context);
+        } else {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: AppColors.whiteColor,
+                title: Text(
+                  'No Connects',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                content: Text(
+                  'You don\'t have any connects left. Please purchase more to continue.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close the dialog
+                    },
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Get.to(
+                        () => const BuyConnectsView(),
+                      );
+                    },
+                    child: Text(
+                      'Purchase',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      },
+    );
+  }
+
+  // Message button for guest users (locked with login navigation)
+  Widget _buildGuestMessageButton(BuildContext context) {
+    return CustomButton(
+      text: "Login to Messages",
+      isGradient: true,
+      // backgroundColor: AppColors.redColor.withOpacity(0.3),
+      fontColor: AppColors.whiteColor,
+      fontWeight: FontWeight.w500,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(right: 8.0),
+        child: Icon(
+          Icons.lock,
+          color: AppColors.whiteColor,
+          size: 24,
+        ),
+      ),
+      fontSize: 18,
+      onTap: () {
+        controller.navigateToLogin();
+      },
     );
   }
 
@@ -225,7 +273,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Name',
                 subtitle:
-                    '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
+                '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
               ),
               getListTile(
                 title: 'Gender',
@@ -354,7 +402,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Parent Country',
                 subtitle:
-                    controller.profileDetails.value.parentCountryName ?? "--",
+                controller.profileDetails.value.parentCountryName ?? "--",
               ),
             ],
           ),
@@ -364,12 +412,12 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Parent State',
                 subtitle:
-                    controller.profileDetails.value.parentStateName ?? "--",
+                controller.profileDetails.value.parentStateName ?? "--",
               ),
               getListTile(
                 title: 'Parent City',
                 subtitle:
-                    controller.profileDetails.value.parentCityName ?? "--",
+                controller.profileDetails.value.parentCityName ?? "--",
               ),
             ],
           ),
@@ -379,12 +427,12 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Father Alive',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.fatherAlive),
+                getStringBool(controller.profileDetails.value.fatherAlive),
               ),
               getListTile(
                 title: 'Father\'s Occupation',
                 subtitle:
-                    controller.profileDetails.value.fatherOccupation ?? "--",
+                controller.profileDetails.value.fatherOccupation ?? "--",
               ),
             ],
           ),
@@ -394,12 +442,12 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Mother Alive',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.motherAlive),
+                getStringBool(controller.profileDetails.value.motherAlive),
               ),
               getListTile(
                 title: 'Mother Occupation',
                 subtitle:
-                    controller.profileDetails.value.motherOccupation ?? "--",
+                controller.profileDetails.value.motherOccupation ?? "--",
               ),
             ],
           ),
@@ -413,7 +461,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Siblings',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.silings),
+                getStringBool(controller.profileDetails.value.silings),
               ),
             ],
           ),
@@ -423,7 +471,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Number Of Brothers',
                 subtitle:
-                    controller.profileDetails.value.noOfBrother.toString(),
+                controller.profileDetails.value.noOfBrother.toString(),
               ),
               getListTile(
                 title: 'Number Of Sisters ',
@@ -437,12 +485,12 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Married Brothers',
                 subtitle:
-                    controller.profileDetails.value.marriedBrother.toString(),
+                controller.profileDetails.value.marriedBrother.toString(),
               ),
               getListTile(
                 title: 'Married Sisters',
                 subtitle:
-                    controller.profileDetails.value.marriedSister.toString(),
+                controller.profileDetails.value.marriedSister.toString(),
               ),
             ],
           ),
@@ -485,12 +533,12 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Age',
                 subtitle:
-                    '${controller.profileDetails.value.partnerAgeFrom ?? "-"} from ${controller.profileDetails.value.partnerAgeTo ?? "-"}',
+                '${controller.profileDetails.value.partnerAgeFrom ?? "-"} from ${controller.profileDetails.value.partnerAgeTo ?? "-"}',
               ),
               getListTile(
                 title: 'Languages',
                 subtitle:
-                    controller.profileDetails.value.partnerLanguages ?? "--",
+                controller.profileDetails.value.partnerLanguages ?? "--",
               ),
             ],
           ),
@@ -556,8 +604,8 @@ class UserDetailsView extends GetView<UserDetailsController> {
               getListTile(
                 title: 'Marital Status ',
                 subtitle:
-                    controller.profileDetails.value.partnerMaritalStatus ??
-                        "--",
+                controller.profileDetails.value.partnerMaritalStatus ??
+                    "--",
               ),
             ],
           ),

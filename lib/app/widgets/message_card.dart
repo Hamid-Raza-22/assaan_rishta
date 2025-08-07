@@ -1,7 +1,5 @@
 import 'dart:io';
 
-// import '../core/services/firebase_service/export.dart';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -15,6 +13,7 @@ import '../core/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import '../viewmodels/chat_viewmodel.dart';
+import 'messages/message_status_indicator.dart'; // Import the status indicator
 
 class MessageCard extends StatefulWidget {
   final Message message;
@@ -34,17 +33,18 @@ class _MessageCardState extends State<MessageCard> {
   bool isHovered = false;
 
   final useCase = Get.find<UserManagementUseCase>();
-  final chatController = Get.find<ChatViewModel>(); // Add this
+  final chatController = Get.find<ChatViewModel>();
 
   @override
   Widget build(BuildContext context) {
     Size chatMq = MediaQuery.of(context).size;
     bool isMe = useCase.getUserId().toString() == widget.message.fromId;
-    if (widget.message.read.isEmpty && !widget.pause) {
-      chatController.markMessageAsRead(widget.message); // ✅ Updated
 
-      // FirebaseService.updateMessageReadStatus(widget.message);
+    // Mark message as read if conditions are met
+    if (widget.message.read.isEmpty && !widget.pause && !isMe) {
+      chatController.markMessageAsRead(widget.message);
     }
+
     return InkWell(
       onLongPress: () {
         _showBottomSheet(context: context, message: widget.message, isMe: isMe);
@@ -53,7 +53,7 @@ class _MessageCardState extends State<MessageCard> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           Flexible(
             child: ConstrainedBox(
@@ -71,7 +71,7 @@ class _MessageCardState extends State<MessageCard> {
                 ),
                 decoration: BoxDecoration(
                   color:
-                      isMe ? AppColors.secondaryColor : const Color(0xFFF5F6FA),
+                  isMe ? AppColors.secondaryColor : const Color(0xFFF5F6FA),
                   borderRadius: BorderRadius.only(
                     topRight: const Radius.circular(15),
                     topLeft: const Radius.circular(15),
@@ -81,33 +81,35 @@ class _MessageCardState extends State<MessageCard> {
                 ),
                 child: Column(
                   crossAxisAlignment:
-                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Message content
                     widget.message.type == Type.text
                         ? Text(
-                            widget.message.msg,
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              color: isMe ? Colors.white : Colors.black,
-                              // fontFamily: "Google Font",
-                            ),
-                          )
+                      widget.message.msg,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: isMe ? Colors.white : Colors.black,
+                      ),
+                    )
                         : ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: CachedNetworkImage(
-                              imageUrl: widget.message.msg,
-                              errorWidget: (c, url, e) => const Icon(
-                                  size: 70, Icons.image, color: Colors.black),
-                              placeholder: (c, url) => const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
+                      borderRadius: BorderRadius.circular(15),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.message.msg,
+                        errorWidget: (c, url, e) => const Icon(
+                            size: 70, Icons.image, color: Colors.black),
+                        placeholder: (c, url) => const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
                           ),
-                    const SizedBox(height: 04),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Time and status row
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -119,18 +121,14 @@ class _MessageCardState extends State<MessageCard> {
                           ),
                           style: GoogleFonts.poppins(
                             fontSize: 10,
-                            color: isMe ? Colors.white : Colors.black54,
+                            color: isMe ? Colors.white70 : Colors.black54,
                           ),
                         ),
-                        if (isMe) const SizedBox(width: 7),
-                        if (isMe)
-                          Icon(
-                            Icons.done_all_rounded,
-                            color: widget.message.read.isNotEmpty
-                                ? Colors.blue
-                                : Colors.black54,
-                            size: 16,
-                          ),
+                        // Status indicator for sent messages only
+                        MessageStatusIndicator(
+                          status: widget.message.status,
+                          isFromCurrentUser: isMe,
+                        ),
                       ],
                     ),
                   ],
@@ -163,62 +161,58 @@ class _MessageCardState extends State<MessageCard> {
           shrinkWrap: true,
           children: [
             message.type == Type.image
-                // save image option
                 ? _OptionItem(
-                    icon: const Icon(Icons.download_rounded,
-                        color: Colors.blue, size: 26),
-                    name: 'Save Image',
-                    onTap: () async {
-                      try {
-                        final path = Directory.systemTemp.path;
-                        await Dio().download(message.msg, path);
-                        await Gal.putImage(path).then(
-                          (s) {
-                            Navigator.pop(context);
-                            AppUtils.successData(
-                              title: "Image",
-                              message: 'Image Saved Successfully !!',
-                            );
-                          },
-                        );
-                      } on GalException catch (e) {
-                        AppUtils.failedData(
-                          title: "Error",
-                          message: e.type.message,
-                        );
-                      } catch (e) {
-                        AppUtils.failedData(
-                          title: "Error",
-                          message:
-                              'Image couldn\'t be saved, please try again.',
-                        );
-                      }
+              icon: const Icon(Icons.download_rounded,
+                  color: Colors.blue, size: 26),
+              name: 'Save Image',
+              onTap: () async {
+                try {
+                  final path = Directory.systemTemp.path;
+                  await Dio().download(message.msg, path);
+                  await Gal.putImage(path).then(
+                        (s) {
+                      Navigator.pop(context);
+                      AppUtils.successData(
+                        title: "Image",
+                        message: 'Image Saved Successfully !!',
+                      );
                     },
-                  )
-                // copy option
+                  );
+                } on GalException catch (e) {
+                  AppUtils.failedData(
+                    title: "Error",
+                    message: e.type.message,
+                  );
+                } catch (e) {
+                  AppUtils.failedData(
+                    title: "Error",
+                    message:
+                    'Image couldn\'t be saved, please try again.',
+                  );
+                }
+              },
+            )
                 : _OptionItem(
-                    icon: const Icon(Icons.copy_all_rounded,
-                        color: Colors.blue, size: 26),
-                    name: 'Copy Message',
-                    onTap: () async {
-                      await Clipboard.setData(ClipboardData(text: message.msg))
-                          .then((value) {
-                        Navigator.pop(context);
-                        AppUtils.successData(
-                          title: "Copy",
-                          message: 'Message Copied!',
-                        );
-                      });
-                    },
-                  ),
-            // spacer(line)
+              icon: const Icon(Icons.copy_all_rounded,
+                  color: Colors.blue, size: 26),
+              name: 'Copy Message',
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: message.msg))
+                    .then((value) {
+                  Navigator.pop(context);
+                  AppUtils.successData(
+                    title: "Copy",
+                    message: 'Message Copied!',
+                  );
+                });
+              },
+            ),
             if (isMe)
               Divider(
                 color: Colors.black54,
                 endIndent: shit,
                 indent: shit,
               ),
-            // edit message if text
             if (message.type == Type.text && isMe)
               _OptionItem(
                 icon: const Icon(Icons.edit, color: Colors.blue, size: 26),
@@ -231,7 +225,6 @@ class _MessageCardState extends State<MessageCard> {
                   );
                 },
               ),
-            // delete message
             if (isMe)
               _OptionItem(
                 icon: const Icon(Icons.delete, color: Colors.red, size: 26),
@@ -248,31 +241,76 @@ class _MessageCardState extends State<MessageCard> {
                   });
                 },
               ),
-            // spacer(line)
             Divider(
               color: Colors.black54,
               endIndent: shit,
               indent: shit,
             ),
-            // sent at
             _OptionItem(
-              icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
+              icon: const Icon(Icons.access_time, color: Colors.blue),
               name:
-                  'Sent At: ${MyDateUtill.getMessageTime(context: context, time: message.sent)}',
+              'Sent At: ${MyDateUtill.getMessageTime(context: context, time: message.sent)}',
               onTap: () {},
             ),
-            // read at
+            // Show message status information
             _OptionItem(
-              icon: const Icon(Icons.remove_red_eye, color: Colors.green),
-              name: message.read.isEmpty
-                  ? 'Read At: Not seen yet'
-                  : 'Read At: ${MyDateUtill.getMessageTime(context: context, time: message.read)}',
+              icon: Icon(
+                _getStatusIcon(message.status),
+                color: _getStatusColor(message.status),
+              ),
+              name: 'Status: ${_getStatusText(message.status)}',
               onTap: () {},
             ),
+            if (message.read.isNotEmpty)
+              _OptionItem(
+                icon: const Icon(Icons.visibility, color: Colors.green),
+                name: 'Read At: ${MyDateUtill.getMessageTime(context: context, time: message.read)}',
+                onTap: () {},
+              ),
           ],
         );
       },
     );
+  }
+
+  // Helper methods for status display
+  IconData _getStatusIcon(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending:
+        return Icons.access_time;
+      case MessageStatus.sent:
+        return Icons.done;
+      case MessageStatus.delivered:
+        return Icons.done_all;
+      case MessageStatus.read:
+        return Icons.done_all;
+    }
+  }
+
+  Color _getStatusColor(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending:
+        return Colors.grey;
+      case MessageStatus.sent:
+        return Colors.grey;
+      case MessageStatus.delivered:
+        return Colors.grey;
+      case MessageStatus.read:
+        return Colors.blue;
+    }
+  }
+
+  String _getStatusText(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending:
+        return 'Sending...';
+      case MessageStatus.sent:
+        return 'Sent';
+      case MessageStatus.delivered:
+        return 'Delivered';
+      case MessageStatus.read:
+        return 'Read';
+    }
   }
 
   Future _showMessageUpdateDialogue(
@@ -280,11 +318,11 @@ class _MessageCardState extends State<MessageCard> {
     String updatedMsg = message.msg;
     return await showDialog(
       context: context,
-      builder:(BuildContext dialogContext) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
         actionsAlignment: MainAxisAlignment.spaceEvenly,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         contentPadding:
-            const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 10),
+        const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 10),
         actionsPadding: kIsWeb ? const EdgeInsets.only(bottom: 10) : null,
         title: const Row(
           children: [
@@ -298,12 +336,12 @@ class _MessageCardState extends State<MessageCard> {
         ),
         content: Container(
           constraints: kIsWeb
-              ? BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .5)
+              ? BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * .5)
               : null,
           child: TextFormField(
             initialValue: updatedMsg,
             maxLines: null,
-            // style: const TextStyle(fontFamily: "Google Font"),
             onChanged: (value) => updatedMsg = value,
             decoration: InputDecoration(
               border: OutlineInputBorder(
@@ -332,7 +370,7 @@ class _MessageCardState extends State<MessageCard> {
           MaterialButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              await chatController.updateMessage(message, updatedMsg); // ✅ Updated
+              await chatController.updateMessage(message, updatedMsg);
             },
             child: const Text(
               'Update',
@@ -368,10 +406,10 @@ class _OptionItem extends StatelessWidget {
         padding: kIsWeb
             ? EdgeInsets.zero
             : EdgeInsets.only(
-                left: chatMq.width * .05,
-                top: chatMq.height * .01,
-                bottom: chatMq.height * .01,
-              ),
+          left: chatMq.width * .05,
+          top: chatMq.height * .01,
+          bottom: chatMq.height * .01,
+        ),
         child: Row(
           children: [
             icon,

@@ -243,20 +243,20 @@ class NotificationServices {
     });
   }
 
-  Future<void> setupInteractMessage(BuildContext context) async {
-    // when app is terminated
-    RemoteMessage? initialMessage =
-    await FirebaseMessaging.instance.getInitialMessage();
-
-    if (initialMessage != null) {
-      handleMessage(context, initialMessage);
-    }
-
-    //when app ins background
-    FirebaseMessaging.onMessageOpenedApp.listen((event) {
-      handleMessage(context, event);
-    });
-  }
+  // Future<void> setupInteractMessage(BuildContext context) async {
+  //   // when app is terminated
+  //   RemoteMessage? initialMessage =
+  //   await FirebaseMessaging.instance.getInitialMessage();
+  //
+  //   if (initialMessage != null) {
+  //     handleMessage(context, initialMessage);
+  //   }
+  //
+  //   //when app ins background
+  //   FirebaseMessaging.onMessageOpenedApp.listen((event) {
+  //     handleMessage(context, event);
+  //   });
+  // }
 
   // FIXED: Complete notification handling with better state management
   Future<void> handleMessage(BuildContext context, RemoteMessage message) async {
@@ -271,11 +271,33 @@ class NotificationServices {
       debugPrint('📱 Sender ID: $senderId, Name: $senderName');
 
       if (senderId != null && senderId.isNotEmpty && senderName != null) {
-        // Prevent duplicate navigation
-        if (_shouldPreventNavigation(senderId)) {
-          debugPrint('⚠️ Preventing duplicate navigation to same user');
-          return;
+        // FIXED: Reset state if stuck from previous navigation
+        if (_isNavigating) {
+          final now = DateTime.now();
+          if (_lastNavigationTime != null &&
+              now.difference(_lastNavigationTime!).inSeconds > 5) {
+            // Reset if navigation has been stuck for more than 5 seconds
+            debugPrint('⚠️ Resetting stuck navigation state');
+            _resetNavigationState();
+          } else {
+            debugPrint('⚠️ Navigation already in progress, skipping');
+            return;
+          }
         }
+        // Prevent duplicate navigation to same user within 2 seconds
+        if (_lastNavigatedUserId == senderId &&
+            _lastNavigationTime != null) {
+          final now = DateTime.now();
+          if (now.difference(_lastNavigationTime!).inSeconds < 2) {
+            debugPrint('⚠️ Preventing duplicate navigation to same user');
+            return;
+          }
+        }
+        // Prevent duplicate navigation
+        // if (_shouldPreventNavigation(senderId)) {
+        //   debugPrint('⚠️ Preventing duplicate navigation to same user');
+        //   return;
+        // }
 
         try {
           debugPrint('🚀 Creating ChatUser from notification data...');
@@ -305,6 +327,7 @@ class NotificationServices {
 
         } catch (e) {
           debugPrint('❌ Error in notification handling: $e');
+          _resetNavigationState(); // Reset on error
           _navigateToBottomNav();
         }
       } else {
@@ -313,7 +336,11 @@ class NotificationServices {
       }
     }
   }
-
+  // FIXED: Reset navigation state after completion
+  static void _resetNavigationState() {
+    _isNavigating = false;
+    debugPrint('🔄 Navigation state reset');
+  }
   // Check if should prevent navigation
   bool _shouldPreventNavigation(String userId) {
     final now = DateTime.now();
@@ -334,22 +361,10 @@ class NotificationServices {
   }
 
   // Safe navigation to bottom nav
-  void _navigateToBottomNav() {
-    if (!_isNavigating) {
-      _isNavigating = true;
-      Get.offAll(() => const BottomNavView(index: 1))?.then((_) {
-        _isNavigating = false;
-      });
-    }
-  }
 
   // FIXED: Safe navigation method with better state management
+// FIXED: Improved navigation method with route handling
   Future<void> _navigateToChatSafely(ChatUser chatUser) async {
-    if (_isNavigating) {
-      debugPrint('⚠️ Navigation already in progress');
-      return;
-    }
-
     try {
       _isNavigating = true;
       _lastNavigatedUserId = chatUser.id;
@@ -369,81 +384,64 @@ class NotificationServices {
       final chatController = Get.find<ChatViewModel>();
       final chatListController = Get.find<ChatListController>();
 
-      // FIXED: Reset any stuck loading states
+      // Reset any stuck loading states
       chatListController.resetAllStates();
 
       // Check if already chatting with this user
       if (chatController.isChattingWithUser(chatUser.id)) {
         debugPrint('✅ Already in chat with user ${chatUser.name}');
+        _resetNavigationState();
         return;
       }
 
       // Add user to chat list first
       await _addSenderToChatList(chatUser.id);
 
-      // FIXED: Better navigation handling when already in chat
-      if (Get.currentRoute.contains('/chatting_view/') ||
-          Get.currentRoute.contains('/chatting-view')) {
-        debugPrint('🔄 Already in chat view, switching to new user...');
+      // Check block status
+      bool? isBlocked;
+      bool? isBlockedByOther;
 
-        // Set navigation flag to prevent loading
-        chatListController.isNavigatingToChat.value = true;
-
-        // Exit current chat properly
-        await chatController.exitChat();
-
-        // Small delay to ensure cleanup
-        await Future.delayed(const Duration(milliseconds: 200));
-
-        // Navigate to new chat
-        Get.to(
-              () => ChattingView(user: chatUser),
-          transition: Transition.rightToLeft,
-          duration: const Duration(milliseconds: 300),
-        );
-
-        // Reset navigation flag after navigation
-        Future.delayed(const Duration(milliseconds: 500), () {
-          chatListController.isNavigatingToChat.value = false;
-        });
+      try {
+        final results = await Future.wait([
+          chatController.isUserBlocked(chatUser.id),
+          chatController.isBlockedByFriend(chatUser.id),
+        ]);
+        isBlocked = results[0];
+        isBlockedByOther = results[1];
+      } catch (e) {
+        debugPrint('Error checking block status: $e');
       }
-      else if (Get.currentRoute.contains('/bottom-nav')) {
-        // Set navigation flag
-        chatListController.isNavigatingToChat.value = true;
 
-        // In bottom nav, navigate directly
-        Get.to(
-              () => ChattingView(user: chatUser),
-          transition: Transition.rightToLeft,
-          preventDuplicates: true,
+      // Handle different navigation scenarios
+      final currentRoute = Get.currentRoute;
+
+      if (_isInChattingView(currentRoute)) {
+        await _switchBetweenChats(
+          chatUser,
+          chatController,
+          chatListController,
+          isBlocked,
+          isBlockedByOther,
         );
-
-        // Reset navigation flag
-        Future.delayed(const Duration(milliseconds: 300), () {
-          chatListController.isNavigatingToChat.value = false;
-        });
+      }
+      else if (currentRoute.contains('/bottom-nav')) {
+        await _navigateFromBottomNav(
+          chatUser,
+          chatListController,
+          isBlocked,
+          isBlockedByOther,
+        );
       }
       else {
-        // From any other screen, go through bottom nav
-        chatListController.isNavigatingToChat.value = true;
-
-        Get.to(
-              () => const BottomNavView(index: 2),
-         // predicate: (route) => false, // Clear all routes
+        await _navigateFromOtherScreen(
+          chatUser,
+          chatListController,
+          isBlocked,
+          isBlockedByOther,
         );
-
-        // Navigate to chat after bottom nav loads
-        Future.delayed(const Duration(milliseconds: 300), () {
-          Get.to(() => ChattingView(user: chatUser));
-
-          // Reset navigation flag
-          Future.delayed(const Duration(milliseconds: 300), () {
-            chatListController.isNavigatingToChat.value = false;
-          });
-        });
       }
 
-      debugPrint('✅ Navigation completed');
+      debugPrint('✅ Navigation completed successfully');
 
     } catch (e) {
       debugPrint('❌ Error navigating: $e');
@@ -456,9 +454,9 @@ class NotificationServices {
 
       _navigateToBottomNav();
     } finally {
-      // Always reset navigation flag after delay
-      Future.delayed(const Duration(seconds: 1), () {
-        _isNavigating = false;
+      // FIXED: Always reset navigation flag with shorter delay
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _resetNavigationState();
 
         // Final state check
         if (Get.isRegistered<ChatListController>()) {
@@ -469,6 +467,118 @@ class NotificationServices {
             listController.resetAllStates();
           }
         }
+      });
+    }
+  }
+
+  // Helper to check if currently in chatting view
+  bool _isInChattingView(String route) {
+    return route.contains('/chatting_view/') ||
+        route.contains('/chatting-view') ||
+        route == AppRoutes.CHATTING_VIEW;
+  }
+
+  // FIXED: Handle switching between chats
+  // FIXED: Handle switching between chats with proper cleanup
+  Future<void> _switchBetweenChats(
+      ChatUser chatUser,
+      ChatViewModel chatController,
+      ChatListController chatListController,
+      bool? isBlocked,
+      bool? isBlockedByOther,
+      ) async {
+    debugPrint('🔄 Switching from one chat to another...');
+
+    // Set navigation flag
+    chatListController.isNavigatingToChat.value = true;
+
+    // Properly exit current chat
+    await chatController.exitChat();
+    chatController.selectedUser.value = null;
+
+    // Small delay to ensure cleanup
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    // Navigate to new chat
+    Get.off(
+          () => ChattingView(
+        user: chatUser,
+        isBlocked: isBlocked,
+        isBlockedByOther: isBlockedByOther,
+      ),
+      transition: Transition.rightToLeft,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    // Reset navigation flag
+    Future.delayed(const Duration(milliseconds: 500), () {
+      chatListController.isNavigatingToChat.value = false;
+    });
+  }
+
+  // FIXED: Navigate from bottom nav with better state management
+  Future<void> _navigateFromBottomNav(
+      ChatUser chatUser,
+      ChatListController chatListController,
+      bool? isBlocked,
+      bool? isBlockedByOther,
+      ) async {
+    debugPrint('📱 Navigating from bottom nav to chat...');
+
+    chatListController.isNavigatingToChat.value = true;
+
+    // Use Get.to instead of Get.toNamed for better control
+    await Get.to(
+          () => ChattingView(
+        user: chatUser,
+        isBlocked: isBlocked,
+        isBlockedByOther: isBlockedByOther,
+      ),
+      transition: Transition.rightToLeft,
+      duration: const Duration(milliseconds: 300),
+      preventDuplicates: true,
+    );
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      chatListController.isNavigatingToChat.value = false;
+    });
+  }
+// Navigate from other screens
+  Future<void> _navigateFromOtherScreen(
+      ChatUser chatUser,
+      ChatListController chatListController,
+      bool? isBlocked,
+      bool? isBlockedByOther,
+      ) async {
+    debugPrint('🚀 Navigating from other screen to chat...');
+
+    chatListController.isNavigatingToChat.value = true;
+
+    // First go to bottom nav
+    Get.offAll(() => const BottomNavView(index: 2));
+
+    // Then navigate to chat
+    Future.delayed(const Duration(milliseconds: 300), () {
+      Get.to(
+            () => ChattingView(
+          user: chatUser,
+          isBlocked: isBlocked,
+          isBlockedByOther: isBlockedByOther,
+        ),
+      );
+
+      Future.delayed(const Duration(milliseconds: 300), () {
+        chatListController.isNavigatingToChat.value = false;
+      });
+    });
+  }
+
+  // Safe navigation to bottom nav
+  void _navigateToBottomNav() {
+    if (!_isNavigating) {
+      _isNavigating = true;
+      Get.offAll(() => const BottomNavView(index: 2))?.then((_) {
+        _resetNavigationState();
       });
     }
   }
@@ -497,6 +607,77 @@ class NotificationServices {
       debugPrint('❌ Error adding sender to chat list: $e');
     }
   }
+
+  // FIXED: Setup interaction message handler (for background/terminated state)
+  Future<void> setupInteractMessage(BuildContext context) async {
+    // Reset any stuck state when setting up
+    _resetNavigationState();
+
+    // when app is terminated
+    RemoteMessage? initialMessage =
+    await FirebaseMessaging.instance.getInitialMessage();
+
+    if (initialMessage != null) {
+      // Small delay to ensure app is fully initialized
+      await Future.delayed(const Duration(milliseconds: 500));
+      handleMessage(context, initialMessage);
+    }
+
+    // when app is in background
+    FirebaseMessaging.onMessageOpenedApp.listen((event) {
+      // Reset state before handling new message
+      if (_isNavigating) {
+        debugPrint('⚠️ Resetting navigation state before handling new message');
+        _resetNavigationState();
+      }
+      handleMessage(context, event);
+    });
+  }
+
+
+  // Helper to extract user ID from route
+  String? _extractUserIdFromRoute(String route) {
+    try {
+      // Extract from pattern: /chatting_view/123456
+      if (route.contains('/chatting_view/')) {
+        final parts = route.split('/chatting_view/');
+        if (parts.length > 1) {
+          // Get the user ID part (might have query params)
+          final userIdPart = parts[1].split('?')[0];
+          return userIdPart.isNotEmpty ? userIdPart : null;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error extracting user ID from route: $e');
+      return null;
+    }
+  }
+
+  // Helper function to add sender to chat list
+  // Future<void> _addSenderToChatList(String senderId) async {
+  //   try {
+  //     debugPrint('➕ Adding sender $senderId to chat list...');
+  //
+  //     final currentUserId = Get.find<UserManagementUseCase>().getUserId().toString();
+  //     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+  //
+  //     // Add sender to current user's my_users collection
+  //     await FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(currentUserId)
+  //         .collection('my_users')
+  //         .doc(senderId)
+  //         .set({
+  //       'last_message_time': timestamp,
+  //       'added_at': timestamp,
+  //     }, SetOptions(merge: true));
+  //
+  //     debugPrint('✅ Sender added to chat list');
+  //   } catch (e) {
+  //     debugPrint('❌ Error adding sender to chat list: $e');
+  //   }
+  // }
 
   // Send notification method
   static Future<void> sendNotification({

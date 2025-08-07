@@ -1,4 +1,4 @@
-// chat_user_card.dart - FIXED: Real-time user name and image updates (Enhanced Version)
+// enhanced_chat_user_card.dart - With deleted user detection
 
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -14,7 +14,7 @@ import '../viewmodels/chat_viewmodel.dart';
 import '../views/chat/export.dart';
 import 'export.dart';
 
-// Controller for managing ChatUserCard state
+// Enhanced controller with deletion detection
 class ChatUserCardController extends GetxController {
   final String userId;
   final String currentUID;
@@ -33,7 +33,12 @@ class ChatUserCardController extends GetxController {
   final RxBool hasBlockedThem = false.obs;
   final RxBool isBlockStatusLoaded = false.obs;
 
-  // ENHANCED: Real-time user data with better reactivity
+  // ENHANCED: Deletion detection
+  final RxBool isUserDeleted = false.obs;
+  final RxString userDeletionTime = ''.obs;
+  final RxBool isDeletionStatusLoaded = false.obs;
+
+  // Real-time user data with better reactivity
   final Rx<ChatUser> realtimeUserData = Rx<ChatUser>(ChatUser(
     id: '',
     name: '',
@@ -68,10 +73,10 @@ class ChatUserCardController extends GetxController {
 
     // Initialize with cached user data
     realtimeUserData.value = user;
-    // ADDED: Preload initial image
     _preloadUserImage(user.image);
 
-    // Check block status once on init
+    // Check deletion and block status
+    _checkDeletionStatus();
     _checkBlockStatus();
 
     // Setup real-time listeners
@@ -83,17 +88,59 @@ class ChatUserCardController extends GetxController {
   void onClose() {
     debugPrint('🗑️ Disposing ChatUserCardController for $userId');
 
-    // Cancel all subscriptions
     _userStreamSubscription?.cancel();
     _blockStatusSubscription?.cancel();
     _blockedByOtherSubscription?.cancel();
 
-    // Clear references
     _userStreamSubscription = null;
     _blockStatusSubscription = null;
     _blockedByOtherSubscription = null;
 
     super.onClose();
+  }
+
+  // ENHANCED: Check if user has deleted their account
+  Future<void> _checkDeletionStatus() async {
+    try {
+      debugPrint('🔍 Checking deletion status for user: $userId');
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(userId)
+          .get();
+
+      if (!userDoc.exists) {
+        debugPrint('👤 User document does not exist: $userId');
+        isUserDeleted.value = true;
+        userDeletionTime.value = 'Unknown';
+        isDeletionStatusLoaded.value = true;
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final accountDeleted = userData['account_deleted'] == true;
+      final deletionTimestamp = userData['deleted_at'] as String? ?? '';
+
+      isUserDeleted.value = accountDeleted;
+      userDeletionTime.value = deletionTimestamp;
+      isDeletionStatusLoaded.value = true;
+
+      if (accountDeleted) {
+        debugPrint('🗑️ User $userId has deleted their account at: $deletionTimestamp');
+
+        // Update realtime user data to show deletion status
+        realtimeUserData.value = realtimeUserData.value.copyWith(
+          name: 'Deleted User',
+          about: 'This account has been deleted',
+          image: '',
+          isOnline: false,
+        );
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error checking deletion status: $e');
+      isDeletionStatusLoaded.value = true;
+    }
   }
 
   Future<void> _checkBlockStatus() async {
@@ -115,46 +162,79 @@ class ChatUserCardController extends GetxController {
     }
   }
 
-  // ENHANCED: Direct document listener for better real-time updates
+  // ENHANCED: User data stream with deletion monitoring
   void _setupUserDataStream() {
-    debugPrint('📺 Setting up DIRECT user data stream for: $userId');
+    debugPrint('📺 Setting up ENHANCED user data stream for: $userId');
 
     _userStreamSubscription?.cancel();
 
     _userStreamSubscription = FirebaseFirestore.instance
         .collection('Hamid_users')
-        .doc(userId) // DIRECT document listener
+        .doc(userId)
         .snapshots()
         .listen(
           (DocumentSnapshot<Map<String, dynamic>> snapshot) {
 
-        // Verify controller is still active
         if (!Get.isRegistered<ChatUserCardController>(tag: 'chat_card_$userId')) {
           debugPrint('⚠️ Controller no longer registered, canceling stream');
           _userStreamSubscription?.cancel();
           return;
         }
 
-        if (snapshot.exists && snapshot.data() != null) {
-          try {
-            final userData = snapshot.data()!;
-            final updatedUser = ChatUser.fromJson(userData);
+        if (!snapshot.exists) {
+          debugPrint('👤 User document deleted: $userId');
+          isUserDeleted.value = true;
+          userDeletionTime.value = DateTime.now().millisecondsSinceEpoch.toString();
 
-            // ADDED: Preload image when user data updates
-            _preloadUserImage(updatedUser.image);
-            // Force update reactive variable
-            realtimeUserData.value = updatedUser;
+          // Update to show deleted user
+          realtimeUserData.value = realtimeUserData.value.copyWith(
+            name: 'Deleted User',
+            about: 'This account no longer exists',
+            image: '',
+            isOnline: false,
+          );
 
-            debugPrint('🔄 REAL-TIME UPDATE: ${updatedUser.name} | Online: ${updatedUser.isOnline} | Image: ${updatedUser.image.length > 20 ? updatedUser.image.substring(0, 20) + "..." : updatedUser.image}');
+          update(['user_data_$userId']);
+          return;
+        }
 
-            // Force UI rebuild
-            update(['user_data_$userId']);
+        try {
+          final userData = snapshot.data()!;
+          final accountDeleted = userData['account_deleted'] == true;
 
-          } catch (e) {
-            debugPrint('❌ Error parsing user data: $e');
+          // Update deletion status
+          if (accountDeleted != isUserDeleted.value) {
+            isUserDeleted.value = accountDeleted;
+            userDeletionTime.value = userData['deleted_at'] as String? ?? '';
+
+            debugPrint('🔄 Deletion status changed for $userId: $accountDeleted');
           }
-        } else {
-          debugPrint('⚠️ User document does not exist: $userId');
+
+          // Update user data
+          if (accountDeleted) {
+            // Show deleted user info
+            realtimeUserData.value = ChatUser.fromJson({
+              ...userData,
+              'name': 'Deleted User',
+              'about': 'This account has been deleted',
+              'image': '',
+              'is_online': false,
+              'is_mobile_online': false,
+              'is_web_online': false,
+            });
+          } else {
+            // Show normal user info
+            final updatedUser = ChatUser.fromJson(userData);
+            _preloadUserImage(updatedUser.image);
+            realtimeUserData.value = updatedUser;
+          }
+
+          debugPrint('🔄 REAL-TIME UPDATE: ${realtimeUserData.value.name} | Deleted: $accountDeleted | Online: ${realtimeUserData.value.isOnline}');
+
+          update(['user_data_$userId']);
+
+        } catch (e) {
+          debugPrint('❌ Error parsing user data: $e');
         }
       },
       onError: (error) {
@@ -163,16 +243,14 @@ class ChatUserCardController extends GetxController {
       cancelOnError: false,
     );
   }
-// ADDED: Preload user images for faster display
+
   void _preloadUserImage(String imageUrl) {
     if (imageUrl.isEmpty || imageUrl == AppConstants.profileImg) {
-      return; // Skip preloading for empty or default images
+      return;
     }
 
     try {
-      // Preload image into cache
       CachedNetworkImage.evictFromCache(imageUrl).then((_) {
-        // Pre-cache the image
         precacheImage(
           CachedNetworkImageProvider(imageUrl),
           Get.context!,
@@ -188,11 +266,9 @@ class ChatUserCardController extends GetxController {
   }
 
   void _setupBlockStatusListeners() {
-    // Cancel any existing subscriptions first
     _blockStatusSubscription?.cancel();
     _blockedByOtherSubscription?.cancel();
 
-    // Listen to current user's blocked list
     _blockStatusSubscription = FirebaseFirestore.instance
         .collection('Hamid_users')
         .doc(currentUID)
@@ -206,7 +282,17 @@ class ChatUserCardController extends GetxController {
         if (!snapshot.exists) return;
 
         final userData = snapshot.data();
-        final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
+        // final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
+        final blockedUsersData = userData?['blockedUsers'];
+        Map<String, dynamic> blockedUsers = {};
+        if (blockedUsersData is Map<String, dynamic>) {
+          debugPrint('📱 [My Block List] blockedUsers is a Map: $blockedUsersData');
+          blockedUsers = blockedUsersData;
+        } else if (blockedUsersData is List) {
+          debugPrint('📱 [My Block List] blockedUsers is a List, converting: $blockedUsersData');
+          // Handle case where it might be a list of UIDs, convert to map for consistency
+          blockedUsers = {for (var item in blockedUsersData) item.toString(): null};
+        }
 
         final wasBlocked = hasBlockedThem.value;
         hasBlockedThem.value = blockedUsers.containsKey(userId);
@@ -218,12 +304,11 @@ class ChatUserCardController extends GetxController {
         }
       },
       onError: (error) {
-        debugPrint('Error in block status stream: $error');
+        debugPrint('❌ Error in my block status stream: $error');
       },
       cancelOnError: false,
     );
 
-    // Listen to other user's blocked list
     _blockedByOtherSubscription = FirebaseFirestore.instance
         .collection('Hamid_users')
         .doc(userId)
@@ -237,7 +322,16 @@ class ChatUserCardController extends GetxController {
         if (!snapshot.exists) return;
 
         final userData = snapshot.data();
-        final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
+        // final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
+        final blockedUsersData = userData?['blockedUsers'];
+        Map<String, dynamic> blockedUsers = {};
+        if (blockedUsersData is Map<String, dynamic>) {
+          debugPrint('👤 [Other User Block List] blockedUsers is a Map: $blockedUsersData');
+          blockedUsers = blockedUsersData;
+        } else if (blockedUsersData is List) {
+          debugPrint('👤 [Other User Block List] blockedUsers is a List, converting: $blockedUsersData');
+          blockedUsers = {for (var item in blockedUsersData) item.toString(): null};
+        }
 
         final wasBlockedByOther = isBlockedByOther.value;
         isBlockedByOther.value = blockedUsers.containsKey(currentUID);
@@ -249,12 +343,11 @@ class ChatUserCardController extends GetxController {
         }
       },
       onError: (error) {
-        debugPrint('Error in blocked by other stream: $error');
+        debugPrint('❌ Error in blocked by other stream: $error');
       },
       cancelOnError: false,
     );
   }
-
 
   Future<void> handleBlock() async {
     debugPrint('🚫 Blocking user $userId');
@@ -270,16 +363,44 @@ class ChatUserCardController extends GetxController {
     update(['block_status_$userId']);
   }
 
-  // Helper getters
+  // ENHANCED: Helper getters with deletion check
   bool get isCurrentlyBlocked => hasBlockedThem.value || isBlockedByOther.value;
+  bool get isCurrentlyDeleted => isUserDeleted.value;
+  bool get canChat => !isCurrentlyBlocked && !isCurrentlyDeleted;
   ChatUser get currentUserData => realtimeUserData.value;
+
+  String get displayDeletionTime {
+    if (userDeletionTime.value.isEmpty || userDeletionTime.value == 'Unknown') {
+      return 'Recently';
+    }
+
+    try {
+      final deletionTimestamp = int.parse(userDeletionTime.value);
+      final deletionDate = DateTime.fromMillisecondsSinceEpoch(deletionTimestamp);
+      final now = DateTime.now();
+      final difference = now.difference(deletionDate);
+
+      if (difference.inDays > 30) {
+        return '${(difference.inDays / 30).floor()} month${(difference.inDays / 30).floor() > 1 ? 's' : ''} ago';
+      } else if (difference.inDays > 0) {
+        return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+      } else {
+        return 'Recently';
+      }
+    } catch (e) {
+      return 'Recently';
+    }
+  }
 }
 
-class ChatUserCard extends StatelessWidget {
+// ENHANCED: ChatUserCard with deletion support
+class EnhancedChatUserCard extends StatelessWidget {
   final String currentUID;
   final ChatUser user;
 
-  const ChatUserCard({
+  const EnhancedChatUserCard({
     super.key,
     required this.user,
     required this.currentUID,
@@ -289,7 +410,6 @@ class ChatUserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String tag = 'chat_card_${user.id}';
 
-    // Ensure controller exists
     if (!Get.isRegistered<ChatUserCardController>(tag: tag)) {
       Get.put(
         ChatUserCardController(
@@ -327,66 +447,92 @@ class ChatUserCard extends StatelessWidget {
         ),
         child: InkWell(
           onTap: () => _navigateToChat(context, controller),
-          onLongPress: () => _showBlockOptions(context, controller),
+          onLongPress: () => _showOptions(context, controller),
           child: _buildCardContent(controller),
         ),
       ),
     );
   }
 
-  // ENHANCED: Separate widget for card content with targeted rebuilds
+  // ENHANCED: Card content with deletion status
   Widget _buildCardContent(ChatUserCardController controller) {
     return GetBuilder<ChatUserCardController>(
       tag: 'chat_card_${user.id}',
-      id: 'user_data_${user.id}', // Specific rebuild ID
+      id: 'user_data_${user.id}',
       builder: (ctrl) {
         return Obx(() {
           final displayUser = ctrl.currentUserData;
           final isBlocked = ctrl.isCurrentlyBlocked;
+          final isDeleted = ctrl.isCurrentlyDeleted;
 
-          debugPrint('🎨 Building card UI for: ${displayUser.name} (${displayUser.id})');
+          debugPrint('🎨 Building card UI for: ${displayUser.name} (${displayUser.id}) - Deleted: $isDeleted');
 
           return ListTile(
-            leading: _buildAvatar(isBlocked, displayUser),
-            title: Text(
-              displayUser.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: _buildSubtitle(ctrl.listController, ctrl.isBlockedByOther.value, displayUser),
-            trailing: _buildTrailing(ctrl.listController, isBlocked),
+            leading: _buildAvatar(isBlocked, isDeleted, displayUser),
+            title: _buildTitle(isDeleted, displayUser, ctrl),
+            subtitle: _buildSubtitle(ctrl.listController, isBlocked, isDeleted, displayUser, ctrl),
+            trailing: _buildTrailing(ctrl.listController, isBlocked, isDeleted, ctrl),
           );
         });
       },
     );
   }
 
-// Fixed _buildAvatar method with proper caching and loading states
-  Widget _buildAvatar(bool isBlocked, ChatUser displayUser) {
+  // ENHANCED: Avatar with deletion indication
+  Widget _buildAvatar(bool isBlocked, bool isDeleted, ChatUser displayUser) {
+    if (isDeleted) {
+      return Stack(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: Colors.grey[200],
+            child: Icon(
+              Icons.person_off,
+              color: Colors.grey[500],
+              size: 30,
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 12,
+              width: 12,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.red,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 8,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     if (isBlocked) {
       return CircleAvatar(
         radius: 25,
         backgroundColor: Colors.grey[300],
-        child: const Icon(Icons.person, color: Colors.grey, size: 30),
+        child: const Icon(Icons.block, color: Colors.grey, size: 30),
       );
     }
 
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(25), // Make it circular
+          borderRadius: BorderRadius.circular(25),
           child: CachedNetworkImage(
             imageUrl: displayUser.image.isNotEmpty
                 ? displayUser.image
                 : AppConstants.profileImg,
-            height: 50, // radius * 2
-            width: 50,  // radius * 2
+            height: 50,
+            width: 50,
             fit: BoxFit.cover,
-
-            // Placeholder while loading
             placeholder: (context, url) => Container(
               height: 50,
               width: 50,
@@ -400,8 +546,6 @@ class ChatUserCard extends StatelessWidget {
                 size: 30,
               ),
             ),
-
-            // Error widget if image fails to load
             errorWidget: (context, url, error) => Container(
               height: 50,
               width: 50,
@@ -415,22 +559,14 @@ class ChatUserCard extends StatelessWidget {
                 size: 30,
               ),
             ),
-
-            // Cache configuration for better performance
             cacheManager: DefaultCacheManager(),
-
-            // Memory cache configuration
-            memCacheHeight: 100, // Cache at 2x resolution for better quality
+            memCacheHeight: 100,
             memCacheWidth: 100,
-
-            // Fade animation duration
             fadeInDuration: const Duration(milliseconds: 200),
             fadeOutDuration: const Duration(milliseconds: 200),
           ),
         ),
-
-        // Online indicator
-        if (!isBlocked && displayUser.isOnline)
+        if (!isBlocked && !isDeleted && displayUser.isOnline)
           Positioned(
             right: 0,
             bottom: 0,
@@ -447,7 +583,65 @@ class ChatUserCard extends StatelessWidget {
       ],
     );
   }
-  Widget _buildSubtitle(ChatListController controller, bool isBlocked, ChatUser displayUser) {
+
+  // ENHANCED: Title with deletion status
+  Widget _buildTitle(bool isDeleted, ChatUser displayUser, ChatUserCardController controller) {
+    if (isDeleted) {
+      return Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Deleted User',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: Colors.grey,
+                decoration: TextDecoration.lineThrough,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.withOpacity(0.3)),
+            ),
+            child: const Text(
+              'DELETED',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      displayUser.name,
+      style: const TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 16,
+      ),
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  // ENHANCED: Subtitle with deletion information
+  Widget _buildSubtitle(ChatListController controller, bool isBlocked, bool isDeleted,
+      ChatUser displayUser, ChatUserCardController cardController) {
+    if (isDeleted) {
+      return Text(
+        'Account deleted ${cardController.displayDeletionTime}',
+        style: const TextStyle(fontSize: 14, color: Colors.red, fontStyle: FontStyle.italic),
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
     if (isBlocked) {
       return const Text(
         'Account not available',
@@ -461,7 +655,7 @@ class ChatUserCard extends StatelessWidget {
 
       if (lastMessage == null) {
         return Text(
-          displayUser.about, // Use real-time about text
+          displayUser.about,
           style: const TextStyle(fontSize: 14, color: Colors.grey),
           overflow: TextOverflow.ellipsis,
         );
@@ -503,7 +697,28 @@ class ChatUserCard extends StatelessWidget {
     });
   }
 
-  Widget _buildTrailing(ChatListController controller, bool isBlocked) {
+  // ENHANCED: Trailing with deletion status
+  Widget _buildTrailing(ChatListController controller, bool isBlocked, bool isDeleted,
+      ChatUserCardController cardController) {
+    if (isDeleted) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Icon(Icons.person_off, color: Colors.grey[400], size: 20),
+          const SizedBox(height: 2),
+          Text(
+            'Gone',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[500],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
+    }
+
     if (isBlocked) {
       return const Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -626,6 +841,12 @@ class ChatUserCard extends StatelessWidget {
   }
 
   void _navigateToChat(BuildContext context, ChatUserCardController controller) async {
+    // Don't allow navigation to deleted users
+    // if (controller.isCurrentlyDeleted) {
+    //   _showDeletedUserDialog(context, controller);
+    //   return;
+    // }
+
     if (!Get.isRegistered<ChatViewModel>()) {
       Get.put(ChatViewModel());
       debugPrint('💬 ChatViewModel was not registered, now created.');
@@ -649,17 +870,22 @@ class ChatUserCard extends StatelessWidget {
       debugPrint('Error fetching block status: $e');
     }
 
-    // Use real-time user data for navigation
     Get.to(() => ChattingView(
       user: controller.currentUserData,
       isBlocked: isBlocked,
       isBlockedByOther: isBlockedByOther,
+      isDeleted: controller.isCurrentlyDeleted,
     ))?.then((_) {
       chatController.setInsideChatStatus(false);
     });
   }
 
-  void _showBlockOptions(BuildContext context, ChatUserCardController controller) async {
+  void _showOptions(BuildContext context, ChatUserCardController controller) async {
+    if (controller.isCurrentlyDeleted) {
+      _showDeletedUserDialog(context, controller);
+      return;
+    }
+
     final chatController = Get.find<ChatViewModel>();
     final isBlocked = await chatController.isUserBlocked(user.id);
 
@@ -676,5 +902,105 @@ class ChatUserCard extends StatelessWidget {
         },
       );
     }
+  }
+
+  // ENHANCED: Show dialog when trying to interact with deleted user
+  void _showDeletedUserDialog(BuildContext context, ChatUserCardController controller) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.person_off, color: Colors.red, size: 28),
+              SizedBox(width: 10),
+              Text('Account Deleted'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This user has deleted their account.',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Account was deleted ${controller.displayDeletionTime}.',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'You can no longer send messages to this user.',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Okay', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Optionally delete this chat from list
+                _showDeleteConfirmDialog(context, controller).then((shouldDelete) {
+                  if (shouldDelete == true) {
+                    controller.listController.deleteChat(user);
+                    if (Get.isRegistered<ChatUserCardController>(tag: 'chat_card_${user.id}')) {
+                      Get.delete<ChatUserCardController>(tag: 'chat_card_${user.id}', force: true);
+                    }
+                  }
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Remove Chat', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// Extension to add copyWith method to ChatUser if not already present
+extension ChatUserExtension on ChatUser {
+  ChatUser copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? about,
+    String? image,
+    String? createdAt,
+    bool? isOnline,
+    String? lastActive,
+    String? pushToken,
+    String? lastMessage,
+    bool? isInside,
+    bool? isMobileOnline,
+    bool? isWebOnline,
+  }) {
+    return ChatUser(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      about: about ?? this.about,
+      image: image ?? this.image,
+      createdAt: createdAt ?? this.createdAt,
+      isOnline: isOnline ?? this.isOnline,
+      lastActive: lastActive ?? this.lastActive,
+      pushToken: pushToken ?? this.pushToken,
+      lastMessage: lastMessage ?? this.lastMessage,
+      isInside: isInside ?? this.isInside,
+      isMobileOnline: isMobileOnline ?? this.isMobileOnline,
+      isWebOnline: isWebOnline ?? this.isWebOnline,
+    );
   }
 }

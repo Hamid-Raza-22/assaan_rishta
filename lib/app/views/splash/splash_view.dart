@@ -17,7 +17,7 @@ class SplashView extends GetView<SplashController> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService.instance;
+    // final authService = AuthService.instance;
     return GetBuilder<SplashController>(
       initState: (_) {
         Get.put(SplashController(
@@ -68,12 +68,9 @@ class SplashView extends GetView<SplashController> {
                             fontWeight: FontWeight.w400,
                           ),
                           const SizedBox(height: 20),
-                          // (controller.useCase.userManagementRepo
-                          //             .getUserLoggedInStatus() ==
-                          //         false)
-                          // const SizedBox(height: 20),
-// Show button only if initialized AND user is NOT logged in
-                          (authService.isInitialized.value && !authService.isUserLoggedIn.value)
+                          (controller.useCase.userManagementRepo
+                                      .getUserLoggedInStatus() ==
+                                  false)
                               ? CustomButton(
                               text: "Get Started",
                               isGradient: true,
@@ -83,6 +80,8 @@ class SplashView extends GetView<SplashController> {
                                 color: AppColors.whiteColor,
                               ),
                               onTap: () => Get.offNamed(AppRoutes.ACCOUNT_TYPE)
+                              // onTap: () => Get.offNamed(AppRoutes.HOME)
+                             //onTap:()=> Get.offAllNamed(AppRoutes.BOTTOM_NAV)
                           )
                               : const SizedBox.shrink()// User is logged in, hide button// User is logged in, hide button
                         ],

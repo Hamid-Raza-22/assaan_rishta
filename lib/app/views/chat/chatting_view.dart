@@ -20,15 +20,21 @@ import '../../widgets/export.dart';
 import '../bottom_nav/export.dart';
 
 // State Management Controller for ChattingView
+// Fixed ChattingViewController in chatting_view.dart
+// This fixes the issue where messages from Account A were being marked as read
+// when navigating to Account B's chat via notification
+
 class ChattingViewController extends GetxController with WidgetsBindingObserver {
   final ChatUser user;
   final bool? initialBlockedStatus;
   final bool? initialBlockedByOtherStatus;
+  final bool? initialDeletedStatus;
 
   ChattingViewController({
     required this.user,
     this.initialBlockedStatus,
     this.initialBlockedByOtherStatus,
+    this.initialDeletedStatus
   });
 
   // Dependencies
@@ -45,9 +51,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   final paused = false.obs;
   late final RxBool isBlocked;
   late final RxBool isBlockedByOther;
+  late final RxBool isDelete;
   final isInitialLoading = true.obs;
   final showLoading = false.obs;
-
+  // Add disposal flag
+  bool _isDisposed = false;
   // Messages and user data
   final cachedMessages = <Message>[].obs;
   final cachedUserData = Rx<ChatUser?>(null);
@@ -58,52 +66,120 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
   String currentUID = "";
 
+  // FIXED: Add flag to track if this controller is active
+  bool _isActiveController = false;
+
+  // FIXED: Track the current chat user ID properly
+  String? _currentChatUserId;
+
   @override
   void onInit() {
     super.onInit();
+    // Add disposal flag
+   _isDisposed = false;
     WidgetsBinding.instance.addObserver(this);
     currentUID = useCase.getUserId().toString();
     textController = TextEditingController();
 
+    // FIXED: Set current chat user ID
+    _currentChatUserId = user.id;
+
     // Initialize block status with passed values or false
     isBlocked = (initialBlockedStatus ?? false).obs;
     isBlockedByOther = (initialBlockedByOtherStatus ?? false).obs;
+    isDelete = (initialDeletedStatus ?? false).obs;
+
+    // FIXED: Mark this controller as active
+    _isActiveController = true;
 
     _initializeChat();
   }
 
   @override
+  @override
   void onClose() {
-    chatController.exitChat();
-    chatController.setInsideChatStatus(false);
-    WidgetsBinding.instance.removeObserver(this);
-    textController.dispose();
+    debugPrint('🗑️ Closing ChattingViewController for ${user.name}');
+
+    // Mark controller as inactive
+    _isActiveController = false;
+    _currentChatUserId = null;
+
+    // Cancel all subscriptions
     _messagesSubscription?.cancel();
     _userStreamSubscription?.cancel();
+    _messagesSubscription = null;
+    _userStreamSubscription = null;
+
+    // CRITICAL: Properly exit chat and clear state
+    if (chatController.selectedUser.value?.id == user.id) {
+      chatController.exitChat();
+    }
+
+    // CRITICAL: Force clear chat state to ensure no lingering references
+    chatController.forceClearChatState();
+
+    // Clear chat status
+    chatController.setInsideChatStatus(false);
+
+    // Ensure chat list controller is active
+    if (Get.isRegistered<ChatListController>()) {
+      final listController = Get.find<ChatListController>();
+      // Small delay to ensure proper cleanup
+      Future.delayed(const Duration(milliseconds: 200), () {
+        listController.ensureStreamsActive();
+      });
+    }
+
+    WidgetsBinding.instance.removeObserver(this);
+
+    // Dispose text controller if not already disposed
+    if (!_isDisposed) {
+      textController.dispose();
+      _isDisposed = true;
+    }
+
     super.onClose();
   }
 
+
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // FIXED: Only handle lifecycle if this controller is active
+    if (!_isActiveController) return;
+
     switch (state) {
       case AppLifecycleState.resumed:
-        chatController.setInsideChatStatus(true, chatUserId: user.id);
+      // FIXED: Only set status if this is the active chat
+        if (_currentChatUserId == user.id && _isActiveController) {
+          chatController.setInsideChatStatus(true, chatUserId: user.id);
+          paused.value = false;
 
-        paused.value = false;
-        _markMessagesAsRead(cachedMessages);
+          // FIXED: Only mark messages as read for the current active chat
+          if (chatController.selectedUser.value?.id == user.id) {
+            _markMessagesAsRead(cachedMessages);
+          }
+        }
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        chatController.setInsideChatStatus(false);
-        paused.value = true;
+        if (_isActiveController) {
+          chatController.setInsideChatStatus(false);
+          paused.value = true;
+        }
         break;
     }
   }
 
   // Initialize chat with proper loading states
   Future<void> _initializeChat() async {
+    // FIXED: Set this user as the selected user immediately
+    chatController.selectedUser.value = user;
+    debugPrint('✅ Selected user set to: ${user.name} (${user.id})');
+
+
     // Immediately show cached messages if available
     if (chatController.cachedMessagesPerUser.containsKey(user.id)) {
       cachedMessages.value = chatController.cachedMessagesPerUser[user.id]!;
@@ -140,6 +216,12 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       _userStreamSubscription = chatController
           .getUserInfoStream(user.id)
           .listen((snapshot) {
+        // FIXED: Check if controller is still active
+        if (!_isActiveController) {
+          _userStreamSubscription?.cancel();
+          return;
+        }
+
         final data = snapshot.docs;
         if (data.isNotEmpty) {
           cachedUserData.value = ChatUser.fromJson(data.first.data());
@@ -162,6 +244,12 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       _messagesSubscription = chatController
           .getFilteredMessagesStream(user)
           .listen((messages) {
+        // FIXED: Check if this controller is still active
+        if (!_isActiveController) {
+          _messagesSubscription?.cancel();
+          return;
+        }
+
         cachedMessages.value = messages;
 
         // Save in controller-level cache
@@ -172,7 +260,13 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
           isInitialLoading.value = false;
         }
 
-        if (!paused.value) {
+        // FIXED: Only mark messages as read if:
+        // 1. App is not paused
+        // 2. This controller is active
+        // 3. This is the currently selected user in chatController
+        if (!paused.value &&
+            _isActiveController &&
+            chatController.selectedUser.value?.id == user.id) {
           _markMessagesAsRead(messages);
         }
       });
@@ -183,52 +277,150 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   }
 
   void _markMessagesAsRead(List<Message> messages) {
-    if (messages.isEmpty) return;
+    // FIXED: Additional safety check
+    if (!_isActiveController || messages.isEmpty) return;
+
+    // FIXED: Verify this is still the active chat
+    if (chatController.selectedUser.value?.id != user.id) {
+      debugPrint('⚠️ Skipping mark as read - not the active chat');
+      return;
+    }
 
     // Use a single batch operation for better performance
     Future.delayed(const Duration(milliseconds: 300), () {
+      // FIXED: Final check before marking as read
+      if (!_isActiveController || chatController.selectedUser.value?.id != user.id) {
+        return;
+      }
+
       final unreadMessages = messages
           .where((msg) => msg.fromId != currentUID && msg.read.isEmpty)
           .toList();
 
+      debugPrint('📖 Marking ${unreadMessages.length} messages as read for user: ${user.id}');
+
       for (var message in unreadMessages) {
-        chatController.markMessageAsRead(message);
+        // FIXED: Only mark if still the active chat
+        if (_isActiveController && chatController.selectedUser.value?.id == user.id) {
+          chatController.markMessageAsRead(message);
+        }
       }
     });
   }
 
-  // Message sending methods
-  Future<void> sendMessage() async {
-    final message = textController.text.trim();
-    if (message.isNotEmpty) {
-      textController.clear();
-
-      // Check if this is first message
-      if (cachedMessages.isEmpty) {
-        await createUserChat(message);
-      } else {
-        checkChatUser();
-        await chatController.sendMessage(message);
-      }
-    }
+  // FIXED: Method to deactivate this controller when navigating away
+  void deactivate() {
+    _isActiveController = false;
+    paused.value = true;
+    _messagesSubscription?.cancel();
+    _userStreamSubscription?.cancel();
   }
 
-  Future<void> sendHiMessage() async {
-    await createUserChat('Hi! 👋');
+  // Message sending methods
+  // Message sending methods with better error handling
+  Future<void> sendMessage() async {
+    final message = textController.text.trim();
+    if (message.isEmpty) {
+      debugPrint('⚠️ Empty message, not sending');
+      return;
+    }
+
+    debugPrint('📤 Attempting to send message: $message');
+    // CRITICAL FIX: Ensure selected user is set before sending
+    if (chatController.selectedUser.value?.id != user.id) {
+      debugPrint('⚠️ Selected user mismatch, setting correct user');
+      chatController.selectedUser.value = user;
+    }
+    textController.clear();
+
+    try {
+      // Check if this is first message
+      if (cachedMessages.isEmpty) {
+        debugPrint('📝 First message - creating chat');
+        await createUserChat(message);
+      } else {
+        debugPrint('💬 Sending regular message');
+        // Ensure user is added (non-blocking)
+        checkChatUser();
+        // Send the message
+        // FIXED: Send with proper user context
+        await sendRegularMessage(message);
+      }
+      debugPrint('✅ Message operation completed');
+    } catch (e) {
+      debugPrint('❌ Error in sendMessage: $e');
+      // Restore text if send failed
+      textController.text = message;
+      Get.snackbar(
+        'Error',
+        'Failed to send message. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+// NEW: Separate method for sending regular messages with user check
+  Future<void> sendRegularMessage(String message) async {
+    // Double-check selected user is set
+    if (chatController.selectedUser.value == null) {
+      debugPrint('⚠️ No selected user, setting it now');
+      chatController.selectedUser.value = user;
+    }
+
+    debugPrint('📨 Sending message with selected user: ${chatController.selectedUser.value?.name}');
+    await chatController.sendMessage(message);
   }
 
   Future<void> createUserChat(String firstMsg) async {
-    bool isAdded = await chatController.addChatUser(user.id);
-    if (isAdded) {
+    try {
+      debugPrint('🔄 Creating user chat with first message: $firstMsg');
+
+      // FIXED: Ensure selected user is set before creating chat
       chatController.selectedUser.value = user;
-      await chatController.sendFirstMessage(firstMsg);
+
+      bool isAdded = await chatController.addChatUser(user.id);
+      debugPrint('📊 Chat user added result: $isAdded');
+
+      if (isAdded) {
+        // Small delay to ensure user is properly added
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        // Send first message
+        debugPrint('📨 Sending first message...');
+        await chatController.sendFirstMessage(firstMsg);
+        debugPrint('✅ First message sent successfully');
+      } else {
+        debugPrint('⚠️ User already exists, sending as regular message');
+        // Try sending as regular message
+        await sendRegularMessage(firstMsg);
+      }
+    } catch (e) {
+      debugPrint('❌ Error in createUserChat: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to start chat. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
-
-  void checkChatUser() {
-    unawaited(chatController.addChatUser(user.id));
+  Future<void> sendHiMessage() async {
+    debugPrint('👋 Sending Hi message');
+    await createUserChat('Hi! 👋');
   }
 
+
+  void checkChatUser() {
+    debugPrint('🔍 Checking/adding chat user');
+    // Use unawaited to not block
+    unawaited(chatController.addChatUser(user.id).then((result) {
+      debugPrint('✅ Chat user check completed: $result');
+    }).catchError((e) {
+      debugPrint('⚠️ Chat user check error (non-critical): $e');
+    }));
+  }
   // UI state methods
   void toggleEmoji() {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -248,24 +440,56 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   }
 
   // Navigation methods
-  void navigateBack() {
-    if (Navigator.of(Get.context!).canPop()) {
-      Get.back();
-    } else {
-      Get.offAll(() => const BottomNavView(index: 2));
+  // void navigateBack() {
+  //   // FIXED: Deactivate controller before navigating
+  //   deactivate();
+  //
+  //   if (Navigator.of(Get.context!).canPop()) {
+  //     Get.back();
+  //   } else {
+  //     Get.offAll(() => const BottomNavView(index: 2));
+  //   }
+  // }
+// FIXED: Navigation methods with better cleanup
+  Future<void> navigateBack() async {
+    debugPrint('⬅️ Navigating back from chat');
+
+    // Deactivate this controller first
+    _isActiveController = false;
+    paused.value = true;
+    // Cancel streams
+    _messagesSubscription?.cancel();
+    _userStreamSubscription?.cancel();
+
+    // CRITICAL: Clear chat state before navigating back
+    chatController.forceClearChatState();
+    // Ensure chat list is ready
+    if (!Get.isRegistered<ChatListController>() && Get.isRegistered<ChatListController>()) {
+      final listController = Get.find<ChatListController>();
+      // Ensure streams are active before navigating back
+     await listController.ensureStreamsActive();
     }
+
+    // Small delay for smooth transition
+    // Future.delayed(const Duration(milliseconds: 100), () {
+      if (Navigator.of(Get.context!).canPop()) {
+        Get.back();
+      } else {
+        Get.offAll(() => const BottomNavView(index: 2));
+      }
+    // });
   }
+  // Check disposal before operations
+  bool get isDisposed => _isDisposed;
+  TextEditingController? get safeTextController => _isDisposed ? null : textController;
 
-  // Getters for computed values
+  // Getters remain the same...
   ChatUser get currentUserData => cachedUserData.value ?? user;
-
-  bool get isAnyBlocked => isBlocked.value || isBlockedByOther.value;
-
+  bool get isAnyBlocked => isBlocked.value || isBlockedByOther.value || isDelete.value;
   String get userImageUrl => currentUserData.image.isNotEmpty
       ? currentUserData.image
       : AppConstants.profileImg;
-
-  String get blockMessage => isBlockedByOther.value
+  String get blockMessage => isBlockedByOther.value || isDelete.value
       ? "You can no longer message this user"
       : "You have blocked this user";
 
@@ -305,34 +529,76 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     return isAnyBlocked ? Colors.red[700] : Colors.grey[600];
   }
 }
-
 // Modified ChattingView to accept initial block status
-class ChattingView extends StatelessWidget {
+// 1. FIXED ChattingView - Proper controller management
+class ChattingView extends StatefulWidget {  // Changed to StatefulWidget
   final ChatUser user;
   final bool? isBlocked;
   final bool? isBlockedByOther;
+  final bool? isDeleted;
 
   const ChattingView({
     super.key,
     required this.user,
     this.isBlocked,
     this.isBlockedByOther,
+    this.isDeleted
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Initialize controller with user data and block status
-    final controller = Get.put(
+  State<ChattingView> createState() => _ChattingViewState();
+}
+
+class _ChattingViewState extends State<ChattingView> {
+  late ChattingViewController controller;
+  late String controllerTag;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Ensure ChatViewModel exists
+    if (!Get.isRegistered<ChatViewModel>()) {
+      Get.put(ChatViewModel(), permanent: true);
+    }
+    // Get ChatViewModel and clear any lingering state
+    final chatViewModel = Get.find<ChatViewModel>();
+    // CRITICAL: Clear any previous chat state before setting new user
+    chatViewModel.forceClearChatState();
+    // Set selected user immediately
+    chatViewModel.ensureUserSelected(widget.user);
+
+    // Create unique tag for this specific chat instance
+    controllerTag = 'chat_${widget.user.id}_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Create new controller with unique tag
+    controller = Get.put(
       ChattingViewController(
-        user: user,
-        initialBlockedStatus: isBlocked,
-        initialBlockedByOtherStatus: isBlockedByOther,
+          user: widget.user,
+          initialBlockedStatus: widget.isBlocked,
+          initialBlockedByOtherStatus: widget.isBlockedByOther,
+          initialDeletedStatus: widget.isDeleted
       ),
-      tag: user.id,
+      tag: controllerTag,
     );
+  }
 
-    // chatting_view.dart - Updated UI components with better empty state handling
+  @override
+  void dispose() {
+    // CRITICAL: Clear chat state when disposing
+    if (Get.isRegistered<ChatViewModel>()) {
+      final chatViewModel = Get.find<ChatViewModel>();
+      chatViewModel.forceClearChatState();
+    }
+    // Properly dispose controller
+    if (Get.isRegistered<ChattingViewController>(tag: controllerTag)) {
+      Get.delete<ChattingViewController>(tag: controllerTag, force: true);
+    }
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final Size chatMq = MediaQuery.of(context).size;
 
     return PopScope(
@@ -358,11 +624,13 @@ class ChattingView extends StatelessWidget {
     );
   }
 
+  // Move all build methods here as instance methods
   Widget _buildAppBar(ChattingViewController controller, Size chatMq) {
     return Obx(() {
       final userData = controller.currentUserData;
       final hasBlockedThem = controller.isBlocked.value;
       final isBlockedByThem = controller.isBlockedByOther.value;
+      final isDelete = controller.isDelete.value;
 
       return Row(
         children: [
@@ -421,7 +689,7 @@ class ChattingView extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
-                if (!isBlockedByThem)
+                if (!isBlockedByThem && !isDelete && !hasBlockedThem)
                   Text(
                     userData.isOnline
                         ? 'Online'
@@ -451,20 +719,17 @@ class ChattingView extends StatelessWidget {
     });
   }
 
-  // FIXED: Better messages list with improved empty state
   Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
     return Obx(() {
       final messages = controller.cachedMessages;
       final isLoading = controller.isInitialLoading.value;
 
-      // Show loading indicator only on first load without cached data
       if (isLoading && messages.isEmpty) {
         return const Center(
           child: CircularProgressIndicator(),
         );
       }
 
-      // Show messages if available
       if (messages.isNotEmpty) {
         return ListView.builder(
           reverse: true,
@@ -478,13 +743,10 @@ class ChattingView extends StatelessWidget {
         );
       }
 
-      // Show appropriate empty state
       return _buildEmptyState(controller);
     });
   }
 
-  // FIXED: Smarter empty state that distinguishes between different scenarios
-// FIXED: Updated empty state without "Show All Messages" button
   Widget _buildEmptyState(ChattingViewController controller) {
     return Center(
       child: Column(
@@ -516,9 +778,6 @@ class ChattingView extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           const SizedBox(height: 20),
-
-          // REMOVED: Show All Messages button functionality
-          // Only show "Say Hi" button for non-blocked chats
           if (!controller.isAnyBlocked) ...[
             TextButton(
               onPressed: controller.sendHiMessage,
@@ -532,6 +791,7 @@ class ChattingView extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildUploadingIndicator(ChattingViewController controller) {
     return Obx(() => controller.uploading.value
         ? const Align(
@@ -553,7 +813,7 @@ class ChattingView extends StatelessWidget {
   }
 
   Widget _buildChatInput(ChattingViewController controller) {
-    final Size chatMq = MediaQuery.of(Get.context!).size;
+    final Size chatMq = MediaQuery.of(context).size;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -574,6 +834,7 @@ class ChattingView extends StatelessWidget {
                   SizedBox(width: chatMq.width * .02),
                   Expanded(
                     child: TextField(
+                      key: ValueKey('chat_input_${controllerTag}'), // Unique key
                       controller: controller.textController,
                       textCapitalization: TextCapitalization.sentences,
                       keyboardType: TextInputType.multiline,
@@ -691,6 +952,7 @@ class ChattingView extends StatelessWidget {
         : const SizedBox.shrink());
   }
 }
+
 
 // Helper extension for navigation with block status
 extension ChattingViewNavigation on ChattingView {

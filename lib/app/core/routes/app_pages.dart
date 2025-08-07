@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../../views/account_type/account_type_view.dart';
 import '../../views/bottom_nav/bottom_nav_view.dart';
 import '../../views/chat/export.dart';
+import '../../views/forgot_password/export.dart';
 import '../../views/home/home_view.dart';
 import '../../views/login/login_view.dart';
 import '../../views/profile/export.dart';
@@ -33,7 +34,7 @@ class AppPages {
     ),
     GetPage(
       name: AppRoutes.ACCOUNT_TYPE,
-      page: () => const AccountTypeView(),
+      page: () =>  AccountTypeView(),
       transition: Transition.leftToRight,
       transitionDuration: Duration(milliseconds: 200),
     ),
@@ -42,6 +43,18 @@ class AppPages {
       page: () => LoginView(),
       transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.FORGOT_PASSWORD_VIEW,
+      page: () => ForgotPasswordView(),
+      transition: Transition.upToDown,
+      transitionDuration: Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: AppRoutes.ENTER_PASSWORD_VIEW,
+      page: () => EnterPasswordView(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 300),
     ),
     GetPage(
       name: AppRoutes.SIGNUP,
@@ -173,35 +186,61 @@ class AppPages {
     GetPage(
       name: AppRoutes.CHATTING_VIEW,
       page: () {
-        // Add null safety and type checking
         final args = Get.arguments;
+
+        // Handle different argument types
         if (args is ChatUser) {
           return ChattingView(user: args);
-        } else if (args is Map && args['chatUser'] is ChatUser) {
-          return ChattingView(user: args['chatUser'] as ChatUser);
+        } else if (args is Map<String, dynamic>) {
+          // Handle map arguments (from notifications)
+          final chatUser = args['chatUser'] as ChatUser?;
+          final isBlocked = args['isBlocked'] as bool?;
+          final isBlockedByOther = args['isBlockedByOther'] as bool?;
+          final isDeleted = args['isDeleted'] as bool?;
+
+          if (chatUser != null) {
+            return ChattingView(
+              user: chatUser,
+              isBlocked: isBlocked,
+              isBlockedByOther: isBlockedByOther,
+              isDeleted: isDeleted,
+            );
+          }
         }
-        // Fallback to chat list if invalid arguments
+
+        // Fallback to chat list
+        debugPrint('⚠️ Invalid chat navigation arguments');
         return const BottomNavView(index: 2);
       },
       transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 400),
+      transitionDuration: const Duration(milliseconds: 300),
     ),
+// Dynamic route with user ID
     GetPage(
       name: '/chatting_view/:userId',
       page: () {
         final userId = Get.parameters['userId'];
-        final user = Get.arguments as ChatUser?;
+        final args = Get.arguments;
 
-        if (user != null && user.id == userId) {
-          return ChattingView(user: user);
+        if (args is ChatUser && args.id == userId) {
+          return ChattingView(user: args);
+        } else if (args is Map<String, dynamic>) {
+          final chatUser = args['chatUser'] as ChatUser?;
+          if (chatUser != null && chatUser.id == userId) {
+            return ChattingView(
+              user: chatUser,
+              isBlocked: args['isBlocked'] as bool?,
+              isBlockedByOther: args['isBlockedByOther'] as bool?,
+              isDeleted: args['isDeleted'] as bool?,
+            );
+          }
         }
 
-        // Fallback if user data is missing
-        debugPrint("dhfzfyiziiiiiiiiiiiiiiiiiiiii");
+        debugPrint('⚠️ User ID mismatch or missing data for chat: $userId');
         return const BottomNavView(index: 2);
       },
       transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 400),
+      transitionDuration: const Duration(milliseconds: 300),
     ),
   ];
 }

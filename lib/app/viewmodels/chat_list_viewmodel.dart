@@ -20,7 +20,8 @@ class ChatListController extends GetxController {
   final RxBool isRefreshing = false.obs;
   // Add this to prevent loading state during navigation
   final RxBool isNavigatingToChat = false.obs;
-
+  // Add flag to track if streams are active
+  bool _streamsActive = false;
   // Deletion tracking
   final RxMap<String, String> deletionTimestamps = <String, String>{}.obs;
 
@@ -39,8 +40,15 @@ class ChatListController extends GetxController {
   void onInit() {
     super.onInit();
     debugPrint('🚀 ChatListController initialized');
+    // _initializeStreams();
+    // _loadDeletionRecords();
+    _initializeController();
+  }
+  Future<void> _initializeController() async {
+    // Load deletion records first
+    await _loadDeletionRecords();
+    // Then initialize streams
     _initializeStreams();
-    _loadDeletionRecords();
   }
 
   // Load deletion records on init
@@ -176,10 +184,23 @@ class ChatListController extends GetxController {
   }
 
   void _initializeStreams() {
-    debugPrint('🔄 Setting up streams...');
+    // Don't reinitialize if already active
+    if (_streamsActive) {
+      debugPrint('📡 Streams already active, skipping initialization');
+      return;
+    }
 
+    debugPrint('🔄 Setting up streams...');
+    _streamsActive = true;
+
+    // Cancel existing subscriptions
     _myUsersSubscription?.cancel();
     _allUsersSubscription?.cancel();
+
+    // Start loading only if not already loading
+    if (!isLoading.value && chatUsers.isEmpty) {
+      isLoading.value = true;
+    }
 
     _myUsersSubscription = FirebaseFirestore.instance
         .collection('Hamid_users')
@@ -207,10 +228,11 @@ class ChatListController extends GetxController {
         debugPrint('❌ Error in my users stream: $error');
         isLoading.value = false;
         isRefreshing.value = false;
+        _streamsActive = false;
       },
+      cancelOnError: false, // Don't cancel on error
     );
   }
-
   void _fetchAndUpdateUsers(List<String> userIds) {
     _allUsersSubscription?.cancel();
 
@@ -227,6 +249,7 @@ class ChatListController extends GetxController {
             final user = ChatUser.fromJson(doc.data());
             newUsers.add(user);
 
+            // Setup message listener for each user
             if (!_messageListeners.containsKey(user.id)) {
               _listenToUserMessages(user);
             }
@@ -235,27 +258,52 @@ class ChatListController extends GetxController {
           }
         }
 
-        newUsers.sort(
-              (a, b) => userIds.indexOf(a.id).compareTo(userIds.indexOf(b.id)),
-        );
+        // Sort by original order from my_users
+        newUsers.sort((a, b) => userIds.indexOf(a.id).compareTo(userIds.indexOf(b.id)));
 
+        // Update the chat users list
         chatUsers.assignAll(newUsers);
+
+        // Cleanup old listeners
         _cleanupStaleListeners(newUsers);
 
-        // FIXED: Reset loading states properly
-        isLoading.value = false;
-        isRefreshing.value = false;
-        isNavigatingToChat.value = false;
+        // Reset loading states
+        if (isLoading.value) {
+          isLoading.value = false;
+        }
+        if (isRefreshing.value) {
+          isRefreshing.value = false;
+        }
+        if (isNavigatingToChat.value) {
+          isNavigatingToChat.value = false;
+        }
+
+        debugPrint('✅ Updated chat list with ${newUsers.length} users');
       },
       onError: (error) {
         debugPrint('❌ Error fetching user details: $error');
         isLoading.value = false;
         isRefreshing.value = false;
         isNavigatingToChat.value = false;
+        _streamsActive = false;
       },
+      cancelOnError: false, // Don't cancel on error
     );
   }
+  // FIXED: Method to ensure streams are active
+  ensureStreamsActive() {
+    debugPrint('🔍 Checking stream status...');
 
+    if (!_streamsActive || _myUsersSubscription == null) {
+      debugPrint('📡 Streams not active, reinitializing...');
+      _initializeStreams();
+    } else if (chatUsers.isEmpty && !isLoading.value) {
+      debugPrint('📡 Chat users empty, forcing refresh...');
+      forceRefresh();
+    } else {
+      debugPrint('✅ Streams are active with ${chatUsers.length} users');
+    }
+  }
   void _listenToUserMessages(ChatUser user) {
     _messageListeners[user.id]?.cancel();
 
@@ -338,6 +386,7 @@ class ChatListController extends GetxController {
     });
   }
 
+  // FIXED: Better cleanup
   void _clearListeners() {
     for (var subscription in _messageListeners.values) {
       subscription.cancel();
@@ -391,12 +440,23 @@ class ChatListController extends GetxController {
   void forceRefresh() {
     if (isRefreshing.value) return;
 
+    debugPrint('🔄 Force refreshing chat list...');
+
     isRefreshing.value = true;
-    _initializeStreams();
-    _loadDeletionRecords();
+    _streamsActive = false; // Mark streams as inactive to force reinitialization
+
+    // Clear existing data
+    _clearListeners();
+
+    // Small delay to ensure cleanup
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _initializeStreams();
+      _loadDeletionRecords();
+    });
   }
 
   // FIXED: Reconnect listeners with state check
+  // FIXED: Better reconnect logic
   void reconnectListeners() {
     debugPrint('🔄 Reconnecting message listeners...');
 
@@ -406,14 +466,21 @@ class ChatListController extends GetxController {
       return;
     }
 
+    // Ensure streams are active first
+    ensureStreamsActive();
+
+    // Then reconnect message listeners
     for (var user in chatUsers) {
-      _listenToUserMessages(user);
+      if (!_messageListeners.containsKey(user.id)) {
+        _listenToUserMessages(user);
+      }
     }
 
     // Ensure loading states are reset
     isLoading.value = false;
     isRefreshing.value = false;
   }
+
 
   // FIXED: Method to properly reset all states with widget lock check
   void resetAllStates() {
@@ -442,6 +509,8 @@ class ChatListController extends GetxController {
 
   @override
   void onClose() {
+    debugPrint('🗑️ Disposing ChatListController');
+    _streamsActive = false;
     _myUsersSubscription?.cancel();
     _allUsersSubscription?.cancel();
     _clearListeners();

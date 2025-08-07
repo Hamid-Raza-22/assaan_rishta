@@ -1,4 +1,4 @@
-// Optimized bottom_nav_view.dart
+// Fixed bottom_nav_view.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +24,8 @@ class BottomNavView extends StatefulWidget {
 
 class _BottomNavViewState extends State<BottomNavView> {
   bool _hasHandledNavigation = false;
+  bool _hasInitialized = false; // Add this flag
+
   void _checkForPendingChatNavigation() {
     // Prevent multiple executions
     if (_hasHandledNavigation) return;
@@ -44,6 +46,7 @@ class _BottomNavViewState extends State<BottomNavView> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     // Use Get.find if already exists, otherwise create new
@@ -51,21 +54,36 @@ class _BottomNavViewState extends State<BottomNavView> {
         ? Get.find<BottomNavController>()
         : Get.put(BottomNavController(), permanent: true);
 
-    // Only update tab if different
-    if (controller.selectedTab.value != widget.index) {
-      controller.updateTab(widget.index);
-    }
+    // Initialize controller and set initial tab only once
+    if (!_hasInitialized) {
+      _hasInitialized = true;
 
-    // Initialize notifications only once
-    if (!controller.isNotificationInitialized) {
-      controller.notificationInit(context: context);
-    }
-
-    // Handle notification navigation after view is built
-    if (!_hasHandledNavigation) {
+      // Use post frame callback to avoid calling updateTab during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkForPendingChatNavigation();
+        // Ensure initial index is within valid range
+        int validIndex = widget.index;
+        if (validIndex >= controller.pageCount) {
+          validIndex = 0;
+        }
+
+        // Only update tab if different
+        if (controller.selectedTab.value != validIndex) {
+          controller.updateTab(validIndex);
+        }
       });
+
+      // Initialize notifications only once
+      if (!controller.isNotificationInitialized) {
+        controller.notificationInit(context: context);
+      }
+
+      // Handle notification navigation after view is built (only for logged in users)
+      bool isLoggedIn = controller.useCase.userManagementRepo.getUserLoggedInStatus();
+      if (!_hasHandledNavigation && isLoggedIn) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _checkForPendingChatNavigation();
+        });
+      }
     }
 
     return PopScope(
@@ -88,48 +106,86 @@ class _BottomNavViewState extends State<BottomNavView> {
       },
       child: Scaffold(
         backgroundColor: AppColors.whiteColor,
-        body: Obx(() => IndexedStack(
-          index: controller.selectedTab.value,
-          children: controller.pages,
-        )),
+        body: Obx(() {
+          // Ensure selected tab is within valid range
+          int currentIndex = controller.selectedTab.value;
+          if (currentIndex >= controller.pageCount) {
+            currentIndex = 0;
+            // Use post frame callback to avoid setState during build
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              controller.updateTab(0);
+            });
+          }
+
+          return IndexedStack(
+            index: currentIndex,
+            children: controller.currentPages,
+          );
+        }),
         bottomNavigationBar: _buildBottomNavBar(controller),
       ),
     );
   }
 
   Widget _buildBottomNavBar(BottomNavController controller) {
-    return Obx(() => BottomNavigationBar(
-      backgroundColor: AppColors.whiteColor,
-      currentIndex: controller.selectedTab.value,
-      onTap: controller.changeTab,
-      selectedItemColor: AppColors.secondaryColor,
-      unselectedItemColor: AppColors.greyColor.withValues(alpha: 0.5),
-      showSelectedLabels: true,
-      showUnselectedLabels: true,
-      type: BottomNavigationBarType.fixed,
-      selectedLabelStyle: GoogleFonts.poppins(
-        color: AppColors.secondaryColor,
-        fontWeight: FontWeight.w500,
-        fontSize: 12,
-      ),
-      unselectedLabelStyle: GoogleFonts.poppins(
-        color: AppColors.secondaryColor,
-        fontWeight: FontWeight.w400,
-        fontSize: 10,
-      ),
-      items: _buildNavItems(controller.selectedTab.value),
-    ));
+    return Obx(() {
+      bool isLoggedIn = controller.useCase.userManagementRepo.getUserLoggedInStatus();
+
+      // Ensure selected tab is within valid range
+      int currentIndex = controller.selectedTab.value;
+      if (currentIndex >= controller.pageCount) {
+        currentIndex = 0;
+        // Use post frame callback to avoid setState during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          controller.updateTab(0);
+        });
+      }
+
+      return BottomNavigationBar(
+        backgroundColor: AppColors.whiteColor,
+        currentIndex: currentIndex,
+        onTap: controller.changeTab,
+        selectedItemColor: AppColors.secondaryColor,
+        unselectedItemColor: AppColors.greyColor.withValues(alpha: 0.5),
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: GoogleFonts.poppins(
+          color: AppColors.secondaryColor,
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: GoogleFonts.poppins(
+          color: AppColors.secondaryColor,
+          fontWeight: FontWeight.w400,
+          fontSize: 10,
+        ),
+        items: _buildNavItems(currentIndex, isLoggedIn),
+      );
+    });
   }
 
-  List<BottomNavigationBarItem> _buildNavItems(int selectedIndex) {
-    final items = [
-      {'icon': AppAssets.icHome, 'label': 'Home'},
-      {'icon': AppAssets.icVendor, 'label': 'Vendors'},
-      {'icon': AppAssets.icChat, 'label': 'Chats'},
-      {'icon': AppAssets.icFilter, 'label': 'Filter'},
-      {'icon': AppAssets.icProfile, 'label': 'Profile'},
+  List<BottomNavigationBarItem> _buildNavItems(int selectedIndex, bool isLoggedIn) {
+    List<Map<String, String>> items;
 
-    ];
+    if (isLoggedIn) {
+      // All 5 tabs for logged in users
+      items = [
+        {'icon': AppAssets.icHome, 'label': 'Home'},
+        {'icon': AppAssets.icVendor, 'label': 'Vendors'},
+        {'icon': AppAssets.icChat, 'label': 'Chats'},
+        {'icon': AppAssets.icFilter, 'label': 'Filter'},
+        {'icon': AppAssets.icProfile, 'label': 'Profile'},
+      ];
+    } else {
+      // Only 4 tabs for guest users
+      items = [
+        {'icon': AppAssets.icHome, 'label': 'Home'},
+        {'icon': AppAssets.icVendor, 'label': 'Vendors'},
+        {'icon': AppAssets.icFilter, 'label': 'Filter'},
+        {'icon': AppAssets.icPassword, 'label': 'Account'},
+      ];
+    }
 
     return items.asMap().entries.map((entry) {
       final index = entry.key;

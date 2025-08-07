@@ -1,3 +1,4 @@
+import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -116,16 +117,11 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                           fontColor: AppColors.whiteColor,
                           fontWeight: FontWeight.w500,
                           fontSize: 18,
-                          // onTap: () {
-                          //   if (controller.formKey.currentState!.validate()) {
-                          //     Get.to(
-                          //           () => const EnterPasswordView(),
-                          //       binding: AppBindings(),
-                          //       transition: Transition.circularReveal,
-                          //       duration: const Duration(milliseconds: 500),
-                          //     );
-                          //   }
-                          // },
+                          onTap: () {
+                            if (controller.formKey.currentState!.validate()) {
+                              Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW);
+                            }
+                          },
                         ),
                       ],
                     ),

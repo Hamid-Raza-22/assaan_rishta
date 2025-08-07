@@ -1,4 +1,6 @@
 // auth_service.dart - FIXED VERSION WITH NOTIFICATION HANDLING
+import 'package:assaan_rishta/app/viewmodels/chat_list_viewmodel.dart';
+import 'package:assaan_rishta/app/viewmodels/profile_viewmodel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +11,7 @@ import '../core/routes/app_routes.dart';
 import '../core/services/storage_services/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
+import '../views/bottom_nav/export.dart';
 import 'chat_viewmodel.dart';
 
 class AuthService extends GetxController {
@@ -155,7 +158,7 @@ class AuthService extends GetxController {
       // 5. Update observable states
       isUserLoggedIn.value = false;
       currentUser.value = null;
-
+      _clearGetXInstances();
       // 6. Clear chat controller if exists
       if (Get.isRegistered<ChatViewModel>()) {
         final chatController = Get.find<ChatViewModel>();
@@ -177,7 +180,31 @@ class AuthService extends GetxController {
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
     }
   }
+// Alternative method if you want to clear ALL GetX instances (use with caution)
+  void _clearGetXInstances() {
+    try {
+      // This will delete all GetX controllers and clear the dependency tree
+      // Clear specific controllers that might hold user data
+      if (Get.isRegistered<ChatViewModel>()) {
+        Get.delete<ChatViewModel>(force: true);
+      }
 
+      if (Get.isRegistered<BottomNavController>()) {
+        Get.delete<BottomNavController>(force: true);
+      }
+
+      if (Get.isRegistered<ProfileController>()) {
+        Get.delete<ProfileController>(force: true);
+      }
+      if (Get.isRegistered<ChatListController>()) {
+        Get.delete<ChatListController>(force: true);
+      }
+
+      debugPrint('🧹 All GetX instances cleared');
+    } catch (e) {
+      debugPrint('⚠️ Error clearing GetX instances: $e');
+    }
+  }
   // Update FCM token in Firestore
   Future<void> _updateFCMToken() async {
     try {

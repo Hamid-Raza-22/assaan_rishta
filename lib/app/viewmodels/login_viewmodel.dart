@@ -132,7 +132,7 @@ class LoginViewModel extends GetxController {
 
           // SAFE USER ID HANDLING
           final safeUserId = success.userId ?? 0;
-          final safeName = "${success.firstName ?? ''}${success.lastName ?? ''}";
+          final safeName = "${success.firstName ?? ''} ${success.lastName ?? ''}";
           final safeEmail = success.email ?? '';
 
           debugPrint('👤 User data: ID=$safeUserId, Name=$safeName, Email=$safeEmail');

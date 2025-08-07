@@ -1,11 +1,13 @@
-
 // Optimized bottom_nav_viewmodel.dart
 import 'dart:async';
 import 'dart:io';
+import 'package:assaan_rishta/app/views/account_type/account_type_view.dart';
+import 'package:assaan_rishta/app/views/login/login_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../core/services/firebase_service/export.dart';
+import '../domain/export.dart';
 import '../views/chat/chat_user_listing_view.dart';
 import '../views/filter/export.dart';
 import '../views/vendor/export.dart';
@@ -16,7 +18,7 @@ import 'chat_viewmodel.dart';
 class BottomNavController extends GetxController with WidgetsBindingObserver {
   final RxInt selectedTab = 0.obs;
   final notificationService = NotificationServices();
-
+  late final UserManagementUseCase useCase;
   bool isNotificationInitialized = false;
   bool _isInitialized = false;
 
@@ -26,10 +28,12 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
   // Cached pages to avoid recreation
   late final List<Widget> pages;
+  late final List<Widget> guestPages; // Pages for non-logged in users
 
   @override
   void onInit() {
     super.onInit();
+    useCase = Get.find<UserManagementUseCase>(); // Initialize useCase
     _initializePages();
     WidgetsBinding.instance.addObserver(this);
     _initializeApp();
@@ -43,7 +47,23 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
       const FilterView(),
       const ProfileView(),
     ];
+    // Limited pages for guest users (only Home, Vendor, Filter, Account Type)
+    guestPages = [
+      const HomeView(),
+      const VendorView(),
+      const FilterView(),
+      const AccountTypeView()
+    ];
   }
+
+  // Get current pages based on login status
+  List<Widget> get currentPages {
+    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
+    return isLoggedIn ? pages : guestPages;
+  }
+
+  // Get current page count based on login status
+  int get pageCount => currentPages.length;
 
   @override
   void onClose() {
@@ -63,9 +83,16 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
   void changeTab(int index) {
     if (selectedTab.value == index) return;
+    // Ensure index is within valid range
+    if (index >= pageCount) return;
+
+    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
 
     selectedTab.value = index;
-    FirebaseService.setAppState(isInChat: index == 1);
+    // Only set chat state if user is logged in and on chat tab
+    if (isLoggedIn) {
+      FirebaseService.setAppState(isInChat: index == 2); // Chat is at index 2 for logged in users
+    }
   }
 
   Future<void> _initializeApp() async {
@@ -74,9 +101,15 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     debugPrint('🚀 Initializing app...');
 
     try {
-      await _initializeFirebaseUser();
-      FirebaseService.setAppState(isInForeground: true, isInChat: false);
-      await _updateStatusImmediate(true);
+      // Only initialize Firebase if user is logged in
+      bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
+
+      if (isLoggedIn) {
+        await _initializeFirebaseUser();
+        FirebaseService.setAppState(isInForeground: true, isInChat: false);
+        await _updateStatusImmediate(true);
+      }
+
       _isInitialized = true;
       debugPrint('✅ App initialization completed');
     } catch (e) {
@@ -87,12 +120,14 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_isInitialized) return;
-
+    // Only handle lifecycle for logged in users
+    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
+    if (!isLoggedIn) return;
     debugPrint('📱 App lifecycle changed: $state');
 
     switch (state) {
       case AppLifecycleState.resumed:
-        FirebaseService.setAppState(isInForeground: true, isInChat: selectedTab.value == 1);
+        FirebaseService.setAppState(isInForeground: true, isInChat: selectedTab.value == 2);
         _updateStatusDebounced(true);
         break;
       case AppLifecycleState.paused:
@@ -156,6 +191,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   }
 
   void updateTab(int index) {
+    if (index >= pageCount) return;
     if (selectedTab.value != index) {
       selectedTab.value = index;
     }

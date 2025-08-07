@@ -534,7 +534,9 @@ class ProfileView extends GetView<ProfileController> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () async {
-                      controller.handleLogout(context);
+                      // Show confirmation dialog first (optional)
+                        await controller.handleLogout(context);
+
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -571,6 +573,7 @@ class ProfileView extends GetView<ProfileController> {
       },
     );
   }
+  // Optional: Logout confirmation dialog
 
   getVersionNameWidget() {
     return FutureBuilder(

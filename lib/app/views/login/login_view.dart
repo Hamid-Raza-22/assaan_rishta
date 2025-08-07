@@ -4,11 +4,16 @@ import 'package:assaan_rishta/app/views/login/widgets/custom_checkbox.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/export.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/exports.dart';
 import '../../viewmodels/login_viewmodel.dart';
 import '../../widgets/app_text.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class LoginView extends GetView<LoginViewModel> {
+  const LoginView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -19,21 +24,26 @@ class LoginView extends GetView<LoginViewModel> {
         },// Prevents default back action
    child: Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Get.back(),
-        ),
-      ),
+     appBar: const PreferredSize(
+       preferredSize: Size(double.infinity, 40),
+       child: CustomAppBar(isBack: true),
+     ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 35, vertical: 10),
+     child:  SafeArea(
         child: Form(
           key: controller.formKey,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ImageHelper(
+                image: AppAssets.appLogoPng,
+                imageType: ImageType.asset,
+                height: 150,
+                width: 400,
+
+              ),
             Center(
               child: const AppText(
                         text: "Welcome Back!",
@@ -92,8 +102,9 @@ class LoginView extends GetView<LoginViewModel> {
                   )),
                   GestureDetector(
                     onTap: () {
-                      Get.snackbar('Forgot Password',
-                          'Forgot password functionality will be implemented');
+                      Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW);
+                      // Get.snackbar('Forgot Password',
+                      //     'Forgot password functionality will be implemented');
                     },
                     child: Text(
                       'Forgot Password',
@@ -114,7 +125,7 @@ class LoginView extends GetView<LoginViewModel> {
                     ? () => controller.login(context)
                     : null,
               )),
-              SizedBox(height: 200),
+              SizedBox(height: 20),
               // Obx(() => Row(
               //   children: [
               //     CustomCheckbox(
@@ -172,6 +183,6 @@ class LoginView extends GetView<LoginViewModel> {
           ),
         ),
       ),
-    ));
+    ))));
   }
 }

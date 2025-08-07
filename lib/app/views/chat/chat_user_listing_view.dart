@@ -1,5 +1,6 @@
 // chat_user_listing_view.dart - Fixed with proper refresh mechanism
 
+import 'package:assaan_rishta/app/core/services/firebase_service/export.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,79 +19,114 @@ class ChatUserListingView extends StatefulWidget {
 }
 
 class _ChatUserListingViewState extends State<ChatUserListingView>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
 
   final chatController = Get.find<ChatViewModel>();
   late final ChatListController listController;
+
+  @override
+  bool get wantKeepAlive => true; // Keep state alive
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    listController = Get.put(ChatListController());
+    // Initialize or get existing controller
+    if (!Get.isRegistered<ChatListController>()) {
+      listController = Get.put(ChatListController(), permanent: true);
+    } else {
+      listController = Get.find<ChatListController>();
+    }
 
-    // Initialize once
-    Future(() async {
-      await chatController.initSelf();
-      // No need for manual refresh - real-time updates handle everything
+    // Initialize on first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (FirebaseService.me == null) {
+        await chatController.initSelf();
+      }
+
+      // Ensure streams are active
+      listController.ensureStreamsActive();
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // Reconnect listeners when app resumes
+    super.didChangeAppLifecycleState(state);
 
-      listController.reconnectListeners();
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('📱 App resumed - checking chat list streams');
+      // Ensure streams are active when app resumes
+      listController.ensureStreamsActive();
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint('📱 App paused');
     }
   }
-
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
+   super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return Scaffold(
       backgroundColor: AppColors.whiteColor,
       appBar: _buildAppBar(),
       body: Obx(() {
         // Don't show loading if navigating to chat
         if (listController.isNavigatingToChat.value) {
-          return const SizedBox.shrink();
+          // Show current list instead of blank
+          return _buildChatList();
         }
+
         if (listController.isLoading.value && listController.chatUsers.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final users = listController.isSearching.value
-            ? listController.searchResults
-            : listController.chatUsers;
-
-        if (users.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        // No RefreshIndicator needed - real-time updates
-        return ListView.builder(
-          // Important: Use a stable key
-          key: PageStorageKey('chat_list_${listController.currentUserId}'),
-          itemCount: users.length,
-          padding: const EdgeInsets.only(top: 8),
-          physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) {
-            final user = users[index];
-// Use ValueKey with user ID for stability
-            return RepaintBoundary(
-              child: ChatUserCard(
-                key: ValueKey('card_${user.id}_${listController.currentUserId}'),
-                currentUID: listController.currentUserId,
-                user: user,
-              ),
-            );
-          },
-        );
+        return _buildChatList();
       }),
     );
   }
+  Widget _buildChatList() {
+    final users = listController.isSearching.value
+        ? listController.searchResults
+        : listController.chatUsers;
 
+    if (users.isEmpty) {
+      // Try to reconnect if empty
+      if (!listController.isLoading.value && !listController.isRefreshing.value) {
+        listController.ensureStreamsActive();
+      }
+      return _buildEmptyState();
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        listController.forceRefresh();
+        await Future.delayed(const Duration(seconds: 1));
+      },
+      child: ListView.builder(
+        key: PageStorageKey('chat_list_${listController.currentUserId}'),
+        itemCount: users.length,
+        padding: const EdgeInsets.only(top: 8),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        itemBuilder: (context, index) {
+          final user = users[index];
+          return RepaintBoundary(
+            child: EnhancedChatUserCard(
+              key: ValueKey('card_${user.id}_${listController.currentUserId}'),
+              currentUID: listController.currentUserId,
+              user: user,
+            ),
+          );
+        },
+      ),
+    );
+  }
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AppColors.whiteColor,
