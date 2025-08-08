@@ -51,13 +51,13 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed) {
       debugPrint('📱 App resumed - checking chat list streams');
       // Ensure streams are active when app resumes
-      listController.ensureStreamsActive();
+     await listController.ensureStreamsActive();
     } else if (state == AppLifecycleState.paused) {
       debugPrint('📱 App paused');
     }

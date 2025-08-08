@@ -76,8 +76,10 @@ class ChatUserCardController extends GetxController {
     _preloadUserImage(user.image);
 
     // Check deletion and block status
-    _checkDeletionStatus();
+
     _checkBlockStatus();
+    _checkDeletionStatus();
+
 
     // Setup real-time listeners
     _setupBlockStatusListeners();

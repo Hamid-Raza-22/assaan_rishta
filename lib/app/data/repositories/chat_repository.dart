@@ -101,7 +101,7 @@ class ChatRepository {
     );
 
     await batch.commit();
-    sendNotificationIfNeeded(user,  msg, type, currentUserId);
+   await sendNotificationIfNeeded(user,  msg, type, currentUserId);
     debugPrint('✅ Message sent in isolated conversation: $chatId');
   }
   // Listen to real-time updates for a specific conversation

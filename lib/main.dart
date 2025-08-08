@@ -109,19 +109,19 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    debugPrint('🔄 App lifecycle state: $state');
-
-    // Handle app lifecycle for notifications
-    if (state == AppLifecycleState.resumed) {
-      // App came to foreground
-      _handleAppResume();
-    } else if (state == AppLifecycleState.paused) {
-      // App went to background
-      _handleAppPause();
-    }
-  }
+  // @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   debugPrint('🔄 App lifecycle state: $state');
+  //
+  //   // Handle app lifecycle for notifications
+  //   if (state == AppLifecycleState.resumed) {
+  //     // App came to foreground
+  //     _handleAppResume();
+  //   } else if (state == AppLifecycleState.paused) {
+  //     // App went to background
+  //     _handleAppPause();
+  //   }
+  // }
 
   // void _initializeNotifications() {
   //   try {
@@ -142,31 +142,31 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
   //   }
   // }
 
-  void _handleAppResume() {
-    debugPrint('📱 App resumed from background');
-
-    // CRITICAL: Clear any lingering chat state when app resumes
-    if (Get.isRegistered<ChatViewModel>()) {
-      final chatViewModel = Get.find<ChatViewModel>();
-      // Only clear if not currently in a chat view
-      final currentRoute = Get.currentRoute;
-      if (!currentRoute.contains('/chatting_view/') &&
-          !currentRoute.contains('/ChattingView')) {
-        chatViewModel.forceClearChatState();
-        debugPrint('🧹 Cleared chat state on app resume');
-      }
-    }
-
-    // Reset any stuck navigation states
-    if (Get.isRegistered<ChatListController>()) {
-      final controller = Get.find<ChatListController>();
-      controller.resetAllStates();
-    }
-  }
-
-  void _handleAppPause() {
-    debugPrint('📱 App went to background');
-  }
+  // void _handleAppResume() {
+  //   debugPrint('📱 App resumed from background');
+  //
+  //   // CRITICAL: Clear any lingering chat state when app resumes
+  //   if (Get.isRegistered<ChatViewModel>()) {
+  //     final chatViewModel = Get.find<ChatViewModel>();
+  //     // Only clear if not currently in a chat view
+  //     final currentRoute = Get.currentRoute;
+  //     if (!currentRoute.contains('/chatting_view/') &&
+  //         !currentRoute.contains('/ChattingView')) {
+  //       chatViewModel.forceClearChatState();
+  //       debugPrint('🧹 Cleared chat state on app resume');
+  //     }
+  //   }
+  //
+  //   // Reset any stuck navigation states
+  //   if (Get.isRegistered<ChatListController>()) {
+  //     final controller = Get.find<ChatListController>();
+  //     controller.resetAllStates();
+  //   }
+  // }
+  //
+  // void _handleAppPause() {
+  //   debugPrint('📱 App went to background');
+  // }
 
   @override
   Widget build(BuildContext context) {

@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/routes/app_routes.dart';
+import '../core/services/firebase_service/export.dart';
 import '../core/services/storage_services/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
@@ -67,7 +68,8 @@ class AuthService extends GetxController {
           name: userName ?? '',
           image: userImage ?? '',
         );
-
+        // ENHANCED: Initialize notification session
+        NotificationServices.initializeSession(userId.toString());
         // Update FCM token for logged in user
         await _updateFCMToken();
 
@@ -81,11 +83,15 @@ class AuthService extends GetxController {
         isUserLoggedIn.value = false;
         currentUser.value = null;
         debugPrint('❌ No authenticated user found');
+        // ENHANCED: Clear notification session
+        NotificationServices.clearSession();
+        debugPrint('❌ No authenticated user found');
       }
     } catch (e) {
       debugPrint('💥 Error checking auth status: $e');
       isUserLoggedIn.value = false;
       currentUser.value = null;
+      NotificationServices.clearSession();
     } finally {
       isInitialized.value = true;
     }
@@ -100,7 +106,7 @@ class AuthService extends GetxController {
   }) async {
     try {
       debugPrint('🔑 Logging in user: $name (ID: $userId)');
-
+      NotificationServices.clearSession();
       _userId = userId;
       _userEmail = email;
       _userName = name;
@@ -121,6 +127,8 @@ class AuthService extends GetxController {
         image: image,
       );
 
+      // ENHANCED: Initialize new notification session
+      NotificationServices.initializeSession(userId.toString());
       // Update FCM token after login
       await _updateFCMToken();
 
@@ -135,7 +143,7 @@ class AuthService extends GetxController {
   Future<void> logout(BuildContext context) async {
     try {
       debugPrint('🚪 Starting logout process...');
-
+      NotificationServices.clearSession();
       // 1. Update Firebase status
       if (_userId != null) {
         await FirebaseService.updateActiveStatus(false);
@@ -170,7 +178,9 @@ class AuthService extends GetxController {
       // 7. Navigate to login
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
 
+
     } catch (e) {
+      NotificationServices.clearSession();
       debugPrint('💥 Error during logout: $e');
       // Even if there's an error, clear local data and navigate
       final prefs = await SharedPreferences.getInstance();

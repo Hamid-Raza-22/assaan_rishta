@@ -59,21 +59,21 @@ class AppPages {
     GetPage(
       name: AppRoutes.SIGNUP,
       page: () => SignupView(),
-      transition: Transition.circularReveal,
+      transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
       name: AppRoutes.BASIC_INFO,
       page: () => const BasicInfoView(),
       binding: AppBindings(),
-      transition: Transition.circularReveal,
+      transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
       name: AppRoutes.OTHER_INFO,
       page: () => const AddressPreferencesView(),
       binding: AppBindings(),
-      transition: Transition.circularReveal,
+      transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
@@ -151,6 +151,17 @@ class AppPages {
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),
+    GetPage(
+      name: AppRoutes.BOTTOM_NAV2,
+      page: () {
+        // Agar argument me index diya gaya ho to use karo, warna default 0
+        final index = Get.arguments is int ? Get.arguments as int : 0;
+        return BottomNavView(index: index);
+      },
+      transition: Transition.circularReveal,
+      transitionDuration: const Duration(milliseconds: 200),
+    ),
+
 
     GetPage(
       name: AppRoutes.PROFILE_DETAIL_VIEW,
@@ -200,6 +211,7 @@ class AppPages {
 
           if (chatUser != null) {
             return ChattingView(
+              key: ValueKey(chatUser.id),
               user: chatUser,
               isBlocked: isBlocked,
               isBlockedByOther: isBlockedByOther,
@@ -228,6 +240,7 @@ class AppPages {
           final chatUser = args['chatUser'] as ChatUser?;
           if (chatUser != null && chatUser.id == userId) {
             return ChattingView(
+              key: ValueKey(chatUser.id),
               user: chatUser,
               isBlocked: args['isBlocked'] as bool?,
               isBlockedByOther: args['isBlockedByOther'] as bool?,
