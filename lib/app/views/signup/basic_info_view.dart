@@ -6,6 +6,7 @@ import '../../core/routes/app_routes.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/constant_widgets.dart';
 import '../../viewmodels/signup_viewmodel.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_button.dart';
 
 class BasicInfoView extends GetView<SignupViewModel> {
@@ -15,13 +16,11 @@ class BasicInfoView extends GetView<SignupViewModel> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        title: const Text('Basic Information', style: TextStyle(fontSize: 20)),
-        centerTitle: true,
-      ),
+        appBar: const PreferredSize(
+          preferredSize: Size(double.infinity, 40),
+          child: CustomAppBar(
+            title: "Basic Information",
+          ),),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

@@ -8,6 +8,7 @@ abstract class AppRoutes {
   static const String SPLASH = '/splash';
   static const String HOME = '/home';
   static const String BOTTOM_NAV = '/bottom-nav';
+  static const String BOTTOM_NAV2 = '/bottom-nav';
   static const String FORGOT_PASSWORD_VIEW = '/forgot-password-view';
   static const String ENTER_PASSWORD_VIEW = '/enter-password-view';
 

@@ -164,7 +164,6 @@ class AddressPreferencesView extends GetView<SignupViewModel> {
                     if (controller.otherInfoFormKey.currentState!.validate()) {
                       controller.signUpUser(context);
                     }
-                   // waitForAdminApproval();
                   },
                 ),
                 const SizedBox(height: 10),
@@ -186,31 +185,5 @@ class AddressPreferencesView extends GetView<SignupViewModel> {
       ),
     );
   }
-  void waitForAdminApproval() {
-    Get.defaultDialog(
-      title: '',
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.access_time_rounded, size: 48, color: Colors.orange),
-          const SizedBox(height: 16),
-          const Text('Awaiting Approval', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          const Text(
-            'Your profile is pending admin approval.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          CustomButton(
-            text: "OK",
-            isGradient: true,
-            isEnable: true,
-            fontColor: AppColors.whiteColor,
-            onTap: () =>  Get.offNamed("/login"),
-            // onTap: () =>  Get.toNamed(AppRoutes.LOGIN),
-          ),
-        ],
-      ),
-    );
-  }
+
 }

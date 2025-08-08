@@ -1,4 +1,4 @@
-// notification_service.dart - FIXED VERSION with better state management
+// notification_service.dart - FIXED with user validation for notifications
 
 import 'dart:convert';
 import 'dart:io';
@@ -26,6 +26,206 @@ class NotificationServices {
   static bool _isNavigating = false;
   static String? _lastNavigatedUserId;
   static DateTime? _lastNavigationTime;
+
+  static String? _currentSessionId;
+  static DateTime? _sessionStartTime;
+
+  // Initialize session when user logs in
+  static void initializeSession(String userId) {
+    _currentSessionId = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+    _sessionStartTime = DateTime.now();
+    debugPrint('🔑 New notification session initialized: $_currentSessionId');
+  }
+
+  // Clear session on logout
+  static void clearSession() {
+    _currentSessionId = null;
+    _sessionStartTime = null;
+    debugPrint('🔑 Notification session cleared');
+  }
+  // Map to store messages for each sender
+  static final Map<String, List<String>> _senderMessages = {};
+  static final Map<String, int> _senderNotificationIds = {};
+
+  // Store pending notification data for app launch
+  static RemoteMessage? _pendingNotification;
+  static bool _hasPendingNavigation = false;
+
+  // Add method to check and handle pending navigation
+  static Future<void> checkPendingNavigation() async {
+    if (_hasPendingNavigation && _pendingNotification != null) {
+      debugPrint('🔔 Processing pending notification navigation...');
+      _hasPendingNavigation = false;
+      final tempNotification = _pendingNotification;
+      _pendingNotification = null;
+
+      // Small delay to ensure app is ready
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Create a minimal context or use Get.context if available
+      if (Get.context != null) {
+        await NotificationServices().handleMessage(Get.context!, tempNotification!);
+      }
+    }
+  }
+
+  // NEW: Validate if notification belongs to current user
+  static Future<bool> _validateNotificationForCurrentUser(RemoteMessage message) async {
+    try {
+      final authService = AuthService.instance;
+
+      // Check if user is logged in
+      if (!authService.isUserLoggedIn.value || authService.userId == null) {
+        debugPrint('❌ No user logged in, rejecting notification');
+        return false;
+      }
+
+      final currentUserId = authService.userId.toString();
+      final receiverId = message.data['receiverId'] ?? message.data['targetUserId'];
+      final senderId = message.data['senderId'];
+
+      // NEW: Get notification metadata
+      final notificationTimestamp = message.data['timestamp'];
+      final notificationSessionId = message.data['sessionId'];
+
+      debugPrint('🔍 Enhanced notification validation:');
+      debugPrint('   Current User ID: $currentUserId');
+      debugPrint('   Current Session ID: $_currentSessionId');
+      debugPrint('   Session Start Time: $_sessionStartTime');
+      debugPrint('   Notification Receiver ID: $receiverId');
+      debugPrint('   Notification Sender ID: $senderId');
+      debugPrint('   Notification Timestamp: $notificationTimestamp');
+      debugPrint('   Notification Session ID: $notificationSessionId');
+
+      if (senderId != null && senderId == currentUserId) {
+        debugPrint('❌ Notification is from current user (self-notification), rejecting');
+        return false;
+      }
+      // Check if notification is for current user
+      // if (receiverId == null || receiverId.isEmpty) {
+      //   debugPrint('⚠️ No receiverId in notification data');
+      //   return false;
+      // }
+      // 2. SESSION VALIDATION: Check if notification belongs to current session
+      if (_sessionStartTime != null && notificationTimestamp != null) {
+        try {
+          final notificationTime = DateTime.fromMillisecondsSinceEpoch(
+              int.parse(notificationTimestamp)
+          );
+
+          // Reject notifications from before current login session
+          if (notificationTime.isBefore(_sessionStartTime!)) {
+            debugPrint('❌ Old notification rejected: Received before current login session');
+            debugPrint('   Notification time: $notificationTime');
+            debugPrint('   Session start time: $_sessionStartTime');
+            return false;
+          }
+        } catch (e) {
+          debugPrint('⚠️ Could not parse notification timestamp: $e');
+          // If we can't parse timestamp, be conservative and reject old-looking notifications
+          // Allow only very recent notifications (within last 5 minutes)
+          final now = DateTime.now();
+          if (_sessionStartTime != null && now.difference(_sessionStartTime!).inMinutes > 5) {
+            debugPrint('❌ Rejecting potentially old notification due to unparseable timestamp');
+            return false;
+          }
+        }
+      }
+
+      // // 3. ENHANCED USER VALIDATION: Check if receiverId matches current user
+      // if (receiverId != null && receiverId.isNotEmpty) {
+      //   if (receiverId != currentUserId) {
+      //     debugPrint('❌ Notification for different user: Expected $currentUserId, got $receiverId');
+      //     return false;
+      //   }
+      //   debugPrint('✅ Notification validated via receiverId match');
+      //   return true;
+      // }
+
+      // 4. FALLBACK VALIDATION: If no receiverId, do additional checks
+      if (senderId == null || senderId.isEmpty) {
+        debugPrint('❌ No sender ID in notification data');
+        return false;
+      }
+
+      // 5. DOUBLE-CHECK CURRENT USER: Verify user hasn't changed
+      try {
+        final currentAuthUserId = AuthService.instance.userId?.toString();
+        if (currentAuthUserId != currentUserId) {
+          debugPrint('❌ User context changed during validation');
+          return false;
+        }
+      } catch (e) {
+        debugPrint('❌ Error verifying current user context: $e');
+        return false;
+      }
+
+      // 6. SENDER EXISTENCE VALIDATION
+      try {
+        final senderDoc = await FirebaseFirestore.instance
+            .collection('Hamid_users')
+            .doc(senderId)
+            .get();
+
+        if (!senderDoc.exists) {
+          debugPrint('❌ Sender user does not exist: $senderId');
+          return false;
+        }
+
+        debugPrint('✅ Enhanced notification validated: From $senderId to $currentUserId');
+        return true;
+
+      } catch (e) {
+        debugPrint('❌ Error validating sender existence: $e');
+        return false;
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error in enhanced notification validation: $e');
+      return false;
+    }
+  }
+
+  // NEW: Additional validation to check if sender exists in current user's chat list
+  static Future<bool> _validateSenderForCurrentUser(String senderId) async {
+    try {
+      final authService = AuthService.instance;
+      if (!authService.isUserLoggedIn.value || authService.userId == null) {
+        return false;
+      }
+
+      final currentUserId = authService.userId.toString();
+
+      // Check if sender exists in current user's Firestore document
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .get();
+
+      if (!userDoc.exists) {
+        debugPrint('❌ Current user document not found in Firestore');
+        return false;
+      }
+
+      // Additional check: verify sender exists in global users
+      final senderDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(senderId)
+          .get();
+
+      if (!senderDoc.exists) {
+        debugPrint('❌ Sender user does not exist in Firestore');
+        return false;
+      }
+
+      debugPrint('✅ Sender validation passed');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error validating sender: $e');
+      return false;
+    }
+  }
 
   static Future<String> getAccessToken() async {
     Map<String, String> serviceAccountJson = {
@@ -128,38 +328,77 @@ class NotificationServices {
   }
 
   Future<void> showNotification(RemoteMessage message) async {
+    // FIXED: Validate notification before showing
+    final isValid = await _validateNotificationForCurrentUser(message);
+    if (!isValid) {
+      debugPrint('❌ Notification validation failed, not showing notification');
+      return;
+    }
+
+    final senderId = message.data['senderId'] ?? 'unknown_sender';
+    final notificationTitle = message.notification!.title.toString();
+    final notificationBody = message.notification!.body.toString();
+    final senderImage = message.data['senderImage'];
+
+    // Add the new message to the list for this sender
+    if (!_senderMessages.containsKey(senderId)) {
+      _senderMessages[senderId] = [];
+    }
+    _senderMessages[senderId]!.add(notificationBody);
+
+    // Construct the grouped message body
+    String groupedBody;
+    if (_senderMessages[senderId]!.length > 1) {
+      groupedBody = _senderMessages[senderId]!.join('\n');
+    } else {
+      groupedBody = notificationBody;
+    }
+
+    // Get or generate a unique notification ID for this sender
+    int notificationId;
+    if (_senderNotificationIds.containsKey(senderId)) {
+      notificationId = _senderNotificationIds[senderId]!;
+    } else {
+      notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000).toInt();
+      _senderNotificationIds[senderId] = notificationId;
+    }
+
     AndroidNotificationChannel channel = AndroidNotificationChannel(
-      message.notification!.android!.channelId.toString(),
-      message.notification!.android!.channelId.toString(),
+      senderId,
+      'Messages from $notificationTitle',
       importance: Importance.max,
       showBadge: true,
+      groupId: senderId,
     );
 
     AndroidNotificationDetails androidNotificationDetails =
     AndroidNotificationDetails(
-      channel.id.toString(), channel.name.toString(),
-      channelDescription: 'your channel description',
+      channel.id,
+      channel.name,
+      channelDescription: 'Channel for messages from $notificationTitle',
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,
       ticker: 'ticker',
+      groupKey: senderId,
+      largeIcon: senderImage != null && senderImage.isNotEmpty ? FilePathAndroidBitmap(senderImage) : null,
+      styleInformation: _senderMessages[senderId]!.length > 1
+          ? InboxStyleInformation(
+        _senderMessages[senderId]!,
+        contentTitle: notificationTitle,
+        summaryText: '${_senderMessages[senderId]!.length} new messages',
+      )
+          : null,
     );
 
-    const DarwinNotificationDetails darwinNotificationDetails =
-    DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-    );
+    final DarwinNotificationDetails darwinNotificationDetails =
+    DarwinNotificationDetails(presentAlert: true, presentBadge: true, threadIdentifier: senderId);
 
-    NotificationDetails notificationDetails = NotificationDetails(
-        android: androidNotificationDetails, iOS: darwinNotificationDetails);
+    NotificationDetails notificationDetails = NotificationDetails(android: androidNotificationDetails, iOS: darwinNotificationDetails);
 
     Future.delayed(Duration.zero, () {
       _flutterLocalNotificationsPlugin.show(
-        0,
-        message.notification!.title.toString(),
-        message.notification!.body.toString(),
-        notificationDetails,
+        notificationId, notificationTitle, groupedBody, notificationDetails,
       );
     });
   }
@@ -194,7 +433,6 @@ class NotificationServices {
 
       debugPrint('🗑️ Removing FCM token for user: $userId');
 
-      // Remove from Firestore
       await FirebaseFirestore.instance
           .collection('Hamid_users')
           .doc(userId)
@@ -203,7 +441,6 @@ class NotificationServices {
         'token_updated_at': FieldValue.serverTimestamp(),
       });
 
-      // Delete local token
       await FirebaseMessaging.instance.deleteToken();
 
       debugPrint('✅ FCM token removed successfully');
@@ -212,12 +449,10 @@ class NotificationServices {
     }
   }
 
-  // Update the getDeviceToken method to store it automatically
   Future<String> getDeviceToken() async {
     try {
       String? token = await messaging.getToken();
 
-      // Store token if user is logged in
       final authService = AuthService.instance;
       if (authService.isUserLoggedIn.value && authService.userId != null) {
         await storeFCMToken(authService.userId.toString());
@@ -230,12 +465,10 @@ class NotificationServices {
     }
   }
 
-  // Handle token refresh
   void isTokenRefresh() async {
     messaging.onTokenRefresh.listen((String token) async {
       debugPrint('🔄 FCM Token refreshed');
 
-      // Update token if user is logged in
       final authService = AuthService.instance;
       if (authService.isUserLoggedIn.value && authService.userId != null) {
         await storeFCMToken(authService.userId.toString());
@@ -243,24 +476,21 @@ class NotificationServices {
     });
   }
 
-  // Future<void> setupInteractMessage(BuildContext context) async {
-  //   // when app is terminated
-  //   RemoteMessage? initialMessage =
-  //   await FirebaseMessaging.instance.getInitialMessage();
-  //
-  //   if (initialMessage != null) {
-  //     handleMessage(context, initialMessage);
-  //   }
-  //
-  //   //when app ins background
-  //   FirebaseMessaging.onMessageOpenedApp.listen((event) {
-  //     handleMessage(context, event);
-  //   });
-  // }
+  static void clearMessagesForSender(String senderId) {
+    _senderMessages.remove(senderId);
+  }
 
-  // FIXED: Complete notification handling with better state management
+  // IMPROVED: Handle message with user validation
   Future<void> handleMessage(BuildContext context, RemoteMessage message) async {
     debugPrint('🔔 Notification clicked with data: ${message.data}');
+    debugPrint('📍 Current route when handling: ${Get.currentRoute}');
+
+    // FIXED: First validate if notification belongs to current user
+    final isValidForCurrentUser = await _validateNotificationForCurrentUser(message);
+    if (!isValidForCurrentUser) {
+      debugPrint('❌ Notification does not belong to current user, ignoring...');
+      return;
+    }
 
     if (message.data['type'] == 'chat') {
       final senderId = message.data['senderId'];
@@ -271,12 +501,28 @@ class NotificationServices {
       debugPrint('📱 Sender ID: $senderId, Name: $senderName');
 
       if (senderId != null && senderId.isNotEmpty && senderName != null) {
-        // FIXED: Reset state if stuck from previous navigation
+
+        // FIXED: Additional validation to check if sender is valid for current user
+        final isSenderValid = await _validateSenderForCurrentUser(senderId);
+        if (!isSenderValid) {
+          debugPrint('❌ Sender validation failed, ignoring notification');
+          return;
+        }
+
+        clearMessagesForSender(senderId);
+
+        // Check if app is still initializing (splash screen or initial routes)
+        if (_isAppInitializing()) {
+          debugPrint('⏳ App still initializing, storing notification for later');
+          _pendingNotification = message;
+          _hasPendingNavigation = true;
+          return;
+        }
+
         if (_isNavigating) {
           final now = DateTime.now();
           if (_lastNavigationTime != null &&
               now.difference(_lastNavigationTime!).inSeconds > 5) {
-            // Reset if navigation has been stuck for more than 5 seconds
             debugPrint('⚠️ Resetting stuck navigation state');
             _resetNavigationState();
           } else {
@@ -284,7 +530,7 @@ class NotificationServices {
             return;
           }
         }
-        // Prevent duplicate navigation to same user within 2 seconds
+
         if (_lastNavigatedUserId == senderId &&
             _lastNavigationTime != null) {
           final now = DateTime.now();
@@ -293,16 +539,10 @@ class NotificationServices {
             return;
           }
         }
-        // Prevent duplicate navigation
-        // if (_shouldPreventNavigation(senderId)) {
-        //   debugPrint('⚠️ Preventing duplicate navigation to same user');
-        //   return;
-        // }
 
         try {
           debugPrint('🚀 Creating ChatUser from notification data...');
 
-          // Create ChatUser object from notification data
           final chatUser = ChatUser(
             id: senderId,
             name: senderName,
@@ -322,12 +562,11 @@ class NotificationServices {
 
           debugPrint('✅ ChatUser created: ${chatUser.name}');
 
-          // FIXED: Direct navigation without complex logic
           await _navigateToChatSafely(chatUser);
 
         } catch (e) {
           debugPrint('❌ Error in notification handling: $e');
-          _resetNavigationState(); // Reset on error
+          _resetNavigationState();
           _navigateToBottomNav();
         }
       } else {
@@ -336,21 +575,28 @@ class NotificationServices {
       }
     }
   }
-  // FIXED: Reset navigation state after completion
+
+  // Check if app is still initializing
+  bool _isAppInitializing() {
+    final currentRoute = Get.currentRoute;
+    return currentRoute == '/' ||
+        currentRoute.isEmpty ||
+        currentRoute.contains('/splash') ||
+        currentRoute.contains('Splash');
+  }
+
   static void _resetNavigationState() {
     _isNavigating = false;
     debugPrint('🔄 Navigation state reset');
   }
-  // Check if should prevent navigation
+
   bool _shouldPreventNavigation(String userId) {
     final now = DateTime.now();
 
-    // If currently navigating, prevent
     if (_isNavigating) {
       return true;
     }
 
-    // If same user within 2 seconds, prevent
     if (_lastNavigatedUserId == userId &&
         _lastNavigationTime != null &&
         now.difference(_lastNavigationTime!).inSeconds < 2) {
@@ -360,10 +606,7 @@ class NotificationServices {
     return false;
   }
 
-  // Safe navigation to bottom nav
-
-  // FIXED: Safe navigation method with better state management
-// FIXED: Improved navigation method with route handling
+  // IMPROVED: Navigation with terminated state handling
   Future<void> _navigateToChatSafely(ChatUser chatUser) async {
     try {
       _isNavigating = true;
@@ -384,20 +627,17 @@ class NotificationServices {
       final chatController = Get.find<ChatViewModel>();
       final chatListController = Get.find<ChatListController>();
 
-      // Reset any stuck loading states
       chatListController.resetAllStates();
 
-      // Check if already chatting with this user
       if (chatController.isChattingWithUser(chatUser.id)) {
         debugPrint('✅ Already in chat with user ${chatUser.name}');
         _resetNavigationState();
         return;
       }
 
-      // Add user to chat list first
+      // FIXED: Only add sender to chat list if validation passed
       await _addSenderToChatList(chatUser.id);
 
-      // Check block status
       bool? isBlocked;
       bool? isBlockedByOther;
 
@@ -412,10 +652,19 @@ class NotificationServices {
         debugPrint('Error checking block status: $e');
       }
 
-      // Handle different navigation scenarios
       final currentRoute = Get.currentRoute;
 
-      if (_isInChattingView(currentRoute)) {
+      // Special handling for app launch from terminated state
+      if (_isAppInitializing() || currentRoute == '/' || currentRoute.isEmpty) {
+        debugPrint('🚀 App launched from terminated state, direct navigation');
+        await _navigateDirectlyFromTerminated(
+          chatUser,
+          chatListController,
+          isBlocked,
+          isBlockedByOther,
+        );
+      }
+      else if (_isInChattingView(currentRoute)) {
         await _switchBetweenChats(
           chatUser,
           chatController,
@@ -446,7 +695,6 @@ class NotificationServices {
     } catch (e) {
       debugPrint('❌ Error navigating: $e');
 
-      // Reset states on error
       if (Get.isRegistered<ChatListController>()) {
         final listController = Get.find<ChatListController>();
         listController.resetAllStates();
@@ -454,11 +702,9 @@ class NotificationServices {
 
       _navigateToBottomNav();
     } finally {
-      // FIXED: Always reset navigation flag with shorter delay
       Future.delayed(const Duration(milliseconds: 500), () {
         _resetNavigationState();
 
-        // Final state check
         if (Get.isRegistered<ChatListController>()) {
           final listController = Get.find<ChatListController>();
           if (listController.isLoading.value ||
@@ -471,15 +717,50 @@ class NotificationServices {
     }
   }
 
-  // Helper to check if currently in chatting view
+  // NEW: Direct navigation from terminated state
+  Future<void> _navigateDirectlyFromTerminated(
+      ChatUser chatUser,
+      ChatListController chatListController,
+      bool? isBlocked,
+      bool? isBlockedByOther,
+      ) async {
+    debugPrint('🚀 Direct navigation from terminated state');
+
+    // Clear all existing routes and navigate directly
+    Get.offAll(
+          () => ChattingView(
+        user: chatUser,
+        isBlocked: isBlocked,
+        isBlockedByOther: isBlockedByOther,
+      ),
+      transition: Transition.noTransition, // No animation for faster load
+    );
+
+    // After navigation, add bottom nav to stack for back navigation
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // This ensures user can go back to bottom nav
+      Get.offAll(
+            () => const BottomNavView(index: 2),
+        predicate: (route) => false,
+      );
+      Get.to(
+            () => ChattingView(
+          user: chatUser,
+          isBlocked: isBlocked,
+          isBlockedByOther: isBlockedByOther,
+        ),
+        preventDuplicates: true,
+      );
+    });
+  }
+
   bool _isInChattingView(String route) {
-    return route.contains('/chatting_view/') ||
+    return route.startsWith('/chatting_view/') ||
         route.contains('/chatting-view') ||
+        route.contains('/ChattingView') ||
         route == AppRoutes.CHATTING_VIEW;
   }
 
-  // FIXED: Handle switching between chats
-  // FIXED: Handle switching between chats with proper cleanup
   Future<void> _switchBetweenChats(
       ChatUser chatUser,
       ChatViewModel chatController,
@@ -489,34 +770,22 @@ class NotificationServices {
       ) async {
     debugPrint('🔄 Switching from one chat to another...');
 
-    // Set navigation flag
     chatListController.isNavigatingToChat.value = true;
 
-    // Properly exit current chat
-    await chatController.exitChat();
-    chatController.selectedUser.value = null;
-
-    // Small delay to ensure cleanup
-    await Future.delayed(const Duration(milliseconds: 200));
-
-    // Navigate to new chat
-    Get.off(
-          () => ChattingView(
-        user: chatUser,
-        isBlocked: isBlocked,
-        isBlockedByOther: isBlockedByOther,
-      ),
-      transition: Transition.rightToLeft,
-      duration: const Duration(milliseconds: 300),
+    Get.offNamed(
+      AppRoutes.chattingViewWithUser(chatUser.id),
+      arguments: {
+        'chatUser': chatUser,
+        'isBlocked': isBlocked,
+        'isBlockedByOther': isBlockedByOther,
+      },
     );
 
-    // Reset navigation flag
     Future.delayed(const Duration(milliseconds: 500), () {
       chatListController.isNavigatingToChat.value = false;
     });
   }
 
-  // FIXED: Navigate from bottom nav with better state management
   Future<void> _navigateFromBottomNav(
       ChatUser chatUser,
       ChatListController chatListController,
@@ -527,7 +796,6 @@ class NotificationServices {
 
     chatListController.isNavigatingToChat.value = true;
 
-    // Use Get.to instead of Get.toNamed for better control
     await Get.to(
           () => ChattingView(
         user: chatUser,
@@ -543,7 +811,7 @@ class NotificationServices {
       chatListController.isNavigatingToChat.value = false;
     });
   }
-// Navigate from other screens
+
   Future<void> _navigateFromOtherScreen(
       ChatUser chatUser,
       ChatListController chatListController,
@@ -554,11 +822,7 @@ class NotificationServices {
 
     chatListController.isNavigatingToChat.value = true;
 
-    // First go to bottom nav
-    Get.to(() => const BottomNavView(index: 2));
-
-    // Then navigate to chat
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       Get.to(
             () => ChattingView(
           user: chatUser,
@@ -573,7 +837,6 @@ class NotificationServices {
     });
   }
 
-  // Safe navigation to bottom nav
   void _navigateToBottomNav() {
     if (!_isNavigating) {
       _isNavigating = true;
@@ -583,15 +846,21 @@ class NotificationServices {
     }
   }
 
-  // Helper function to add sender to chat list
+  // FIXED: Only add sender to chat list if validation passed
   Future<void> _addSenderToChatList(String senderId) async {
     try {
       debugPrint('➕ Adding sender $senderId to chat list...');
 
-      final currentUserId = Get.find<UserManagementUseCase>().getUserId().toString();
+      final authService = AuthService.instance;
+      if (!authService.isUserLoggedIn.value || authService.userId == null) {
+        debugPrint('❌ No user logged in, cannot add sender to chat list');
+        return;
+      }
+
+      final currentUserId = authService.userId.toString();
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
-      // Add sender to current user's my_users collection
+      // Double-check: Only add if current user is logged in
       await FirebaseFirestore.instance
           .collection('Hamid_users')
           .doc(currentUserId)
@@ -600,32 +869,47 @@ class NotificationServices {
           .set({
         'last_message_time': timestamp,
         'added_at': timestamp,
+        'added_by_notification': true, // Track that this was added via notification
       }, SetOptions(merge: true));
 
-      debugPrint('✅ Sender added to chat list');
+      debugPrint('✅ Sender added to chat list for user: $currentUserId');
     } catch (e) {
       debugPrint('❌ Error adding sender to chat list: $e');
     }
   }
 
-  // FIXED: Setup interaction message handler (for background/terminated state)
+  // IMPROVED: Setup interaction with better terminated state handling
   Future<void> setupInteractMessage(BuildContext context) async {
-    // Reset any stuck state when setting up
     _resetNavigationState();
 
-    // when app is terminated
+    // Handle app launch from terminated state
     RemoteMessage? initialMessage =
     await FirebaseMessaging.instance.getInitialMessage();
 
     if (initialMessage != null) {
-      // Small delay to ensure app is fully initialized
-      await Future.delayed(const Duration(milliseconds: 500));
-      handleMessage(context, initialMessage);
+      debugPrint('🔔 App launched from notification (terminated state)');
+
+      // FIXED: Validate notification before storing
+      final isValid = await _validateNotificationForCurrentUser(initialMessage);
+      if (!isValid) {
+        debugPrint('❌ Initial notification not valid for current user, ignoring');
+        return;
+      }
+
+      // Store for processing after app initializes
+      _pendingNotification = initialMessage;
+      _hasPendingNavigation = true;
+
+      // Try to handle immediately if app is ready
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (_hasPendingNavigation && _pendingNotification != null) {
+          handleMessage(context, _pendingNotification!);
+        }
+      });
     }
 
-    // when app is in background
+    // Handle app in background
     FirebaseMessaging.onMessageOpenedApp.listen((event) {
-      // Reset state before handling new message
       if (_isNavigating) {
         debugPrint('⚠️ Resetting navigation state before handling new message');
         _resetNavigationState();
@@ -634,15 +918,11 @@ class NotificationServices {
     });
   }
 
-
-  // Helper to extract user ID from route
   String? _extractUserIdFromRoute(String route) {
     try {
-      // Extract from pattern: /chatting_view/123456
       if (route.contains('/chatting_view/')) {
         final parts = route.split('/chatting_view/');
         if (parts.length > 1) {
-          // Get the user ID part (might have query params)
           final userIdPart = parts[1].split('?')[0];
           return userIdPart.isNotEmpty ? userIdPart : null;
         }
@@ -654,32 +934,7 @@ class NotificationServices {
     }
   }
 
-  // Helper function to add sender to chat list
-  // Future<void> _addSenderToChatList(String senderId) async {
-  //   try {
-  //     debugPrint('➕ Adding sender $senderId to chat list...');
-  //
-  //     final currentUserId = Get.find<UserManagementUseCase>().getUserId().toString();
-  //     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-  //
-  //     // Add sender to current user's my_users collection
-  //     await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
-  //         .doc(currentUserId)
-  //         .collection('my_users')
-  //         .doc(senderId)
-  //         .set({
-  //       'last_message_time': timestamp,
-  //       'added_at': timestamp,
-  //     }, SetOptions(merge: true));
-  //
-  //     debugPrint('✅ Sender added to chat list');
-  //   } catch (e) {
-  //     debugPrint('❌ Error adding sender to chat list: $e');
-  //   }
-  // }
-
-  // Send notification method
+  // UPDATED: Send notification method with receiverId
   static Future<void> sendNotification({
     required String senderName,
     required String fcmToken,
@@ -687,30 +942,33 @@ class NotificationServices {
     String? senderId,
     String? senderImage,
     String? senderEmail,
-    String? receiverId,
+    required String receiverId, // Make receiverId required
   }) async {
     try {
-      // Check if token is valid (not empty)
-      if (fcmToken.isEmpty) {
+      if (fcmToken.isEmpty || receiverId.isEmpty) {
         debugPrint('⚠️ Cannot send notification: Empty FCM token');
         return;
       }
 
-      // If receiverId is provided, verify they're still logged in
-      if (receiverId != null && receiverId.isNotEmpty) {
-        final receiverDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
-            .doc(receiverId)
-            .get();
+      if (receiverId.isEmpty) {
+        debugPrint('⚠️ Cannot send notification: Empty receiver ID');
+        return;
+      }
 
-        if (!receiverDoc.exists || receiverDoc.data()?['push_token'] == null) {
-          debugPrint('⚠️ Receiver has no valid push token');
-          return;
-        }
+      // Verify receiver exists and has valid token
+      final receiverDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(receiverId)
+          .get();
+
+      if (!receiverDoc.exists || receiverDoc.data()?['push_token'] == null) {
+        debugPrint('⚠️ Receiver has no valid push token');
+        return;
       }
 
       String serverTokenKey = await getAccessToken();
       String endPoint = "https://fcm.googleapis.com/v1/projects/asaan-rishta-chat/messages:send";
+      final currentTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
       Map<String, dynamic> message = {
         "message": {
@@ -725,6 +983,11 @@ class NotificationServices {
             "senderName": senderName,
             "senderImage": senderImage ?? '',
             "senderEmail": senderEmail ?? '',
+            "receiverId": receiverId, // FIXED: Include receiverId in data
+            "targetUserId": receiverId,
+            "timestamp": currentTimestamp?? '',
+            "sessionId":_currentSessionId??"",// Alternative key for validation
+            "notificationId": '${senderId}_${receiverId}_$currentTimestamp', // Unique ID
           },
         }
       };
@@ -741,9 +1004,13 @@ class NotificationServices {
       Logger().d('status code => ${res.statusCode}');
       if (res.statusCode == 200 || res.statusCode == 201) {
         Logger().d('message send success');
+        debugPrint('✅ Notification sent successfully to user: $receiverId');
+        debugPrint('   Timestamp: $currentTimestamp');
+        debugPrint('   Session: $_currentSessionId');
       } else {
         Logger().d('response ${res.body}');
         Logger().d('message send failed');
+        debugPrint('❌ Failed to send notification: ${res.body}');
       }
     } catch (e) {
       debugPrint('❌ Error sending notification: $e');

@@ -1,5 +1,6 @@
 // lib/app/viewmodels/signup_viewmodel.dart
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
+import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,7 +24,9 @@ class SignupViewModel extends GetxController {
   final lastNameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController(text: '+92 ');
-  final dobController = TextEditingController();
+  Rx<DateTime> dobController = DateTime.now().obs;
+  final dobTEC = TextEditingController();
+  //final dobController = TextEditingController();
   final passwordController = TextEditingController();
   final aboutYourSelfTEC = TextEditingController();
   final aboutYourPartnerTEC = TextEditingController();
@@ -38,7 +41,7 @@ class SignupViewModel extends GetxController {
     _generateHeightList();
     _initDropDownAPIs();
     super.onInit();
-    [firstNameController, lastNameController, emailController, phoneController, dobController, passwordController]
+    [firstNameController, lastNameController, emailController, phoneController, dobTEC, passwordController]
         .forEach((controller) => controller.addListener(validateForm));
   }
   // Dummy data lists
@@ -199,7 +202,7 @@ class SignupViewModel extends GetxController {
         lastNameController.text.isNotEmpty &&
         emailController.text.isNotEmpty &&
         phoneController.text.length > 4 &&
-        dobController.text.isNotEmpty &&
+        dobTEC.text.isNotEmpty&&
         passwordController.text.isNotEmpty;
   }
 
@@ -215,7 +218,7 @@ class SignupViewModel extends GetxController {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      dobController.text = '${picked.day}/${picked.month}/${picked.year}';
+      dobTEC.text = '${picked.day}/${picked.month}/${picked.year}';
     }
   }
 // Validation Methods
@@ -241,7 +244,7 @@ class SignupViewModel extends GetxController {
     if (value == null || value.isEmpty) {
       return 'Phone number is required';
     }
-    if (value.length < 10) {
+    if (!GetUtils.isPhoneNumber(value) ) {
       return 'Please enter a valid phone number';
     }
     return null;
@@ -263,7 +266,7 @@ class SignupViewModel extends GetxController {
       lastName: lastNameController.text.trim(),
       email: emailController.text.trim(),
       mobileNo: phoneController.text.trim(),
-      dateOfBirth: dobController.text.trim(),
+      dateOfBirth: dobController.value.toString(),
       password: passwordController.text.trim(),
       gender: selectedGender.value,
       maritalStatus: selectedMaritalStatus.value,
@@ -285,7 +288,18 @@ class SignupViewModel extends GetxController {
 
     response.fold(
           (error) => AppUtils.failedData(title: error.title, message: error.description),
-          (success) => success == "1" ? waitForAdminApproval() : AppUtils.failedData(title: "Oops", message: "User exists"),
+          (success) {
+        print("API Response: $success");
+
+        // Treat any response except "0", "false", or "error" as success
+        String responseStr = success.toString().toLowerCase();
+
+        if (responseStr != "0" && responseStr != "false" && responseStr != "error" && responseStr.isNotEmpty) {
+          waitForAdminApproval();
+        } else {
+          AppUtils.failedData(title: "Oops", message: "User registration failed");
+        }
+      },
     );
   }
   void waitForAdminApproval() {
@@ -308,7 +322,7 @@ class SignupViewModel extends GetxController {
             isGradient: true,
             isEnable: true,
             fontColor: AppColors.whiteColor,
-            onTap: () => Get.offNamed('/login'),
+            onTap: () => Get.offAllNamed(AppRoutes.ACCOUNT_TYPE),
           ),
         ],
       ),
@@ -322,7 +336,8 @@ class SignupViewModel extends GetxController {
     lastNameController.dispose();
     emailController.dispose();
     phoneController.dispose();
-    dobController.dispose();
+    dobTEC.dispose();
+    //dobController.dispose();
     passwordController.dispose();
     aboutYourSelfTEC.dispose();
     aboutYourPartnerTEC.dispose();

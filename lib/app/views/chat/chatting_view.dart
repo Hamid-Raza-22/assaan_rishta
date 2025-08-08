@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/cupertino.dart';
@@ -470,15 +471,17 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
                     !listController.isRefreshing.value ||
                     !listController.isNavigatingToChat.value) {
         await listController.ensureStreamsActive();
-                }
+      }
     }
 
     // Small delay for smooth transition
     // Future.delayed(const Duration(milliseconds: 100), () {
       if (Navigator.of(Get.context!).canPop()) {
+        // Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
         Get.back();
       } else {
-        Get.to(() => const BottomNavView(index: 2));
+         Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
+        //Get.to(() => const BottomNavView(index: 2));
       }
     // });
   }

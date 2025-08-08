@@ -2,13 +2,14 @@ import 'package:assaan_rishta/app/views/signup/widgets/custom_button.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/custom_text_field.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/gender_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_datetime_picker_bdaya/flutter_datetime_picker_bdaya.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../core/routes/app_routes.dart';
 import '../../utils/app_colors.dart';
 import '../../viewmodels/signup_viewmodel.dart';
 import '../../widgets/custom_checkbox.dart';
-
 
 class SignupView extends StatelessWidget {
   final SignupViewModel controller = Get.find<SignupViewModel>();
@@ -99,49 +100,77 @@ class SignupView extends StatelessWidget {
               SizedBox(height: 10),
 
               CustomTextField(
-                controller: controller.dobController,
+                controller: controller.dobTEC,
                 hintText: 'Date of birth',
                 prefixIcon: Icons.calendar_today_outlined,
                 readOnly: true,
-                onTap: () => controller.selectDateOfBirth(context),
+                onTap: () async {
+                  DatePickerBdaya.showDatePicker(
+                    context,
+                    showTitleActions: true,
+                    minTime: DateTime(1900, 3, 5),
+                    maxTime: DateTime(2006, 12, 31),
+                    onConfirm: (date) {
+                      controller.dobController.value = date;
+                      controller.dobTEC.text = DateFormat(
+                        'dd/MM/yyyy',
+                      ).format(date);
+                      controller.update();
+                    },
+                    currentTime: DateTime.now(),
+                    locale: LocaleType.en,
+                  );
+                },
+                // onTap: () => controller.selectDateOfBirth(context),
                 validator: (value) =>
                     controller.validateRequired(value, 'Date of birth'),
               ),
               SizedBox(height: 10),
 
-              Obx(() => CustomTextField(
-                controller: controller.passwordController,
-                hintText: 'Password',
-                prefixIcon: Icons.lock_outline,
-                obscureText: !controller.isPasswordVisible.value,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    controller.isPasswordVisible.value
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: Colors.grey,
+              Obx(
+                () => CustomTextField(
+                  controller: controller.passwordController,
+                  hintText: 'Password',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: !controller.isPasswordVisible.value,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      controller.isPasswordVisible.value
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: Colors.grey,
+                    ),
+                    onPressed: controller.togglePasswordVisibility,
                   ),
-                  onPressed: controller.togglePasswordVisibility,
+                  validator: controller.validatePassword,
                 ),
-                validator: controller.validatePassword,
-              )),
+              ),
               SizedBox(height: 10),
 
               GenderSelector(controller: controller),
               SizedBox(height: 10),
 
-              Obx(() => CustomButton(
-                text: "Next",
-                isLoading: controller.isLoading.value,
-                onPressed: controller.isFormValid.value
-                    ? () {
-                  debugPrint("Form is valid, proceeding to basic info");
-                  debugPrint("Email: ${controller.emailController.text}");
-                  debugPrint("Password: ${controller.passwordController.text}");
-                  Get.toNamed(AppRoutes.BASIC_INFO);
-                }
-                    : null,
-              )),
+              Obx(
+                () => CustomButton(
+                  text: "Next",
+                  isLoading: controller.isLoading.value,
+                  onPressed: () {
+                    if (controller.formKey.currentState!.validate()) {
+                      if (controller.isFormValid.value) {
+                        debugPrint(
+                            "Form is valid, proceeding to basic info");
+                        debugPrint(
+                          "Email: ${controller.emailController.text}",
+                        );
+                        debugPrint(
+                          "Password: ${controller.passwordController.text}",
+                        );
+                        Get.toNamed(AppRoutes.BASIC_INFO);
+                      }
+                    }
+                  },
+                ),
+              ),
               SizedBox(height: 15),
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -198,7 +227,9 @@ class SignupView extends StatelessWidget {
                   ),
                 ],
               ),
-  ])),
+            ],
+          ),
+        ),
       ),
     );
   }
