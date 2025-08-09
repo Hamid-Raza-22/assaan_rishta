@@ -69,7 +69,7 @@ class AuthService extends GetxController {
           image: userImage ?? '',
         );
         // ENHANCED: Initialize notification session
-        NotificationServices.initializeSession(userId.toString());
+        //NotificationServices.initializeSession(userId.toString());
         // Update FCM token for logged in user
         await _updateFCMToken();
 
