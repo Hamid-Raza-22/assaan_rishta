@@ -45,7 +45,13 @@ class BasicInfoView extends GetView<SignupViewModel> {
                             "${controller.selectedCaste.value} "
                             "${controller.selectedEducation.value} "
                             "${controller.selectedOccupation.value} "
-                            "${controller.selectedHeight.value}",
+                            "${controller.selectedHeight.value}"
+                            "${controller.emailController.value}"
+                            "${controller.passwordController.value}"
+                            "${controller.firstNameController.value}"
+                            "${controller.lastNameController.value}"
+
+                        ,
                       );
 
                       if (controller.basicInfoFormKey.currentState!

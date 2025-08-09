@@ -48,8 +48,8 @@ class AppBindings extends Bindings {
 
       Get.lazyPut(() => ChatViewModel(), fenix: true);
       debugPrint('✅ ChatViewModel registered');
-
-      Get.lazyPut(() => SignupViewModel(), fenix: true);
+      Get.put(SignupViewModel());
+      // Get.lazyPut(() => SignupViewModel(), fenix: true);
       debugPrint('✅ SignupViewModel registered');
 
       Get.lazyPut(() => ForgotPasswordController(), fenix: true);
