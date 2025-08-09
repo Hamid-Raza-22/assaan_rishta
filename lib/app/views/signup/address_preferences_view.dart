@@ -153,13 +153,28 @@ class AddressPreferencesView extends GetView<SignupViewModel> {
                   isLoading: controller.isLoading.value,
                   fontSize: 18,
                   onTap: () {
+                    // In address_preferences_view.dart, replace your debug print with this:
+
                     debugPrint(
-                      "dhftrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr${controller.selectedMaritalStatus.value}"
-                          " ${controller.selectedReligion.value} "
-                          "${controller.selectedCaste.value} "
-                          "${controller.selectedEducation.value} "
-                          "${controller.selectedOccupation.value} "
-                          "${controller.selectedHeight.value}",
+                      "Form Data:\n"
+                          "Marital Status: ${controller.selectedMaritalStatus.value}\n"
+                          "Religion: ${controller.selectedReligion.value}\n"
+                          "Caste: ${controller.selectedCaste.value}\n"
+                          "Education: ${controller.selectedEducation.value}\n"
+                          "Occupation: ${controller.selectedOccupation.value}\n"
+                          "Height: ${controller.selectedHeight.value}\n"
+                          "Email: ${controller.emailController.text}\n"        // Changed from .value to .text
+                          "Password: ${controller.passwordController.text}\n"   // Changed from .value to .text
+                          "First Name: ${controller.firstNameController.text}\n" // Changed from .value to .text
+                          "Last Name: ${controller.lastNameController.text}\n"   // Changed from .value to .text
+                          "Phone: ${controller.phoneController.text}\n"
+                          "DOB: ${controller.dobTEC.text}\n"
+                          "Gender: ${controller.selectedGender.value}\n"
+                          "Country: ${controller.selectedCountry.value}\n"
+                          "State: ${controller.selectedState.value}\n"
+                          "City: ${controller.selectedCity.value}\n"
+                          "About Yourself: ${controller.aboutYourSelfTEC.text}\n"
+                          "About Partner: ${controller.aboutYourPartnerTEC.text}",
                     );
                     if (controller.otherInfoFormKey.currentState!.validate()) {
                       controller.signUpUser(context);

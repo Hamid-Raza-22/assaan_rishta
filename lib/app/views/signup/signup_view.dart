@@ -10,12 +10,14 @@ import '../../core/routes/app_routes.dart';
 import '../../utils/app_colors.dart';
 import '../../viewmodels/signup_viewmodel.dart';
 import '../../widgets/custom_checkbox.dart';
+import 'basic_info_view.dart';
 
 class SignupView extends StatelessWidget {
   final SignupViewModel controller = Get.find<SignupViewModel>();
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -155,17 +157,19 @@ class SignupView extends StatelessWidget {
                   text: "Next",
                   isLoading: controller.isLoading.value,
                   onPressed: () {
-                    if (controller.formKey.currentState!.validate()) {
-                      if (controller.isFormValid.value) {
-                        debugPrint(
-                            "Form is valid, proceeding to basic info");
-                        debugPrint(
-                          "Email: ${controller.emailController.text}",
-                        );
-                        debugPrint(
-                          "Password: ${controller.passwordController.text}",
-                        );
-                        Get.toNamed(AppRoutes.BASIC_INFO);
+
+                      if (controller.formKey.currentState!.validate()) {
+                        if (controller.isFormValid.value) {
+                          // Store the values in observable variables before navigation
+                          debugPrint("=== Moving to Basic Info ===");
+                          debugPrint("Email saved: ${controller.emailController.value}");
+                          debugPrint("First Name saved: ${controller.firstNameController.value}");
+                          debugPrint("Last Name saved: ${controller.lastNameController.value}");
+
+
+                        // Get.toNamed(AppRoutes.BASIC_INFO);
+                        Get.to(
+                                () => const BasicInfoView());
                       }
                     }
                   },

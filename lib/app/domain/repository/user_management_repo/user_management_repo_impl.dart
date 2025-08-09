@@ -100,18 +100,46 @@ class UserManagementRepoImpl implements UserManagementRepo {
         body: signUpModel.toJson(),
         headers: {"Content-Type": "application/json"},
       );
+
       if (response.statusCode >= 200 && response.statusCode <= 299) {
-        return Right(response.body.toString());
+        // Parse the response body to check for specific messages
+        final responseBody = response.body.toString();
+
+        // Check if the response indicates a duplicate user
+        if (responseBody.toLowerCase().contains("exists") ||
+            responseBody.toLowerCase().contains("duplicate")) {
+          return Left(
+            AppError(
+              title: "User Already Exists",
+              description: "An account with this email or phone number already exists",
+            ),
+          );
+        }
+
+        return Right(responseBody);
       }
+
+      // Handle 409 Conflict (commonly used for duplicates)
+      if (response.statusCode == 409) {
+        return Left(
+          AppError(
+            title: "Duplicate Account",
+            description: "This email or phone number is already registered",
+          ),
+        );
+      }
+
       return Left(
         AppError(
-          title: response.statusCode.toString(),
+          title: "Error ${response.statusCode}",
+          description: "Registration failed",
         ),
       );
     } catch (e) {
       return Left(
         AppError(
-          title: e.toString(),
+          title: "Network Error",
+          description: e.toString(),
         ),
       );
     }

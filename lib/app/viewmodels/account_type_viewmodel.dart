@@ -1,8 +1,11 @@
+import 'package:assaan_rishta/app/viewmodels/signup_viewmodel.dart';
 import 'package:get/get.dart';
 import '../core/routes/app_routes.dart';
 
 class AccountTypeViewModel extends GetxController {
   void navigateToSignup() {
+    final signupController = Get.find<SignupViewModel>();
+    signupController.clearFormData();
     Get.toNamed(AppRoutes.SIGNUP);
   }
 
