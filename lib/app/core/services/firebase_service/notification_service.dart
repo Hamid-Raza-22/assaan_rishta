@@ -655,16 +655,17 @@ class NotificationServices {
       final currentRoute = Get.currentRoute;
 
       // Special handling for app launch from terminated state
-      if (_isAppInitializing() || currentRoute == '/' || currentRoute.isEmpty) {
-        debugPrint('🚀 App launched from terminated state, direct navigation');
-        await _navigateDirectlyFromTerminated(
-          chatUser,
-          chatListController,
-          isBlocked,
-          isBlockedByOther,
-        );
-      }
-      else if (_isInChattingView(currentRoute)) {
+      // if (_isAppInitializing() || currentRoute == '/' || currentRoute.isEmpty) {
+      //   debugPrint('🚀 App launched from terminated state, direct navigation');
+      //   await _navigateDirectlyFromTerminated(
+      //     chatUser,
+      //     chatListController,
+      //     isBlocked,
+      //     isBlockedByOther,
+      //   );
+      // }
+      // else
+        if (_isInChattingView(currentRoute)) {
         await _switchBetweenChats(
           chatUser,
           chatController,
@@ -807,7 +808,7 @@ class NotificationServices {
       preventDuplicates: true,
     );
 
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       chatListController.isNavigatingToChat.value = false;
     });
   }
@@ -821,8 +822,9 @@ class NotificationServices {
     debugPrint('🚀 Navigating from other screen to chat...');
 
     chatListController.isNavigatingToChat.value = true;
+    //Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
 
-    Future.delayed(const Duration(milliseconds: 100), () {
+    //Future.delayed(const Duration(milliseconds: 100), () {
       Get.to(
             () => ChattingView(
           user: chatUser,
@@ -831,10 +833,10 @@ class NotificationServices {
         ),
       );
 
-      Future.delayed(const Duration(milliseconds: 300), () {
+     // Future.delayed(const Duration(milliseconds: 200), () {
         chatListController.isNavigatingToChat.value = false;
-      });
-    });
+     // });
+   // });
   }
 
   void _navigateToBottomNav() {
