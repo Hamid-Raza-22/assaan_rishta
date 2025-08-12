@@ -6,12 +6,14 @@ import 'package:flutter_datetime_picker_bdaya/flutter_datetime_picker_bdaya.dart
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/gestures.dart';
 import '../../core/routes/app_routes.dart';
 import '../../utils/app_colors.dart';
 import '../../viewmodels/signup_viewmodel.dart';
 import '../../widgets/custom_checkbox.dart';
 import 'basic_info_view.dart';
-
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:flutter/cupertino.dart';
 class SignupView extends StatelessWidget {
   final SignupViewModel controller = Get.find<SignupViewModel>();
 
@@ -91,14 +93,72 @@ class SignupView extends StatelessWidget {
                 validator: controller.validateEmail,
               ),
               SizedBox(height: 10),
+              IntlPhoneField(
 
-              CustomTextField(
                 controller: controller.phoneController,
-                hintText: '+92 000000000',
-                prefixIcon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
+                style: GoogleFonts.poppins(
+                  color: AppColors.blackColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                dropdownTextStyle: GoogleFonts.poppins(
+                  color: AppColors.blackColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                dropdownIconPosition: IconPosition.trailing,
+                dropdownIcon: const Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 16,
+                  color: CupertinoColors.systemGrey,
+                ),
+                textInputAction: TextInputAction.next,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: false,
+                  signed: false,
+                ),
+                flagsButtonMargin: const EdgeInsets.only(left: 10),
+                decoration: InputDecoration(
+                  hintText: 'Mobile Number',
+                  filled: true,
+                  fillColor: AppColors.fillFieldColor,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(
+                      color: AppColors.borderColor,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                ),
+                cursorColor: AppColors.primaryColor,
+                initialCountryCode: 'PK',
+                disableLengthCheck: true,
                 validator: controller.validatePhone,
+                onCountryChanged: (countryCode) {
+                  controller.countryCode.value =
+                  "+${countryCode.dialCode}";
+                },
+                onChanged: (phone) {
+                  if (phone.number.length > 10) {
+                    controller.phoneController.text = phone.number.substring(0, 10);
+                    controller.phoneController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: controller.phoneController.text.length),
+                    );
+                  }
+                  controller.validateForm();
+                   controller.phoneController.text = phone.number;
+                },
               ),
+              // CustomTextField(
+              //   controller: controller.phoneController,
+              //   hintText: '+92 000000000',
+              //   prefixIcon: Icons.phone_outlined,
+              //   keyboardType: TextInputType.phone,
+              //   validator: controller.validatePhone,
+              // ),
               SizedBox(height: 10),
 
               CustomTextField(
@@ -202,6 +262,10 @@ class SignupView extends StatelessWidget {
                         ),
                         children: <TextSpan>[
                           TextSpan(
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE_TERMS_AND_CONDITIONS);
+                              },
                             text: ' Terms & Conditions ',
                             style: GoogleFonts.poppins(
                               fontSize: 14,
@@ -218,6 +282,10 @@ class SignupView extends StatelessWidget {
                             ),
                           ),
                           TextSpan(
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE);
+                              },
                             text: ' Privacy Policy.',
                             style: GoogleFonts.poppins(
                               fontSize: 14,

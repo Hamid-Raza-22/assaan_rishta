@@ -1,4 +1,4 @@
-package com.hamid.assaan_rishta
+package com.asan.rishta.matrimonial.asan_rishta
 
 import io.flutter.embedding.android.FlutterActivity
 

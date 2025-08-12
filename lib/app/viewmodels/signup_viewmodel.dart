@@ -4,6 +4,7 @@ import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import '../core/export.dart';
 import '../data/models/user_model.dart' hide SignUpModel;
 
@@ -24,7 +25,9 @@ class SignupViewModel extends GetxController {
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
   final emailController = TextEditingController();
-  final phoneController = TextEditingController(text: '+92 ');
+  final phoneController = TextEditingController();
+  RxString countryCode = '+92'.obs;
+
   final dobTEC = TextEditingController();
   final passwordController = TextEditingController();
   final aboutYourSelfTEC = TextEditingController();
@@ -96,7 +99,7 @@ class SignupViewModel extends GetxController {
     firstNameController.clear();
     lastNameController.clear();
     emailController.clear();
-    phoneController.text = '+92 ';
+    phoneController.clear();
     dobTEC.clear();
     passwordController.clear();
     aboutYourSelfTEC.clear();
@@ -174,12 +177,14 @@ class SignupViewModel extends GetxController {
     return null;
   }
 
-  String? validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
+  String? validatePhone(PhoneNumber? phone) {
+    if (phone == null || phone.number.isEmpty) {
       return 'Phone number is required';
     }
-    if (!GetUtils.isPhoneNumber(value)) {
-      return 'Please enter a valid phone number';
+    if (phone.number.length < 10) {
+      return 'Phone number is too short';
+    }  if (phone.number.length > 10) {
+      return 'Phone number is too long';
     }
     return null;
   }
@@ -227,7 +232,7 @@ class SignupViewModel extends GetxController {
       firstName: firstNameController.text.trim(),
       lastName: lastNameController.text.trim(),
       email: emailController.text.trim(),
-      mobileNo: phoneController.text.trim(),
+      mobileNo: "$countryCode${phoneController.text.trim()}",
       dateOfBirth: dobController.value.toString(),
       password: passwordController.text.trim(),
       gender: selectedGender.value,

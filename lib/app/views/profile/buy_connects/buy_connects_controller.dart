@@ -15,13 +15,16 @@ import '../../../fast_pay/views/amount_view.dart';
 import '../../../core/export.dart';
 import '../../../domain/export.dart';
 import '../../../utils/exports.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../widgets/custom_button.dart';
+import '../../../widgets/export.dart';
 import '../export.dart';
 
 class BuyConnectsController extends GetxController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
 
-  // Remove Stacked navigation service
+  // // Remove Stacked navigation service
   // final _navigationService = locator<NavigationService>();
 
   RxBool isLoading = true.obs;
@@ -88,73 +91,7 @@ class BuyConnectsController extends GetxController {
   }
 
   ///Google Pay
-  // Future<void> fetchProducts() async {
-  //   debugPrint("🔍 Fetching products...");
-  //
-  //   const Set<String> productIds = {'silver_1500', 'gold_2000'};
-  //
-  //   try {
-  //     // Check if in-app purchases are available
-  //     final bool isAvailable = await _inAppPurchase.isAvailable();
-  //     debugPrint("📱 In-app purchases available: $isAvailable");
-  //
-  //     if (!isAvailable) {
-  //       debugPrint("❌ In-app purchases not available on this device");
-  //       Get.snackbar(
-  //         "Error",
-  //         "In-app purchases are not available on this device",
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //       );
-  //       isLoading.value = false;
-  //       return;
-  //     }
-  //
-  //     final ProductDetailsResponse response =
-  //     await _inAppPurchase.queryProductDetails(productIds);
-  //
-  //     debugPrint("📦 Products found: ${response.productDetails.length}");
-  //     debugPrint("❌ Products not found: ${response.notFoundIDs}");
-  //
-  //     if (response.notFoundIDs.isNotEmpty) {
-  //       debugPrint("⚠️ Some products not found: ${response.notFoundIDs}");
-  //       Get.snackbar(
-  //         "Warning",
-  //         "Some products are not available: ${response.notFoundIDs.join(', ')}",
-  //         backgroundColor: Colors.orange,
-  //         colorText: Colors.white,
-  //       );
-  //     }
-  //
-  //     if (response.productDetails.isNotEmpty) {
-  //       products.assignAll(response.productDetails);
-  //       debugPrint("✅ Products loaded successfully");
-  //
-  //       // Print product details for debugging
-  //       for (var product in response.productDetails) {
-  //         debugPrint("💰 Product: ${product.id} - ${product.title} - ${product.price}");
-  //       }
-  //     } else {
-  //       debugPrint("❌ No products found");
-  //       Get.snackbar(
-  //         "Error",
-  //         "No products available for purchase",
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //       );
-  //     }
-  //   } catch (e) {
-  //     debugPrint("💥 Error fetching products: $e");
-  //     Get.snackbar(
-  //       "Error",
-  //       "Failed to load products: $e",
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //     );
-  //   } finally {
-  //     isLoading.value = false;
-  //   }
-  // }
+
   Future<void> fetchProducts() async {
     const Set<String> productIds = {'silver_1500', 'gold_2000'};
     final ProductDetailsResponse response =
@@ -417,7 +354,297 @@ class BuyConnectsController extends GetxController {
       );
     }
   }
+  ///---------Manual Payment-----------
 
+
+// Add this updated method to your BuyConnectsController class
+
+// Compact and Professional Manual Payment Dialog
+
+  showManualPaymentDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.whiteColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          titlePadding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+          actionsPadding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.account_balance,
+                      color: AppColors.primaryColor, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Bank Transfer',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => Get.back(),
+                child: Icon(Icons.close, color: Colors.grey[600], size: 20),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Compact Bank Details Card
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Bank Name
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'MEEZAN BANK - ASAAN RISHTA',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Divider(height: 16, thickness: 0.5),
+
+                    // IBAN Row
+                    _buildCompactDetailRow(
+                      label: 'IBAN',
+                      value: 'PK46MEZN0002190112349582',
+                      onCopy: () => _copyToClipboard(
+                          'PK46MEZN0002190112349582',
+                          'IBAN'
+                      ),
+                    ),
+                    SizedBox(height: 8),
+
+                    // Account Number Row
+                    _buildCompactDetailRow(
+                      label: 'Account',
+                      value: '0112349582',
+                      onCopy: () => _copyToClipboard(
+                          '0112349582',
+                          'Account Number'
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 12),
+
+              // WhatsApp Button - Compact
+              InkWell(
+                onTap: () => _openWhatsApp('+923064727345'),
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.green, Colors.green.shade600],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.send, color: Colors.white, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'Send Receipt via WhatsApp \n+92 306 4727345',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 8),
+
+              // Compact Note
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        color: Colors.blue[700], size: 14),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Connects will be added after payment verification',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.blue[800],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Get.back(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'Got it',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+// Compact detail row helper
+  Widget _buildCompactDetailRow({
+    required String label,
+    required String value,
+    required VoidCallback onCopy,
+  }) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: onCopy,
+          child: Container(
+            padding: EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(
+              Icons.copy,
+              size: 14,
+              color: AppColors.primaryColor,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+// Copy to clipboard function - Simplified
+  void _copyToClipboard(String text, String fieldName) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    Get.snackbar(
+      "Copied!",
+      "$fieldName copied",
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: Duration(seconds: 1),
+      snackPosition: SnackPosition.TOP,
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      borderRadius: 8,
+      animationDuration: Duration(milliseconds: 300),
+    );
+  }
+
+// Open WhatsApp function - Simplified
+  void _openWhatsApp(String phoneNumber) async {
+    String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    String message = Uri.encodeComponent(
+        "Assalam-O-Alaikum, I have made a payment for Asaan Rishta connects. "
+            "Please find the payment receipt attached."
+    );
+
+    final whatsappUrl = Uri.parse(
+        "whatsapp://send?phone=$cleanNumber&text=$message"
+    );
+
+    final whatsappWebUrl = Uri.parse(
+        "https://wa.me/$cleanNumber?text=$message"
+    );
+
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl);
+      } else if (await canLaunchUrl(whatsappWebUrl)) {
+        await launchUrl(whatsappWebUrl, mode: LaunchMode.externalApplication);
+      } else {
+        await Clipboard.setData(ClipboardData(text: phoneNumber));
+        Get.snackbar(
+          "WhatsApp not found",
+          "Number copied: $phoneNumber",
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          duration: Duration(seconds: 2),
+          snackPosition: SnackPosition.TOP,
+        );
+      }
+    } catch (e) {
+      await Clipboard.setData(ClipboardData(text: phoneNumber));
+      Get.snackbar(
+        "Number Copied",
+        phoneNumber,
+        backgroundColor: Colors.blue,
+        colorText: Colors.white,
+        duration: Duration(seconds: 2),
+      );
+    }
+  }
   @override
   void dispose() {
     controllerCenter!.dispose();

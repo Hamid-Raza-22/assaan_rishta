@@ -55,7 +55,8 @@ class AmountViewModel extends BaseViewModel {
     notifyListeners();
 
     try {
-      String merchantId = "102";
+
+      String merchantId = "83233";
       final sharedPref = await SharedPreferences.getInstance();
       int? userId = sharedPref.getInt(StorageKeys.userId);
 
