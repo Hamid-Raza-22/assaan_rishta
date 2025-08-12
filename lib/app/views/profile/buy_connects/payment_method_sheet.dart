@@ -30,10 +30,10 @@ void showPurchaseBottomSheet({
             buildIconWithText(
               icon: Icons.payment,
               text: 'Google Pay',
-              onTap: () {
+              onTap: () async {
                 debugPrint("🔵 Google Pay clicked");
                 Navigator.of(context).pop();
-                controller.purchase(package: package);
+                await controller.purchase(package: package);
               },
             ),
             buildIconWithText(
@@ -61,170 +61,14 @@ void showPurchaseBottomSheet({
                 }
               },
             ),
-            buildIconWithText(
-              icon: Icons.payment,
-              text: 'Manual Pay',
-              onTap: () async {
-                debugPrint("🟡 Manual Accounts clicked");
-                Navigator.of(context).pop();
+        buildIconWithText(
+          icon: Icons.payment,
+          text: 'Manual Pay',
+          onTap: () {
+            Navigator.of(context).pop();
+            controller.showManualPaymentDialog(context);
+          },
 
-                // Show GetX Dialog with account numbers
-                Get.dialog(
-                  Dialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white38,
-                            Colors.white38
-                          ],
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Header
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.account_balance_wallet,
-                                color: Colors.blue,
-                                size: 38,
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Account Numbers',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => Get.back(),
-                                icon: Icon(Icons.close, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 20),
-
-                          // Account Details
-                          _buildAccountItem(
-                            'Easypaisa',
-                            '03XX-XXXXXXX',
-                            Colors.green,
-                            Icons.phone_android,
-                          ),
-                          SizedBox(height: 12),
-
-                          _buildAccountItem(
-                            'JazzCash',
-                            '03XX-XXXXXXX',
-                            Colors.orange,
-                            Icons.phone_android,
-                          ),
-                          SizedBox(height: 12),
-
-                          _buildAccountItem(
-                            'Meezan Bank',
-                            'XXXX-XXXX-XXXX-XXXX',
-                            Colors.blue,
-                            Icons.account_balance,
-                          ),
-
-                          SizedBox(height: 24),
-
-                          // Instructions
-                          Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.info, color: Colors.blue, size: 20),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Transfer amount to any account above and send screenshot for verification',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.blue.shade700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: 20),
-
-                          // Action Buttons
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => Get.back(),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
-                                    side: BorderSide(color: Colors.grey),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Cancel',
-                                    style: TextStyle(color: Colors.grey.shade700),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Get.back();
-                                    // Add your confirmation logic here
-                                    // Get.snackbar(
-                                    //   "Success",
-                                    //   "Please transfer the amount and send screenshot",
-                                    //   backgroundColor: Colors.green,
-                                    //   colorText: Colors.white,
-                                    //   icon: Icon(Icons.check_circle, color: Colors.white),
-                                    // );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    padding: EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Got it',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  barrierDismissible: true,
-                );
-              },
             ),
 
             const SizedBox(height: 20),

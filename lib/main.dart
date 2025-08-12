@@ -171,7 +171,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Asan Rishta',
+      title: 'Asaan Rishta',
       // navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

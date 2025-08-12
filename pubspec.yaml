@@ -16,7 +16,30 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+
+# `version: 1.0.0+1` ko samajhne ke liye, hum isko do hisson mein todte hain:
+# 1. `1.0.0` (Version Name)
+# 2. `+1` (Build Number)
+
+# **1. Version Name (`1.0.0`)**
+# Yeh aapki application ka woh version hai jo users dekhte hain. Ismein teen numbers hote hain, dots se alag kiye hue:
+#    - **Pehla number (Major Version):** Yeh tab badalta hai jab aapki application mein bahut bade changes aate hain, jaise ke naya design ya bilkul naye features. Agar yeh badalta hai, toh pichhle versions se compatible nahin bhi ho sakta. (Jaise `1.0.0` se `2.0.0`)
+#    - **Doosra number (Minor Version):** Yeh tab badalta hai jab aap naye features add karte hain, lekin application ka core functionality waise hi rehta hai aur woh pichhle minor versions ke saath compatible hoti hai. (Jaise `1.0.0` se `1.1.0`)
+#    - **Teesra number (Patch Version):** Yeh tab badalta hai jab aap chote-mote bugs fix karte hain ya performance improve karte hain. Application ka functionality change nahin hota. (Jaise `1.0.0` se `1.0.1`)
+
+# **Udaharan:**
+# - `1.0.0`: Pehla release.
+# - `1.0.1`: Pehle release mein kuch bugs fix kiye.
+# - `1.1.0`: Naye features add kiye (lekin bade changes nahin).
+# - `2.0.0`: Application ka poora look aur feel badal diya ya bahut bade naye features daale.
+
+# **2. Build Number (`+1`)**
+# Yeh `+` ke baad wala number hota hai. Yeh har baar badalta hai jab aap apni application ka naya build (compilation) banate hain, chahe version name (`1.0.0`) wahi rahe.
+# - Yeh number developers ke liye internal tracking ke liye hota hai.
+# - Jab aap app store (Google Play Store ya Apple App Store) par naya version upload karte hain, toh build number pichhle upload se zyada hona chahiye, bhale hi version name wahi ho.
+# - Agar aap `1.0.0+1` release karte hain aur phir usi version (`1.0.0`) mein kuch chota sa fix karke dobara upload karna chahte hain, toh aap `1.0.0+2` use karenge.
+# - Android mein isko `versionCode` aur iOS mein `CFBundleVersion` kehte hain.
+version: 1.1.5+20
 
 environment:
   sdk: ^3.8.1
@@ -82,6 +105,7 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

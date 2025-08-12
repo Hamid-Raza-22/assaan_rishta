@@ -49,6 +49,7 @@ class _BottomNavViewState extends State<BottomNavView> {
 
   @override
   Widget build(BuildContext context) {
+    versionCheck(context);
     // Use Get.find if already exists, otherwise create new
     final BottomNavController controller = Get.isRegistered<BottomNavController>()
         ? Get.find<BottomNavController>()

@@ -146,6 +146,15 @@ class AppPages {
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
+      name: AppRoutes.IN_APP_WEB_VIEW_SITE_TERMS_AND_CONDITIONS,
+      page: () => const InAppWebViewSite(
+        url: "https://asaanrishta.com/terms",
+        title: "Terms and Conditions",
+      ),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
       name: AppRoutes.BOTTOM_NAV,
       page: () => const BottomNavView(),
       transition: Transition.circularReveal,

@@ -120,27 +120,35 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
               ),
             ),
             // Terms and Conditions
-            Padding(
-              padding: const EdgeInsets.only(top: 40, bottom: 40),
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  children: const [
-                    TextSpan(text: 'By creating an account, You agree to our '),
-                    TextSpan(
-                      text: 'Terms & Conditions',
-                      style: TextStyle(color: Colors.pink, decoration: TextDecoration.underline),
-                    ),
-                    TextSpan(text: ' and agree to '),
-                    TextSpan(
-                      text: 'Privacy Policy',
-                      style: TextStyle(color: Colors.pink, decoration: TextDecoration.underline),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.only(top: 40, bottom: 40),
+            //   child: RichText(
+            //     textAlign: TextAlign.center,
+            //     text: TextSpan(
+            //       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            //       children: const [
+            //         TextSpan(text: 'By creating an account, You agree to our '),
+            //         TextSpan(
+            //           recognizer: TapGestureRecognizer()
+            //             ..onTap = () {
+            //               Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE_TERMS_AND_CONDITIONS);
+            //             },
+            //           text: 'Terms & Conditions',
+            //           style: TextStyle(color: Colors.pink, decoration: TextDecoration.underline),
+            //         ),
+            //         TextSpan(text: ' and agree to '),
+            //         TextSpan(
+            //           recognizer: TapGestureRecognizer()
+            //             ..onTap = () {
+            //               Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE);
+            //             },
+            //           text: 'Privacy Policy',
+            //           style: TextStyle(color: Colors.pink, decoration: TextDecoration.underline),
+            //         ),
+            //       ],
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),

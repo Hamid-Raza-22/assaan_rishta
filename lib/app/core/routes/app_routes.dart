@@ -30,6 +30,7 @@ abstract class AppRoutes {
   static const String CONTACT_US_VIEW = '/contact-us-view';
   static const String ABOUT_US_VIEW = '/about-us-view';
   static const String IN_APP_WEB_VIEW_SITE = '/in_app_web_view_site';
+  static const String IN_APP_WEB_VIEW_SITE_TERMS_AND_CONDITIONS = '/in_app_web_view_site_terms_and_conditions';
 
   // Helper method for dynamic chat route with user ID
   static String chattingViewWithUser(String userId) => '/chatting_view/$userId';

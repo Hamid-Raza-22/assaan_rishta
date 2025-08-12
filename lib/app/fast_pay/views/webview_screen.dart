@@ -125,7 +125,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
       )
       ..loadRequest(
         Uri.parse(
-            'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction'),
+            'https://ipg1.apps.net.pk/Ecommerce/api/Transaction/PostTransaction'),
         method: LoadRequestMethod.post,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
