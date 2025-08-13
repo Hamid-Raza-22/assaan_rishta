@@ -155,6 +155,7 @@ class AuthService extends GetxController {
 
       // 3. Clear local data
       final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       await prefs.clear();
 
       // 4. Reset local variables
@@ -166,7 +167,7 @@ class AuthService extends GetxController {
       // 5. Update observable states
       isUserLoggedIn.value = false;
       currentUser.value = null;
-      _clearGetXInstances();
+      await clearGetXInstances();
       // 6. Clear chat controller if exists
       if (Get.isRegistered<ChatViewModel>()) {
         final chatController = Get.find<ChatViewModel>();
@@ -184,6 +185,7 @@ class AuthService extends GetxController {
       debugPrint('💥 Error during logout: $e');
       // Even if there's an error, clear local data and navigate
       final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       await prefs.clear();
       isUserLoggedIn.value = false;
       currentUser.value = null;
@@ -191,7 +193,7 @@ class AuthService extends GetxController {
     }
   }
 // Alternative method if you want to clear ALL GetX instances (use with caution)
-  void _clearGetXInstances() {
+  Future<void> clearGetXInstances() async {
     try {
       // This will delete all GetX controllers and clear the dependency tree
       // Clear specific controllers that might hold user data
@@ -266,18 +268,18 @@ class AuthService extends GetxController {
   }
 
   // Check if user needs to login
-  Future<bool> checkIfUserLogin() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final isLoggedIn = prefs.getBool(StorageKeys.isUserLoggedIn) ?? false;
-      final userId = prefs.getInt(StorageKeys.userId) ?? 0;
-
-      return isLoggedIn && userId > 0;
-    } catch (e) {
-      debugPrint('Error checking login status: $e');
-      return false;
-    }
-  }
+  // Future<bool> checkIfUserLogin() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final isLoggedIn = prefs.getBool(StorageKeys.isUserLoggedIn) ?? false;
+  //     final userId = prefs.getInt(StorageKeys.userId) ?? 0;
+  //
+  //     return isLoggedIn && userId > 0;
+  //   } catch (e) {
+  //     debugPrint('Error checking login status: $e');
+  //     return false;
+  //   }
+  // }
 
 
 }
