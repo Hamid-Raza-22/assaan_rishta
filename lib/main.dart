@@ -11,6 +11,7 @@ import 'package:stacked_services/stacked_services.dart';
 import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
+import 'app/core/services/deep_link_handler.dart';
 import 'app/core/services/firebase_service/export.dart';
 import 'app/domain/export.dart';
 import 'app/fast_pay/app/app.locator.dart';
@@ -42,7 +43,8 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // DON'T initialize notifications here - wait for context in app
-
+  // Initialize deep links
+  await DeepLinkHandler.initDeepLinks();
   runApp(const AsanRishtaApp());
 }
 
@@ -106,6 +108,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    DeepLinkHandler.dispose();
     super.dispose();
   }
 

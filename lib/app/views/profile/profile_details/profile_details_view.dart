@@ -890,6 +890,7 @@ Widget getListTile({title, String? subtitle}) {
       subtitle: AppText(
         text: subtitle != "null" ? subtitle ?? "--" : "--",
         fontSize: 14,
+        maxLines: 10,
         fontWeight: FontWeight.w300,
         color: AppColors.blackColor,
       ),
