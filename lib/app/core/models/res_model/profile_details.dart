@@ -134,6 +134,7 @@ class ProfileDetails {
   dynamic aboutStateId;
   dynamic aboutCountryId;
   dynamic aboutParentCityId;
+  String? tiktokLink;
 
   ProfileDetails(
       {this.profileId,
@@ -270,7 +271,8 @@ class ProfileDetails {
       this.bornCountryId,
       this.aboutStateId,
       this.aboutCountryId,
-      this.aboutParentCityId});
+      this.aboutParentCityId,
+      this.tiktokLink});
 
   ProfileDetails.fromJson(Map<String, dynamic> json) {
     profileId = json['profile_id'];
@@ -408,6 +410,7 @@ class ProfileDetails {
     aboutStateId = json['aboutStateId'];
     aboutCountryId = json['aboutCountryId'];
     aboutParentCityId = json['aboutParentCityId'];
+    tiktokLink = json['tiktokLink'];
   }
 
   Map<String, dynamic> toJson() {
@@ -547,6 +550,7 @@ class ProfileDetails {
     data['aboutStateId'] = aboutStateId;
     data['aboutCountryId'] = aboutCountryId;
     data['aboutParentCityId'] = aboutParentCityId;
+    data['tiktokLink'] = tiktokLink;
     return data;
   }
 }

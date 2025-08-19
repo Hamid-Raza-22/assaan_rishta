@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.asan.rishta.matrimonial.asan_rishta",
+      "sha256_cert_fingerprints": [
+        "21:D2:CD:D6:53:E2:9D:C1:BE:D4:B7:79:31:BF:59:16:9A:B7:68:26:53:A9:60:82:45:B7:73:A9:39:FD:14:2E",
+        "43:72:99:39:A6:AE:4E:87:3B:4B:A0:4A:79:A7:6A:1B:BF:11:D5:A3:94:C2:A7:05:8F:6B:DC:30:32:5B:2E:54",
+        "70:B1:E3:A4:87:E6:C4:95:B0:04:B9:D1:41:22:CD:63:5B:B7:05:9D:86:A4:CA:3D:82:15:F6:88:07:35:91:D4"
+      ]
+    }
+  }
+]

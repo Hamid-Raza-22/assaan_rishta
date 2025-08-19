@@ -1,12 +1,14 @@
-
-// Updated user_details_viewmodel.dart
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/viewmodels/chat_viewmodel.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../core/export.dart';
-// import '../core/services/firebase_service/firebase_service.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 
@@ -14,108 +16,265 @@ class UserDetailsController extends GetxController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   final useCase = Get.find<UserManagementUseCase>();
 
-  // Make chatController nullable and initialize only if user is logged in
   ChatViewModel? chatController;
-
   var profileDetails = ProfileDetails().obs;
-  final receiverId = Get.arguments;
-  RxBool isLoading = false.obs;
 
+  // Make receiverId reactive and handle it properly
+  var receiverId = ''.obs;
+  RxBool isLoading = false.obs;
   RxInt totalConnects = 0.obs;
+  VideoPlayerController? videoController;
 
   @override
   void onInit() {
-    // Only initialize chat controller if user is logged in
+    super.onInit();
+    debugPrint('🚀 UserDetailsController onInit called');
+
+    // Initialize the controller with arguments
+    _initializeWithArguments();
+  }
+
+  // IMPORTANT: Override onReady to handle late initialization
+  @override
+  void onReady() {
+    super.onReady();
+    // Double-check if we have arguments after the widget is ready
+    if (receiverId.value.isEmpty && Get.arguments != null) {
+      _initializeWithArguments();
+    }
+  }
+
+  void _initializeWithArguments() {
+    // Get arguments and handle them properly
+    _initializeReceiverId();
+
+    // Only proceed if we have a valid receiver ID
+    if (receiverId.value.isNotEmpty) {
+      _initializeChatController();
+      getProfileDetails();
+    } else {
+      debugPrint('⚠️ No receiver ID available, waiting for arguments...');
+      // Listen for arguments changes
+      ever(receiverId, (String id) {
+        if (id.isNotEmpty) {
+          debugPrint('📍 Receiver ID updated: $id');
+          _initializeChatController();
+          getProfileDetails();
+        }
+      });
+    }
+  }
+
+  void _initializeReceiverId() {
+    // Handle different argument types
+    final args = Get.arguments;
+    debugPrint('📋 Received arguments: $args (type: ${args.runtimeType})');
+
+    String extractedId = '';
+
+    if (args != null) {
+      if (args is String) {
+        extractedId = args;
+      } else if (args is int) {
+        extractedId = args.toString();
+      } else if (args is Map) {
+        extractedId = args['profileId']?.toString() ?? '';
+      }
+    }
+
+    // Only update if we got a valid ID
+    if (extractedId.isNotEmpty) {
+      receiverId.value = extractedId;
+      debugPrint('🎯 Receiver ID set to: ${receiverId.value}');
+    } else {
+      debugPrint('⚠️ No valid receiver ID found in arguments');
+    }
+  }
+
+  void _initializeChatController() {
     bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
+    debugPrint('👤 User logged in: $isLoggedIn');
+
     if (isLoggedIn && Get.isRegistered<ChatViewModel>()) {
       chatController = Get.find<ChatViewModel>();
       getConnects();
+      debugPrint('💬 ChatController initialized');
+    } else {
+      debugPrint('💬 ChatController not initialized - user not logged in or service not available');
     }
+  }
 
+  // Method to reinitialize with new profile ID (called when route is replaced)
+  void reinitializeWithNewProfile(String newProfileId) {
+    debugPrint('🔄 Reinitializing controller with new profile: $newProfileId');
+
+    // Clean up existing resources
+    _cleanupResources();
+
+    // Reset state
+    receiverId.value = newProfileId;
+    profileDetails.value = ProfileDetails();
+    isLoading.value = false;
+
+    // Reinitialize chat controller if needed
+    _initializeChatController();
+
+    // Reload data
     getProfileDetails();
-    super.onInit();
+  }
+
+  void _cleanupResources() {
+    // Dispose video controller if exists
+    if (videoController != null) {
+      videoController?.removeListener(() {});
+      videoController?.pause();
+      videoController?.dispose();
+      videoController = null;
+      debugPrint('🧹 Video controller cleaned up');
+    }
   }
 
   getProfileDetails() async {
+    if (receiverId.value.isEmpty) {
+      debugPrint('❌ Cannot fetch profile - no receiver ID');
+      isLoading.value = false;
+      return;
+    }
+
+    debugPrint('📡 Fetching profile details for ID: ${receiverId.value}');
     isLoading.value = true;
-    final response = await useCase.getProfileDetails(
-      uid: receiverId,
-    );
-    return response.fold(
-          (error) {
+
+    try {
+      // Attempt to parse the receiverId to an integer
+      int? userId = int.tryParse(receiverId.value);
+
+      if (userId == null) {
+        debugPrint('❌ Invalid receiver ID format: ${receiverId.value}');
         isLoading.value = false;
-      },
-          (success) {
-        profileDetails.value = success;
-        isLoading.value = false;
-        update();
-      },
-    );
+        // Only show error if we're in the foreground
+        if (Get.context != null && !Get.isSnackbarOpen) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          Get.snackbar(
+            'Error',
+            'Invalid profile ID format.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: AppColors.redColor,
+            colorText: AppColors.whiteColor,
+            duration: const Duration(seconds: 2),
+          );
+        }
+        return;
+      }
+
+      // Pass the parsed integer value
+      final response = await useCase.getProfileDetails(uid: userId);
+
+      response.fold(
+            (error) {
+          debugPrint('❌ Error fetching profile: $error');
+          isLoading.value = false;
+          // Only show error if we're in the foreground
+          if (Get.context != null && !Get.isSnackbarOpen) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              Get.snackbar(
+                'Error',
+                'Failed to load profile details',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: AppColors.redColor,
+                colorText: AppColors.whiteColor,
+                duration: const Duration(seconds: 2),
+              );
+            });
+          }
+        },
+            (success) {
+          debugPrint('✅ Profile loaded successfully: ${success.firstName} ${success.lastName}');
+          profileDetails.value = success;
+          isLoading.value = false;
+          update(); // Force UI update
+        },
+      );
+    } catch (e) {
+      debugPrint('💥 Exception in getProfileDetails: $e');
+      isLoading.value = false;
+      // Only show error if we're in the foreground
+      if (Get.context != null && !Get.isSnackbarOpen) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        Get.snackbar(
+          'Error',
+          'Something went wrong. Please try again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.redColor,
+          colorText: AppColors.whiteColor,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    }
   }
 
   getConnects() async {
-    // Only get connects if user is logged in
     bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      debugPrint('🔒 User not logged in - skipping connects fetch');
+      return;
+    }
 
-    isLoading = true.obs;
+    debugPrint('💰 Fetching connects...');
+
     final response = await systemConfigUseCases.getConnects();
-    return response.fold(
+    response.fold(
           (error) {
-        isLoading = false.obs;
+        debugPrint('❌ Error fetching connects: $error');
       },
           (success) {
-        isLoading = false.obs;
+        debugPrint('✅ Connects fetched: $success');
         totalConnects.value = int.parse(success);
         update();
       },
     );
   }
 
-  // Method to navigate to login page
   void navigateToLogin() {
-    // Navigate to your login page here
-    // Replace AppRoutes.LOGIN with your actual login route
-    Get.toNamed(AppRoutes.ACCOUNT_TYPE); // or whatever your login route is
-
-    // Show a message to user
-    Get.snackbar(
-      'Login Required',
-      'Please login to send messages',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: AppColors.primaryColor,
-      colorText: AppColors.whiteColor,
-      duration: const Duration(seconds: 4),
-    );
+    Get.toNamed(AppRoutes.ACCOUNT_TYPE);
+    if (!Get.isSnackbarOpen) {
+      Get.snackbar(
+        'Login Required',
+        'Please login to send messages',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppColors.primaryColor,
+        colorText: AppColors.whiteColor,
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 
   sendMessageToOtherUser(context) async {
-    // Check if user is logged in
     bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
     if (!isLoggedIn) {
       navigateToLogin();
       return;
     }
 
-    // Check if chatController is available
     if (chatController == null) {
-      Get.snackbar(
-        'Error',
-        'Chat service not available',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.primaryColor,
-        colorText: AppColors.whiteColor,
-      );
+      if (!Get.isSnackbarOpen) {
+        Get.snackbar(
+          'Error',
+          'Chat service not available',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primaryColor,
+          colorText: AppColors.whiteColor,
+        );
+      }
       return;
     }
 
-    // AppUtils.onLoading(context);
-    String receiverId = '${profileDetails.value.userId}';
+    String receiverIdStr = '${profileDetails.value.userId}';
     String receiverName = '${profileDetails.value.firstName} ${profileDetails.value.lastName}';
     String receiverEmail = '${profileDetails.value.email}';
     String userImage = profileDetails.value.profileImage ?? AppConstants.profileImg;
     final time = DateTime.now().millisecondsSinceEpoch.toString();
-    debugPrint('receiverIdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd: $receiverId');
+
+    debugPrint('💬 Sending message to: $receiverIdStr');
 
     ChatUser user = ChatUser(
       image: userImage,
@@ -128,36 +287,173 @@ class UserDetailsController extends GetxController {
       isInside: false,
       isMobileOnline: false,
       isWebOnline: false,
-      id: receiverId,
+      id: receiverIdStr,
       pushToken: "",
       email: receiverEmail,
     );
 
-    await chatController!.userExists(receiverId).then(
-          (exist) async {
-        if (exist) {
-          ChatUser? chatUser = await chatController!.getUserById(receiverId, userImage);
-          if (chatUser != null) {
-            await chatController!.addChatUser(chatUser.id); // 👈 required!
-            Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: chatUser)!
-                .then((onValue) async {
-              await chatController!.setInsideChatStatus(false);
-            });
-          }
-        } else {
-          await chatController!.createUser(
-            name: receiverName,
-            id: receiverId,
-            email: receiverEmail,
-            image: userImage,
-            isOnline: false,
-            isMobileOnline: false,
-          ).then((onValue) async {
-            await chatController!.addChatUser(user.id); // 👈 required!
-            Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: user);
+    await chatController!.userExists(receiverIdStr).then((exist) async {
+      if (exist) {
+        ChatUser? chatUser = await chatController!.getUserById(receiverIdStr, userImage);
+        if (chatUser != null) {
+          await chatController!.addChatUser(chatUser.id);
+          Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: chatUser)!
+              .then((onValue) async {
+            await chatController!.setInsideChatStatus(false);
           });
         }
-      },
-    );
+      } else {
+        await chatController!.createUser(
+          name: receiverName,
+          id: receiverIdStr,
+          email: receiverEmail,
+          image: userImage,
+          isOnline: false,
+          isMobileOnline: false,
+        ).then((onValue) async {
+          await chatController!.addChatUser(user.id);
+          Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: user);
+        });
+      }
+    });
+  }
+
+  // Video-related methods remain the same...
+  String? extractTikTokVideoId(String url) {
+    try {
+      final RegExp regExp = RegExp(r'video/(\d+)');
+      final match = regExp.firstMatch(url);
+      return match?.group(1);
+    } catch (e) {
+      debugPrint("Error extracting TikTok video ID: $e");
+      return null;
+    }
+  }
+
+  Future<String?> getTikTokThumbnailFromOembed(String tiktokUrl) async {
+    try {
+      final oembedUrl = 'https://www.tiktok.com/oembed?url=${Uri.encodeComponent(tiktokUrl)}';
+      final response = await http.get(Uri.parse(oembedUrl));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['thumbnail_url'] as String?;
+      }
+    } catch (e) {
+      debugPrint("Error getting TikTok thumbnail from oembed: $e");
+    }
+    return null;
+  }
+
+  Future<Uint8List?> getVideoThumbnailData(String videoUrl) async {
+    try {
+      if (_isTikTokUrl(videoUrl)) {
+        final thumbnailUrl = await getTikTokThumbnailFromOembed(videoUrl);
+        if (thumbnailUrl != null) {
+          final response = await http.get(Uri.parse(thumbnailUrl));
+          if (response.statusCode == 200) {
+            return response.bodyBytes;
+          }
+        }
+      }
+
+      if (isDirectVideoUrl(videoUrl)) {
+        return await VideoThumbnail.thumbnailData(
+          video: videoUrl,
+          imageFormat: ImageFormat.JPEG,
+          maxHeight: 200,
+          quality: 75,
+        );
+      }
+    } catch (e) {
+      debugPrint("Error getting video thumbnail: $e");
+    }
+    return null;
+  }
+
+  bool _isTikTokUrl(String url) {
+    return url.contains('tiktok.com') ||
+        url.contains('vm.tiktok.com') ||
+        url.contains('t.tiktok.com');
+  }
+
+  Future<void> initializeVideoPlayer(String videoUrl) async {
+    try {
+      _cleanupResources(); // Clean up before initializing new player
+
+      videoController = VideoPlayerController.network(
+        videoUrl,
+        httpHeaders: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+        },
+      );
+
+      videoController!.addListener(() {
+        if (videoController!.value.isInitialized) {
+          update(['video_progress']);
+        }
+      });
+
+      await videoController!.initialize();
+      videoController!.setLooping(true);
+      videoController!.setVolume(0.5);
+      update(['video_player']);
+    } catch (e) {
+      debugPrint("Error initializing video player: $e");
+      update(['video_player']);
+    }
+  }
+
+  void toggleVideoPlayback() {
+    if (videoController != null && videoController!.value.isInitialized) {
+      if (videoController!.value.isPlaying) {
+        videoController!.pause();
+      } else {
+        videoController!.play();
+      }
+      update(['video_player']);
+    }
+  }
+
+  void toggleVideoMute() {
+    if (videoController != null && videoController!.value.isInitialized) {
+      if (videoController!.value.volume > 0) {
+        videoController!.setVolume(0);
+      } else {
+        videoController!.setVolume(0.5);
+      }
+      update(['video_player']);
+    }
+  }
+
+  Future<Uint8List?> getVideoThumbnail(String videoUrl) async {
+    try {
+      debugPrint("Getting video thumbnail for: $videoUrl");
+      final thumbnail = await VideoThumbnail.thumbnailData(
+        video: videoUrl,
+        imageFormat: ImageFormat.JPEG,
+        maxHeight: 200,
+        quality: 75,
+      );
+      return thumbnail;
+    } catch (e) {
+      debugPrint("Error getting video thumbnail: $e");
+      return null;
+    }
+  }
+
+  bool isDirectVideoUrl(String url) {
+    final videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'];
+    final lowerUrl = url.toLowerCase();
+    return videoExtensions.any((ext) => lowerUrl.contains(ext)) ||
+        lowerUrl.contains('blob:') ||
+        lowerUrl.contains('.m3u8');
+  }
+
+  @override
+  void onClose() {
+    debugPrint('🔴 UserDetailsController onClose called');
+    _cleanupResources();
+    super.onClose();
   }
 }

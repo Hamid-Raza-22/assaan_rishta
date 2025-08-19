@@ -33,9 +33,44 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"
                 />
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Deep Link Intent Filter 1: HTTPS scheme (App Links) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="asaanrishta.com"
+                    android:pathPrefix="/user-details-view" />
+            </intent-filter>
+
+            <!-- Deep Link Intent Filter 2: Custom scheme (FIX THIS ONE) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- Fixed: Separate the scheme from the host properly -->
+                <data
+                    android:scheme="asaanrishta"
+                    android:host="user-details-view" />
+            </intent-filter>
+
+            <!-- Alternative custom scheme format -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="asaanrishta" />
             </intent-filter>
         </activity>
 

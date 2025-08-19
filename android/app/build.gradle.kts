@@ -34,7 +34,7 @@ android {
 
     defaultConfig {
         applicationId = "com.asan.rishta.matrimonial.asan_rishta"
-        minSdk = 21
+        minSdkVersion(flutter.minSdkVersion)
         targetSdk = 36  // Updated from 36 to 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
