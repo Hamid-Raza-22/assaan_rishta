@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 
 import '../core/services/firebase_service/export.dart';
 import '../domain/export.dart';
+import '../utils/exports.dart';
 import '../views/chat/chat_user_listing_view.dart';
 import '../views/filter/export.dart';
 import '../views/vendor/export.dart';
@@ -37,6 +38,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     _initializePages();
     WidgetsBinding.instance.addObserver(this);
     _initializeApp();
+    manualVersionCheck();
   }
 
   void _initializePages() {
@@ -85,16 +87,27 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     if (selectedTab.value == index) return;
     // Ensure index is within valid range
     if (index >= pageCount) return;
-
     bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
 
     selectedTab.value = index;
+
+    _performVersionCheck();
     // Only set chat state if user is logged in and on chat tab
     if (isLoggedIn) {
       FirebaseService.setAppState(isInChat: index == 2); // Chat is at index 2 for logged in users
     }
   }
+  void _performVersionCheck() {
+    if (Get.context != null) {
+      debugPrint('🔍 Performing version check...');
+      versionCheck(Get.context!);
+    }
+  }
 
+  // Method to manually trigger version check (can be called from anywhere)
+  void manualVersionCheck() {
+    _performVersionCheck();
+  }
   Future<void> _initializeApp() async {
     if (_isInitialized) return;
 

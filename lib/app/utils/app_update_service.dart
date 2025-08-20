@@ -1,10 +1,8 @@
 import 'dart:io';
 
-
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,37 +14,60 @@ const PLAY_STORE_URL =
     'https://play.google.com/store/apps/details?id=com.asan.rishta.matrimonial.asan_rishta';
 
 versionCheck(context) async {
-  //Get Current installed version of app
-  final PackageInfo info = await PackageInfo.fromPlatform();
-  double currentVersion = double.parse(info.version.trim().replaceAll(".", ""));
-
-  //Get Latest version info from firebase config
-  final remoteConfig = FirebaseRemoteConfig.instance;
-  remoteConfig.setConfigSettings(
-    RemoteConfigSettings(
-      fetchTimeout: const Duration(minutes: 1),
-      minimumFetchInterval: const Duration(hours: 1),
-    ),
-  );
   try {
-    // Using default duration to force fetching from remote server.
-    await remoteConfig.fetchAndActivate();
-    remoteConfig.getString('force_update_current_version');
-    double newVersion = double.parse(remoteConfig
-        .getString('force_update_current_version')
-        .trim()
-        .replaceAll(".", ""));
-    debugPrint('newVersion: $newVersion');
-    debugPrint('currentVersion: $currentVersion');
-    if (newVersion > currentVersion) {
-      _showVersionDialog(context);
+    // Get Current installed version of app
+    final PackageInfo info = await PackageInfo.fromPlatform();
+
+    // Parse version string properly (e.g., "1.2.6" -> 126)
+    String currentVersionString = info.version.trim();
+    double currentVersion = double.parse(currentVersionString.replaceAll(".", ""));
+
+    debugPrint('📱 Current app version: $currentVersionString (parsed: $currentVersion)');
+
+    // Get Latest version info from firebase config
+    final remoteConfig = FirebaseRemoteConfig.instance;
+
+    // Configure remote config settings
+    await remoteConfig.setConfigSettings(
+      RemoteConfigSettings(
+        fetchTimeout: const Duration(minutes: 1),
+        minimumFetchInterval: Duration.zero,
+      ),
+    );
+
+    // Fetch and activate remote config
+    bool fetchResult = await remoteConfig.fetchAndActivate();
+    debugPrint('🔄 Fetch and activate result: $fetchResult');
+
+    // Get all remote config keys to debug
+    debugPrint('🔑 All Remote Config Keys: ${remoteConfig.getAll().keys.toList()}');
+
+    // Get the force update version from remote config
+    String remoteVersionString = remoteConfig.getString('force_update_current_version').trim();
+
+    // Check if remote version string is empty
+    if (remoteVersionString.isEmpty) {
+      debugPrint('⚠️ Remote version string is empty');
+      return;
     }
+
+    double newVersion = double.parse(remoteVersionString.replaceAll(".", ""));
+
+    debugPrint('🌐 Remote version: $remoteVersionString (parsed: $newVersion)');
+    debugPrint('📊 Version comparison: current=$currentVersion, remote=$newVersion');
+
+    // Show update dialog if remote version is greater than current version
+    if (newVersion > currentVersion) {
+      debugPrint('🔄 Update available! Showing update dialog...');
+      await _showVersionDialog(context);
+    } else {
+      debugPrint('✅ App is up to date');
+    }
+
   } on Exception catch (exception) {
-    debugPrint(exception.toString());
-  } catch (exception) {
-    debugPrint(
-        'Unable to fetch remote config. Cached or default values will be '
-        'used');
+    debugPrint('❌ Exception during version check: ${exception.toString()}');
+  } catch (error) {
+    debugPrint('❌ Error during version check: ${error.toString()}');
   }
 }
 
@@ -60,56 +81,59 @@ _showVersionDialog(context) async {
           "There is a newer version of app available please update it now.";
       String btnLabel = "Update Now";
       String btnLabelCancel = "Later";
+
       return Platform.isIOS
           ? CupertinoAlertDialog(
-              title: Text(title),
-              content: Text(message),
-              actions: <Widget>[
-                TextButton(
-                  child: Text(
-                    btnLabel,
-                    style: const TextStyle(
-                      color: AppColors.blackColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onPressed: () => launchURL(APP_STORE_URL),
-                ),
-                TextButton(
-                  child: Text(
-                    btnLabelCancel,
-                    style: const TextStyle(
-                      color: AppColors.blackColor,
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            )
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: Text(
+              btnLabel,
+              style: const TextStyle(
+                color: AppColors.blackColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onPressed: () => launchURL(APP_STORE_URL),
+          ),
+          TextButton(
+            child: Text(
+              btnLabelCancel,
+              style: const TextStyle(
+                color: AppColors.blackColor,
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      )
           : AlertDialog(
-              backgroundColor: AppColors.whiteColor,
-              title: Text(title),
-              content: Text(message),
-              actions: <Widget>[
-                TextButton(
-                  child: Text(btnLabel,
-                      style: const TextStyle(
-                        color: AppColors.blackColor,
-                        fontWeight: FontWeight.w600,
-                      )),
-                  onPressed: () => launchURL(PLAY_STORE_URL),
-                ),
-                TextButton(
-                  child: Text(
-                    btnLabelCancel,
-                    style: const TextStyle(
-                      color: AppColors.blackColor,
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            );
+        backgroundColor: AppColors.whiteColor,
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: Text(
+              btnLabel,
+              style: const TextStyle(
+                color: AppColors.blackColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onPressed: () => launchURL(PLAY_STORE_URL),
+          ),
+          TextButton(
+            child: Text(
+              btnLabelCancel,
+              style: const TextStyle(
+                color: AppColors.blackColor,
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      );
     },
   );
 }
