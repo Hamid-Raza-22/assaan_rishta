@@ -18,7 +18,6 @@ import '../../utils/exports.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../widgets/export.dart';
-import '../bottom_nav/export.dart';
 
 // State Management Controller for ChattingView
 // Fixed ChattingViewController in chatting_view.dart
