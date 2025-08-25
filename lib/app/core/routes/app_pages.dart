@@ -192,7 +192,7 @@ class AppPages {
     ),
     GetPage(
       name: AppRoutes.VENDER_DETAILS_VIEW,
-      page: () => const VendorDetailView(),
+      page: () => VendorDetailView(),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),

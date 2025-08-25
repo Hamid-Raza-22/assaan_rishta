@@ -1,5 +1,6 @@
+// optimized_vender_detail_controller.dart
 import 'dart:async';
-
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'dart:typed_data';
@@ -11,7 +12,9 @@ class VendorDetailController extends BaseController {
   final useCases = Get.find<UserManagementUseCase>();
   int selectedIndex = 0;
 
-  VendorsList vendorsItem = Get.arguments;
+  // Initialize with empty vendor to prevent crashes
+  VendorsList vendorsItem = VendorsList();
+  bool _isInitialized = false;
 
   RxBool isServiceLoading = false.obs;
   RxBool isQuestionsLoading = false.obs;
@@ -25,7 +28,7 @@ class VendorDetailController extends BaseController {
   List<VendorVideos> videoList = [];
   List<VendorPackages> packageList = [];
 
-  ///for view number
+  // For view number functionality
   Timer? _timer;
   RxBool isButtonVisible = true.obs;
   RxInt secondsRemaining = 05.obs;
@@ -33,20 +36,90 @@ class VendorDetailController extends BaseController {
 
   @override
   void onInit() {
-    _initApis();
+    debugPrint('🎯 OptimizedVendorDetailController onInit called');
+    _initializeController();
     super.onInit();
   }
 
-  _initApis() {
-    getVendorServices();
-    getVendorQuestions();
-    getVendorAlbums();
-    getVendorVideo();
-    getVendorPackage();
+  void _initializeController() {
+    final arguments = Get.arguments;
+    debugPrint('📋 Arguments received: ${arguments?.runtimeType}');
+
+    if (arguments != null && arguments is VendorsList) {
+      _setVendorData(arguments);
+    } else {
+      debugPrint('⚠️ No valid vendor data in arguments');
+    }
   }
 
+  void _setVendorData(VendorsList vendor) {
+    vendorsItem = vendor;
+    _isInitialized = true;
+
+    debugPrint('✅ Vendor initialized: ${vendorsItem.venderBusinessName} (ID: ${vendorsItem.venderID})');
+
+    // Load APIs immediately after setting data
+    _initApis();
+  }
+
+  // Optimized method to update vendor data (for deep links)
+  void updateVendorData(VendorsList newVendor) {
+    debugPrint('🔄 Updating vendor data: ${newVendor.venderBusinessName}');
+
+    // Clear previous data
+    _clearData();
+
+    // Set new vendor data
+    _setVendorData(newVendor);
+
+    // Update UI immediately
+    update();
+  }
+
+  void _clearData() {
+    serviceList.clear();
+    questionsList.clear();
+    albumList.clear();
+    videoList.clear();
+    packageList.clear();
+
+    // Reset loading states
+    isServiceLoading.value = false;
+    isQuestionsLoading.value = false;
+    isAlbumsLoading.value = false;
+    isVideoLoading.value = false;
+    isPackageLoading.value = false;
+
+    // Reset view number state
+    isClicked.value = false;
+    isButtonVisible.value = true;
+    secondsRemaining.value = 05;
+    _timer?.cancel();
+  }
+
+  void _initApis() {
+    if (vendorsItem.venderID != null && _isInitialized) {
+      debugPrint('📡 Loading APIs for vendor ID: ${vendorsItem.venderID}');
+
+      // Load all APIs in parallel for better performance
+      Future.wait([
+        _getVendorServices(),
+        _getVendorQuestions(),
+        _getVendorAlbums(),
+        _getVendorVideo(),
+        _getVendorPackage(),
+      ]).then((_) {
+        debugPrint('✅ All vendor data loaded');
+      }).catchError((error) {
+        debugPrint('❌ Error loading vendor data: $error');
+      });
+    }
+  }
+
+  bool get hasValidVendor => _isInitialized && vendorsItem.venderID != null;
+
   void startTimer() {
-    isClicked.value=true;
+    isClicked.value = true;
     _timer?.cancel();
     isButtonVisible.value = false;
     secondsRemaining.value = 05;
@@ -61,86 +134,150 @@ class VendorDetailController extends BaseController {
     });
   }
 
-  ///Apis
-  getVendorServices() async {
-    isServiceLoading.value = true;
-    final response = await useCases.getVendorServices(
-      vendorId: vendorsItem.venderID,
-    );
-    return response.fold(
-      (error) {
-        isServiceLoading.value = false;
-      },
-      (success) {
-        if (success.isNotEmpty) {
-          serviceList = success;
-        }
-        isServiceLoading.value = false;
-        update();
-      },
-    );
+  // Optimized API methods with better error handling
+  Future<void> _getVendorServices() async {
+    if (!hasValidVendor) return;
+
+    try {
+      isServiceLoading.value = true;
+      final response = await useCases.getVendorServices(
+        vendorId: vendorsItem.venderID,
+      );
+
+      response.fold(
+            (error) {
+          debugPrint('❌ Services error: $error');
+        },
+            (success) {
+          if (success.isNotEmpty) {
+            serviceList = success;
+            debugPrint('✅ Loaded ${success.length} services');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Exception in services: $e');
+    } finally {
+      isServiceLoading.value = false;
+      update();
+    }
   }
 
-  getVendorQuestions() async {
-    isQuestionsLoading.value = true;
-    final response = await useCases.getVendorQuestions(
-      vendorId: vendorsItem.venderID,
-    );
-    return response.fold(
-      (error) {
-        isQuestionsLoading.value = false;
-      },
-      (success) {
-        if (success.isNotEmpty) {
-          questionsList = success;
-        }
-        isQuestionsLoading.value = false;
-        update();
-      },
-    );
+  Future<void> _getVendorQuestions() async {
+    if (!hasValidVendor) return;
+
+    try {
+      isQuestionsLoading.value = true;
+      final response = await useCases.getVendorQuestions(
+        vendorId: vendorsItem.venderID,
+      );
+
+      response.fold(
+            (error) {
+          debugPrint('❌ Questions error: $error');
+        },
+            (success) {
+          if (success.isNotEmpty) {
+            questionsList = success;
+            debugPrint('✅ Loaded ${success.length} questions');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Exception in questions: $e');
+    } finally {
+      isQuestionsLoading.value = false;
+      update();
+    }
   }
 
-  getVendorAlbums() async {
-    isAlbumsLoading.value = true;
-    final response = await useCases.getVendorAlbums(
-      vendorId: vendorsItem.venderID,
-    );
-    return response.fold(
-      (error) {
-        isAlbumsLoading.value = false;
-      },
-      (success) {
-        if (success.isNotEmpty) {
-          albumList = success;
-        }
-        isAlbumsLoading.value = false;
-        update();
-      },
-    );
+  Future<void> _getVendorAlbums() async {
+    if (!hasValidVendor) return;
+
+    try {
+      isAlbumsLoading.value = true;
+      final response = await useCases.getVendorAlbums(
+        vendorId: vendorsItem.venderID,
+      );
+
+      response.fold(
+            (error) {
+          debugPrint('❌ Albums error: $error');
+        },
+            (success) {
+          if (success.isNotEmpty) {
+            albumList = success;
+            debugPrint('✅ Loaded ${success.length} albums');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Exception in albums: $e');
+    } finally {
+      isAlbumsLoading.value = false;
+      update();
+    }
   }
 
-  getVendorVideo() async {
-    isVideoLoading.value = true;
-    final response = await useCases.getVendorVideo(
-      vendorId: vendorsItem.venderID,
-    );
-    return response.fold(
-      (error) {
-        isVideoLoading.value = false;
-      },
-      (success) {
-        if (success.isNotEmpty) {
-          videoList = success;
-        }
-        print('Lenght => ${success.length}');
-        isVideoLoading.value = false;
-        update();
-      },
-    );
+  Future<void> _getVendorVideo() async {
+    if (!hasValidVendor) return;
+
+    try {
+      isVideoLoading.value = true;
+      final response = await useCases.getVendorVideo(
+        vendorId: vendorsItem.venderID,
+      );
+
+      response.fold(
+            (error) {
+          debugPrint('❌ Videos error: $error');
+        },
+            (success) {
+          if (success.isNotEmpty) {
+            videoList = success;
+            debugPrint('✅ Loaded ${success.length} videos');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Exception in videos: $e');
+    } finally {
+      isVideoLoading.value = false;
+      update();
+    }
+  }
+
+  Future<void> _getVendorPackage() async {
+    if (!hasValidVendor) return;
+
+    try {
+      isPackageLoading.value = true;
+      final response = await useCases.getVendorPackage(
+        vendorId: vendorsItem.venderID,
+      );
+
+      response.fold(
+            (error) {
+          debugPrint('❌ Packages error: $error');
+        },
+            (success) {
+          if (success.isNotEmpty) {
+            packageList = success;
+            debugPrint('✅ Loaded ${success.length} packages');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Exception in packages: $e');
+    } finally {
+      isPackageLoading.value = false;
+      update();
+    }
   }
 
   Future<Uint8List?> getThumbnail(String videoUrl) async {
     if (videoUrl.isEmpty) return null;
+
     try {
       final uint8list = await VideoThumbnail.thumbnailData(
         video: videoUrl,
@@ -150,29 +287,30 @@ class VendorDetailController extends BaseController {
       );
       return uint8list;
     } catch (e) {
-      print('Thumbnail error: $e');
+      debugPrint('❌ Thumbnail error: $e');
       return null;
     }
   }
 
-
-  getVendorPackage() async {
-    isPackageLoading.value = true;
-    final response = await useCases.getVendorPackage(
-      vendorId: vendorsItem.venderID,
-    );
-    return response.fold(
-      (error) {
-        isPackageLoading.value = false;
-      },
-      (success) {
-        if (success.isNotEmpty) {
-          packageList = success;
-        }
-        isPackageLoading.value = false;
-        update();
-      },
-    );
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
+  // Legacy methods for compatibility (marked deprecated)
+  @Deprecated('Use _getVendorServices instead')
+  getVendorServices() => _getVendorServices();
+
+  @Deprecated('Use _getVendorQuestions instead')
+  getVendorQuestions() => _getVendorQuestions();
+
+  @Deprecated('Use _getVendorAlbums instead')
+  getVendorAlbums() => _getVendorAlbums();
+
+  @Deprecated('Use _getVendorVideo instead')
+  getVendorVideo() => _getVendorVideo();
+
+  @Deprecated('Use _getVendorPackage instead')
+  getVendorPackage() => _getVendorPackage();
 }

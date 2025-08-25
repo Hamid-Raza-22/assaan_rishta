@@ -441,6 +441,7 @@ Don't have the app? Download now:
 //     }
 //   }
 // Updated message button methods (keeping your existing code)
+
   Widget _buildLoggedInMessageButton(BuildContext context) {
     return CustomButton(
       text: "Message",
@@ -459,7 +460,7 @@ Don't have the app? Download now:
       ),
       fontSize: 18,
       onTap: () {
-        if (controller.totalConnects.value > 0) {
+        if (controller.totalConnects.value >= 0) {
           controller.sendMessageToOtherUser(context);
         } else {
           showDialog(

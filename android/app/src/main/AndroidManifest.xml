@@ -40,7 +40,9 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep Link Intent Filter 1: HTTPS scheme (App Links) -->
+
+            <!-- USER PROFILE DEEP LINKS -->
+            <!-- Deep Link Intent Filter 1: HTTPS scheme for User Profile (App Links) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -52,19 +54,42 @@
                     android:pathPrefix="/user-details-view" />
             </intent-filter>
 
-            <!-- Deep Link Intent Filter 2: Custom scheme (FIX THIS ONE) -->
+            <!-- Deep Link Intent Filter 2: Custom scheme for User Profile -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <!-- Fixed: Separate the scheme from the host properly -->
                 <data
                     android:scheme="asaanrishta"
                     android:host="user-details-view" />
             </intent-filter>
 
-            <!-- Alternative custom scheme format -->
+            <!-- VENDOR DEEP LINKS -->
+            <!-- Deep Link Intent Filter 3: HTTPS scheme for Vendor (App Links) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="asaanrishta.com"
+                    android:pathPrefix="/vendor-details-view" />
+            </intent-filter>
+
+            <!-- Deep Link Intent Filter 4: Custom scheme for Vendor -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="asaanrishta"
+                    android:host="vendor-details-view" />
+            </intent-filter>
+
+            <!-- Alternative custom scheme format for backward compatibility -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
