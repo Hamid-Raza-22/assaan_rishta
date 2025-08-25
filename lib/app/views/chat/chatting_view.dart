@@ -759,9 +759,10 @@ class _ChattingViewState extends State<ChattingView> {
           itemCount: messages.length,
           padding: EdgeInsets.only(top: chatMq.height * .01),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (ctx, i) => MessageCard(
+          itemBuilder: (ctx, i) => ProfessionalMessageCard(
             message: messages[i],
             pause: controller.paused.value,
+            showUserAvatar: true,
           ),
         );
       }

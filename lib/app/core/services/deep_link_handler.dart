@@ -1,69 +1,79 @@
-// deep_link_handler.dart
+// optimized_deep_link_handler.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:app_links/app_links.dart';
+import '../../views/vendor/details/vender_detail_controller.dart';
 import '../models/res_model/profile_details.dart';
+import '../models/res_model/all_vendors_list.dart';
 import '../routes/app_routes.dart';
 import '../../viewmodels/user_details_viewmodel.dart';
+import '../../domain/export.dart';
 
 class DeepLinkHandler {
   static late AppLinks _appLinks;
   static StreamSubscription<Uri>? _linkSubscription;
   static bool _isHandlingDeepLink = false;
-  static String? _pendingDeepLinkProfileId; // Store pending deep link
+  static String? _pendingDeepLinkProfileId;
+  static String? _pendingDeepLinkVendorId;
+  static String? _pendingDeepLinkType;
+
+  // Cache for vendor data to avoid repeated API calls
+  static final Map<String, VendorsList> _vendorCache = {};
+  static DateTime? _cacheTime;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
 
   static Future<void> initDeepLinks() async {
-    debugPrint('🔗 Initializing deep links...');
+    debugPrint('🔗 Initializing optimized deep links...');
     _appLinks = AppLinks();
 
-    // Handle initial link when app opens from a deep link
     try {
       final initialLink = await _appLinks.getInitialLink();
       if (initialLink != null) {
         debugPrint('🔗 Initial deep link detected: $initialLink');
-        // Store the pending deep link for later processing
-        final profileId = _extractProfileId(initialLink.toString());
-        if (profileId != null) {
-          _pendingDeepLinkProfileId = profileId;
-          debugPrint('📌 Stored pending profile ID: $profileId');
-        }
+        _processInitialLink(initialLink.toString());
       }
     } catch (e) {
       debugPrint('❌ Failed to get initial link: $e');
     }
 
-    // Handle links when app is already open
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
-      debugPrint('🔗 New deep link received while app is open: $uri');
+      debugPrint('🔗 New deep link received: $uri');
       _handleDeepLink(uri.toString());
     }, onError: (err) {
       debugPrint('❌ Error in link stream: $err');
     });
   }
 
-  // New method to process pending deep links after app is ready
-  static void processPendingDeepLink() {
-    if (_pendingDeepLinkProfileId != null) {
-      debugPrint('🔄 Processing pending deep link for profile: $_pendingDeepLinkProfileId');
-      final profileId = _pendingDeepLinkProfileId!;
-      _pendingDeepLinkProfileId = null; // Clear the pending link
-
-      // Check current route to determine navigation strategy
-      final currentRoute = Get.currentRoute;
-      debugPrint('📍 Processing deep link from route: $currentRoute');
-
-      if (currentRoute == AppRoutes.BOTTOM_NAV ||
-          currentRoute.contains('/bottom-nav')) {
-        // Already on bottom nav, just navigate to profile
-        Get.toNamed(
-          AppRoutes.USER_DETAILS_VIEW,
-          arguments: profileId,
-        );
-      } else {
-        // Need to create proper stack
-        _navigateToProfileWithStack(profileId);
+  static void _processInitialLink(String link) {
+    if (link.contains('user-details-view')) {
+      final profileId = _extractProfileId(link);
+      if (profileId != null) {
+        _pendingDeepLinkProfileId = profileId;
+        _pendingDeepLinkType = 'user';
+        debugPrint('📌 Stored pending user profile ID: $profileId');
       }
+    } else if (link.contains('vendor-details-view')) {
+      final vendorId = _extractVendorId(link);
+      if (vendorId != null) {
+        _pendingDeepLinkVendorId = vendorId;
+        _pendingDeepLinkType = 'vendor';
+        debugPrint('📌 Stored pending vendor ID: $vendorId');
+      }
+    }
+  }
+
+  static void processPendingDeepLink() {
+    if (_pendingDeepLinkType == 'user' && _pendingDeepLinkProfileId != null) {
+      final profileId = _pendingDeepLinkProfileId!;
+      _pendingDeepLinkProfileId = null;
+      _pendingDeepLinkType = null;
+      _navigateToProfile(profileId);
+    } else if (_pendingDeepLinkType == 'vendor' && _pendingDeepLinkVendorId != null) {
+      final vendorId = _pendingDeepLinkVendorId!;
+      _pendingDeepLinkVendorId = null;
+      _pendingDeepLinkType = null;
+      _fetchAndNavigateToVendorOptimized(vendorId);
     }
   }
 
@@ -72,21 +82,15 @@ class DeepLinkHandler {
       final uri = Uri.parse(link);
       String? profileId;
 
-      // Handle different URL patterns
       if (uri.scheme == 'https' && uri.host == 'asaanrishta.com') {
         if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'user-details-view') {
           profileId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
         }
-      }
-      else if (uri.scheme == 'assaanrishta' || uri.scheme == 'asaanrishta') {
+      } else if (uri.scheme == 'asaanrishta') {
         if (uri.host == 'user-details-view') {
           profileId = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : null;
-        }
-        else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'user-details-view') {
+        } else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'user-details-view') {
           profileId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
-        }
-        else if (uri.pathSegments.isNotEmpty) {
-          profileId = uri.pathSegments[0];
         }
       }
 
@@ -97,8 +101,31 @@ class DeepLinkHandler {
     }
   }
 
+  static String? _extractVendorId(String link) {
+    try {
+      final uri = Uri.parse(link);
+      String? vendorId;
+
+      if (uri.scheme == 'https' && uri.host == 'asaanrishta.com') {
+        if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'vendor-details-view') {
+          vendorId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+        }
+      } else if (uri.scheme == 'asaanrishta') {
+        if (uri.host == 'vendor-details-view') {
+          vendorId = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : null;
+        } else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'vendor-details-view') {
+          vendorId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+        }
+      }
+
+      return vendorId;
+    } catch (e) {
+      debugPrint('❌ Error extracting vendor ID: $e');
+      return null;
+    }
+  }
+
   static void _handleDeepLink(String link) {
-    // Prevent multiple simultaneous deep link handling
     if (_isHandlingDeepLink) {
       debugPrint('⚠️ Already handling a deep link, skipping...');
       return;
@@ -108,22 +135,408 @@ class DeepLinkHandler {
     debugPrint('📱 Processing deep link: $link');
 
     try {
-      final profileId = _extractProfileId(link);
+      if (link.contains('vendor-details-view')) {
+        final vendorId = _extractVendorId(link);
+        if (vendorId != null && vendorId.isNotEmpty) {
+          debugPrint('✅ Vendor ID extracted: $vendorId');
 
-      if (profileId != null && profileId.isNotEmpty) {
-        debugPrint('✅ Profile ID extracted: $profileId');
-        _navigateToProfile(profileId);
-      } else {
-        debugPrint('⚠️ No valid profile ID found in link');
+          // Check if already viewing this vendor
+          if (_isAlreadyViewingVendor(vendorId)) {
+            debugPrint('✅ Already viewing vendor $vendorId, no action needed');
+            _isHandlingDeepLink = false;
+            return;
+          }
+
+          _fetchAndNavigateToVendorOptimized(vendorId);
+        } else {
+          debugPrint('⚠️ No valid vendor ID found in link');
+          _isHandlingDeepLink = false;
+        }
+      } else if (link.contains('user-details-view')) {
+        final profileId = _extractProfileId(link);
+        if (profileId != null && profileId.isNotEmpty) {
+          debugPrint('✅ Profile ID extracted: $profileId');
+
+          // Check if already viewing this profile
+          if (_isAlreadyViewingProfile(profileId)) {
+            debugPrint('✅ Already viewing profile $profileId, no action needed');
+            _isHandlingDeepLink = false;
+            return;
+          }
+
+          _navigateToProfile(profileId);
+        } else {
+          debugPrint('⚠️ No valid profile ID found in link');
+          _isHandlingDeepLink = false;
+        }
       }
     } catch (e) {
       debugPrint('❌ Error handling deep link: $e');
-    } finally {
-      // Reset flag after a delay
-      Future.delayed(const Duration(seconds: 2), () {
-        _isHandlingDeepLink = false;
-      });
+      _isHandlingDeepLink = false;
     }
+  }
+
+  // Helper method to check if already viewing the same vendor
+  static bool _isAlreadyViewingVendor(String vendorId) {
+    try {
+      final currentRoute = Get.currentRoute;
+      debugPrint('🔍 Current route for vendor check: $currentRoute');
+
+      // Check if we're on any vendor details route
+      if (currentRoute.contains('/vendor-details-view') ||
+          currentRoute.contains('/vender-details-view') ||
+          currentRoute == AppRoutes.VENDER_DETAILS_VIEW) {
+
+        debugPrint('🔍 On vendor details route, checking controller...');
+
+        // Check standard controller
+        if (Get.isRegistered<VendorDetailController>()) {
+          final controller = Get.find<VendorDetailController>();
+          final currentVendorId = controller.vendorsItem?.venderID?.toString();
+          debugPrint('🔍 Controller vendor ID: $currentVendorId vs target: $vendorId');
+
+          if (currentVendorId == vendorId) {
+            debugPrint('✅ Same vendor already loaded in controller');
+            return true;
+          }
+        }
+      }
+
+      debugPrint('❌ Different vendor or not on vendor route');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error checking current vendor: $e');
+      return false;
+    }
+  }
+
+  // Helper method to check if already viewing the same profile
+  static bool _isAlreadyViewingProfile(String profileId) {
+    try {
+      final currentRoute = Get.currentRoute;
+
+      if (currentRoute.contains('/user-details-view')) {
+        if (Get.isRegistered<UserDetailsController>()) {
+          final controller = Get.find<UserDetailsController>();
+          final currentProfileId = controller.receiverId.value;
+          return currentProfileId == profileId;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error checking current profile: $e');
+      return false;
+    }
+  }
+
+  // OPTIMIZED VENDOR FETCHING WITH CACHING AND PARALLEL REQUESTS
+  static Future<void> _fetchAndNavigateToVendorOptimized(String vendorId) async {
+    try {
+      debugPrint('🚀 Optimized vendor fetch for ID: $vendorId');
+
+      // Check cache first
+      if (_isCacheValid() && _vendorCache.containsKey(vendorId)) {
+        debugPrint('⚡ Using cached vendor data');
+        final cachedVendor = _vendorCache[vendorId]!;
+        _navigateToVendor(cachedVendor);
+        _isHandlingDeepLink = false;
+        return;
+      }
+
+      // Show minimal loading indicator
+      _showMinimalLoader();
+
+      final userManagementUseCases = Get.find<UserManagementUseCase>();
+      final List<int> categoryIds = [10, 6, 4, 8, 5, 11, 12, 3, 9];
+
+      // Create parallel API calls for all categories
+      final List<Future> futures = categoryIds.map((catId) async {
+        try {
+          final response = await userManagementUseCases.getAllVendors(
+            catId: catId,
+            pageNo: "1",
+            cityId: 0,
+          );
+
+          return response.fold(
+                (error) => null,
+                (success) {
+              if (success.profilesList != null && success.profilesList!.isNotEmpty) {
+                try {
+                  return success.profilesList!.firstWhere(
+                        (v) => v.venderID.toString() == vendorId,
+                  );
+                } catch (e) {
+                  return null;
+                }
+              }
+              return null;
+            },
+          );
+        } catch (e) {
+          debugPrint('❌ Error in category $catId: $e');
+          return null;
+        }
+      }).toList();
+
+      // Wait for any future to complete with a result
+      VendorsList? foundVendor;
+
+      // Use a completer to get the first successful result
+      final completer = Completer<VendorsList?>();
+      int completedCount = 0;
+
+      for (final future in futures) {
+        future.then((result) {
+          completedCount++;
+          if (result != null && !completer.isCompleted) {
+            completer.complete(result);
+          } else if (completedCount == futures.length && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        });
+      }
+
+      // Wait for result with timeout
+      foundVendor = await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => null,
+      );
+
+      _hideLoader();
+
+      if (foundVendor != null) {
+        debugPrint('✅ Vendor found: ${foundVendor.venderBusinessName}');
+
+        // Cache the result
+        _cacheVendor(vendorId, foundVendor);
+
+        _navigateToVendor(foundVendor);
+      } else {
+        debugPrint('❌ Vendor not found with ID: $vendorId');
+        _showVendorNotFoundError();
+        _navigateToVendorsFallback();
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error in optimized vendor fetch: $e');
+      _hideLoader();
+      _showErrorAndFallback();
+    } finally {
+      _isHandlingDeepLink = false;
+    }
+  }
+
+  static bool _isCacheValid() {
+    return _cacheTime != null &&
+        DateTime.now().difference(_cacheTime!) < _cacheExpiry;
+  }
+
+  static void _cacheVendor(String vendorId, VendorsList vendor) {
+    _vendorCache[vendorId] = vendor;
+    _cacheTime = DateTime.now();
+
+    // Clean old cache entries to prevent memory issues
+    if (_vendorCache.length > 50) {
+      _vendorCache.clear();
+      _cacheTime = DateTime.now();
+    }
+  }
+
+  static void _showMinimalLoader() {
+    if (Get.context != null && !Get.isSnackbarOpen) {
+      Get.snackbar(
+        '',
+        '',
+        titleText: const SizedBox.shrink(),
+        messageText: const Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Loading vendor...',
+              style: TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black87,
+        duration: const Duration(seconds: 10),
+        snackPosition: SnackPosition.TOP,
+        margin: const EdgeInsets.all(8),
+      );
+    }
+  }
+
+  static void _hideLoader() {
+    if (Get.isSnackbarOpen) {
+      Get.closeCurrentSnackbar();
+    }
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+  }
+
+  static void _navigateToVendor(VendorsList vendor) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentRoute = Get.currentRoute;
+      final vendorId = vendor.venderID.toString();
+
+      try {
+        debugPrint('🔍 Current route: $currentRoute');
+        debugPrint('🔍 Target vendor ID: $vendorId');
+
+        // IMPROVED: More comprehensive check for vendor details routes
+        final isOnVendorRoute = currentRoute.contains('/vendor-details-view') ||
+            currentRoute.contains('/vender-details-view') ||
+            currentRoute == AppRoutes.VENDER_DETAILS_VIEW ||
+            currentRoute.startsWith('/vendor-details-view/') ||
+            currentRoute.startsWith('/vender-details-view/$vendorId');
+
+        // Check if already on vendor details view
+        if (isOnVendorRoute) {
+          debugPrint('🔍 Already on vendor details view, checking controller...');
+
+          if (Get.isRegistered<VendorDetailController>()) {
+            final controller = Get.find<VendorDetailController>();
+            final currentVendorId = controller.vendorsItem?.venderID?.toString();
+
+            debugPrint('🔍 Current vendor ID in controller: $currentVendorId');
+
+            // Check if it's the same vendor
+            if (currentVendorId == vendorId) {
+              debugPrint('✅ Already viewing vendor: ${vendor.venderBusinessName}. No navigation needed.');
+              return; // CRITICAL: Return here to prevent any navigation
+            }
+
+            // Different vendor - update the existing controller
+            debugPrint('🔄 Different vendor detected. Updating controller...');
+
+            // Close any open snackbars/dialogs
+            _hideLoader();
+
+            // Update the existing controller with new vendor data
+            controller.updateVendorData(vendor);
+            debugPrint('✅ Controller updated with new vendor: ${vendor.venderBusinessName}');
+            return; // CRITICAL: Return here to prevent navigation
+          }
+        }
+
+        // Only navigate if we're not already on the correct vendor details page
+        debugPrint('🚀 Navigating to vendor details...');
+
+        // Navigate normally for other cases
+        if (currentRoute == AppRoutes.SPLASH ||
+            currentRoute == AppRoutes.LOGIN ||
+            currentRoute == AppRoutes.ACCOUNT_TYPE ||
+            currentRoute == '/' ||
+            currentRoute.isEmpty) {
+
+          debugPrint('🚀 App starting, creating navigation stack...');
+          Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(
+              AppRoutes.VENDER_DETAILS_VIEW,
+              arguments: vendor,
+              preventDuplicates: true, // IMPROVED: Enable prevent duplicates
+            );
+            debugPrint('✅ Navigation completed from app start');
+          });
+        } else {
+          debugPrint('🚀 Normal navigation to vendor details');
+
+          // IMPROVED: Use offNamed to replace current route if it's also a vendor route
+          if (isOnVendorRoute) {
+            Get.offNamed(
+              AppRoutes.VENDER_DETAILS_VIEW,
+              arguments: vendor,
+            );
+            debugPrint('✅ Replaced vendor route');
+          } else {
+            Get.toNamed(
+              AppRoutes.VENDER_DETAILS_VIEW,
+              arguments: vendor,
+              preventDuplicates: true,
+            );
+            debugPrint('✅ Normal navigation completed');
+          }
+        }
+
+      } catch (e) {
+        debugPrint('❌ Error during vendor navigation: $e');
+
+        // Fallback: Create proper navigation stack
+        try {
+          Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Get.toNamed(
+              AppRoutes.VENDER_DETAILS_VIEW,
+              arguments: vendor,
+              preventDuplicates: true,
+            );
+          });
+          debugPrint('✅ Fallback navigation successful');
+        } catch (fallbackError) {
+          debugPrint('❌ Fallback navigation also failed: $fallbackError');
+        }
+      }
+    });
+  }
+
+  static void _showVendorNotFoundError() {
+    Get.snackbar(
+      'Vendor Not Found',
+      'The vendor you are looking for could not be found.',
+      backgroundColor: Colors.red.withOpacity(0.1),
+      colorText: Colors.red,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+      icon: const Icon(Icons.error_outline, color: Colors.red),
+    );
+  }
+
+  static void _showErrorAndFallback() {
+    Get.snackbar(
+      'Error',
+      'Unable to load vendor details. Please try again.',
+      backgroundColor: Colors.red.withOpacity(0.1),
+      colorText: Colors.red,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+      icon: const Icon(Icons.error_outline, color: Colors.red),
+    );
+    _navigateToVendorsFallback();
+  }
+
+  static void _navigateToVendorsFallback() {
+    final currentRoute = Get.currentRoute;
+    if (currentRoute == AppRoutes.SPLASH ||
+        currentRoute == AppRoutes.LOGIN ||
+        currentRoute == '/' ||
+        currentRoute.isEmpty) {
+      Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+    }
+  }
+
+
+
+  static void clearCache() {
+    _vendorCache.clear();
+    _cacheTime = null;
+    debugPrint('🗑️ Vendor cache cleared');
+  }
+
+  static void dispose() {
+    _linkSubscription?.cancel();
+    clearCache();
   }
 
   // Navigate with proper stack for terminated mode
@@ -134,7 +547,7 @@ class DeepLinkHandler {
       Future.delayed(const Duration(milliseconds: 200), () {
         final currentRoute = Get.currentRoute;
 
-        debugPrint('📍 Current route when creating stack: $currentRoute');
+        debugPrint('🔍 Current route when creating stack: $currentRoute');
 
         // Check if we're still on splash, auth screens, or initial routes
         if (currentRoute == AppRoutes.SPLASH ||
@@ -146,8 +559,7 @@ class DeepLinkHandler {
           debugPrint('📱 App just started or on auth screen, creating proper navigation stack...');
 
           // First navigate to home/bottom nav (this replaces splash/auth screens)
-         // Get.offAllNamed(AppRoutes.BOTTOM_NAV);
-          Get.offAllNamed(AppRoutes.SPLASH);
+          Get.offAllNamed(AppRoutes.BOTTOM_NAV);
 
           // Then push the profile view on top after a delay
           Future.delayed(const Duration(milliseconds: 500), () {
@@ -210,7 +622,7 @@ class DeepLinkHandler {
 
           // Check if already on user-details-view
           if (currentRoute.contains('/user-details-view')||currentRoute.startsWith('/user-details-view/')) {
-            debugPrint('📍 Already on user-details-view, checking controller...');
+            debugPrint('🔍 Already on user-details-view, checking controller...');
 
             if (Get.isRegistered<UserDetailsController>()) {
               final controller = Get.find<UserDetailsController>();
@@ -299,9 +711,5 @@ class DeepLinkHandler {
         }
       });
     });
-  }
-
-  static void dispose() {
-    _linkSubscription?.cancel();
   }
 }

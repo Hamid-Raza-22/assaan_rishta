@@ -1,9 +1,9 @@
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:share_plus/share_plus.dart'; // Add this import
 
 import '../../../core/export.dart';
 import '../../../utils/exports.dart';
@@ -11,22 +11,96 @@ import '../../../widgets/export.dart';
 import '../export.dart';
 
 class VendorDetailView extends GetView<VendorDetailController> {
-  const VendorDetailView({super.key});
+
+
+// Add this debug method to your VendorDetailView class (around line 10-15)
 
   @override
   Widget build(BuildContext context) {
+
+
+    // Add debug logging
+    debugPrint('🔍 VendorDetailView build called');
+    debugPrint('🔍 Get.arguments type: ${Get.arguments.runtimeType}');
+    debugPrint('🔍 Get.arguments value: ${Get.arguments}');
+
+
     return GetBuilder<VendorDetailController>(
       initState: (_) {
-        Get.put(VendorDetailController());
+        debugPrint('🔍 VendorDetailView initState called');
+        debugPrint('🔍 Arguments in initState: ${Get.arguments}');
+
+        // Defer any controller updates to after the build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Check if controller already exists
+          if (Get.isRegistered<VendorDetailController>()) {
+            debugPrint('🔍 VendorDetailController already registered');
+
+            // Get the existing controller
+            final existingController = Get.find<VendorDetailController>();
+            debugPrint('🔍 Existing controller vendor ID: ${existingController.vendorsItem?.venderID}');
+
+            // Check if we have new vendor data in arguments
+            final arguments = Get.arguments;
+            if (arguments != null && arguments is VendorsList) {
+              debugPrint('🔄 New vendor data found in arguments, updating controller...');
+
+              // Update the existing controller with new vendor data
+              existingController.updateVendorData(arguments);
+              debugPrint('✅ Controller updated with vendor: ${arguments.venderBusinessName}');
+            } else {
+              debugPrint('⚠️ No new vendor data in arguments');
+            }
+          } else {
+            debugPrint('🔍 Creating new VendorDetailController');
+            Get.put(VendorDetailController());
+          }
+        });
       },
       builder: (_) {
+        debugPrint('🔍 VendorDetailView builder called');
+        debugPrint('🔍 Controller vendor ID: ${controller.vendorsItem?.venderID}');
+        debugPrint('🔍 Controller vendor name: ${controller.vendorsItem?.venderBusinessName}');
+
+        // Check if vendor data is available
+        if (controller.vendorsItem?.venderID == null) {
+          // Show loading or error state
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: const PreferredSize(
+              preferredSize: Size(double.infinity, 40),
+              child: CustomAppBar2(
+                isBack: true,
+                title: "Loading...",
+              ),
+            ),
+            // body: const Center(
+            //   child: CircularProgressIndicator(
+            //     color: AppColors.primaryColor,
+            //   ),
+            // ),
+          );
+        }
+
+        // Rest of your existing build method...
         return Scaffold(
+
           backgroundColor: Colors.white,
           appBar: PreferredSize(
             preferredSize: const Size(double.infinity, 40),
-            child: CustomAppBar(
+            child: CustomAppBar2(
               isBack: true,
               title: controller.vendorsItem.vendorCategoryName,
+              actions: [
+                // Add share button in app bar
+                IconButton(
+                  onPressed: () => _shareVendor(),
+                  icon: const Icon(
+                    Icons.share,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ],
             ),
           ),
           body: SingleChildScrollView(
@@ -35,15 +109,48 @@ class VendorDetailView extends GetView<VendorDetailController> {
               child: Column(
                 children: [
                   const SizedBox(height: 10),
-                  Center(
-                    child: ImageHelper(
-                      image: controller.vendorsItem.logo ?? AppAssets.userImage,
-                      imageType: ImageType.network,
-                      height: 110,
-                      width: 110,
-                      boxFit: BoxFit.cover,
-                      imageShape: ImageShape.circle,
-                    ),
+                  // Vendor Profile Image with Share Button Overlay
+                  Stack(
+                    children: [
+                      Center(
+                        child: ImageHelper(
+                          image: controller.vendorsItem.logo ?? AppAssets.userImage,
+                          imageType: ImageType.network,
+                          height: 110,
+                          width: 110,
+                          boxFit: BoxFit.cover,
+                          imageShape: ImageShape.circle,
+                        ),
+                      ),
+                      // Share button positioned at top right of image
+                      // Positioned(
+                      //   right: MediaQuery.of(context).size.width / 2 - 65,
+                      //   top: 0,
+                      //   child: Container(
+                      //     decoration: BoxDecoration(
+                      //       color: AppColors.primaryColor,
+                      //       shape: BoxShape.circle,
+                      //       boxShadow: [
+                      //         BoxShadow(
+                      //           color: Colors.black.withOpacity(0.2),
+                      //           blurRadius: 4,
+                      //           offset: const Offset(0, 2),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //     child: IconButton(
+                      //       onPressed: () => _shareVendor(),
+                      //       icon: const Icon(
+                      //         Icons.share,
+                      //         color: Colors.white,
+                      //         size: 20,
+                      //       ),
+                      //       padding: const EdgeInsets.all(8),
+                      //       constraints: const BoxConstraints(),
+                      //     ),
+                      //   ),
+                      // ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   AppText(
@@ -51,6 +158,21 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
                   ),
+                  const SizedBox(height: 5),
+                  // Share button below vendor name
+                  // TextButton.icon(
+                  //   onPressed: () => _shareVendor(),
+                  //   icon: const Icon(
+                  //     Icons.share,
+                  //     size: 18,
+                  //     color: AppColors.primaryColor,
+                  //   ),
+                  //   label: const AppText(
+                  //     text: "Share Vendor",
+                  //     fontSize: 14,
+                  //     color: AppColors.primaryColor,
+                  //   ),
+                  // ),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -87,20 +209,20 @@ class VendorDetailView extends GetView<VendorDetailController> {
                   ),
                   const SizedBox(height: 16),
                   Obx(
-                    () => controller.isClicked.isFalse
+                        () => controller.isClicked.isFalse
                         ? CustomButton(
-                            text: "View Number",
-                            margin: const EdgeInsets.symmetric(horizontal: 40),
-                            backgroundColor: AppColors.primaryColor,
-                            fontColor: AppColors.whiteColor,
-                            onTap: () {
-                              controller.startTimer();
-                            },
-                          )
+                      text: "View Number",
+                      margin: const EdgeInsets.symmetric(horizontal: 40),
+                      backgroundColor: AppColors.primaryColor,
+                      fontColor: AppColors.whiteColor,
+                      onTap: () {
+                        controller.startTimer();
+                      },
+                    )
                         : const SizedBox.shrink(),
                   ),
                   Obx(
-                    () => controller.isClicked.isTrue
+                        () => controller.isClicked.isTrue
                         ? getVendorInformation()
                         : const SizedBox.shrink(),
                   ),
@@ -114,7 +236,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: Text(
-                      controller.vendorsItem.aboutCompany ?? '',
+                      controller.vendorsItem!.aboutCompany ?? '',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w400,
@@ -168,11 +290,11 @@ class VendorDetailView extends GetView<VendorDetailController> {
                   else if (controller.selectedIndex == 1)
                     getQuestionTab()
                   else if (controller.selectedIndex == 2)
-                    getAlbumTab()
-                  else if (controller.selectedIndex == 3)
-                    getVideoTab()
-                  else if (controller.selectedIndex == 4)
-                    getPackageTab(),
+                      getAlbumTab()
+                    else if (controller.selectedIndex == 3)
+                        getVideoTab()
+                      else if (controller.selectedIndex == 4)
+                          getPackageTab(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -183,6 +305,103 @@ class VendorDetailView extends GetView<VendorDetailController> {
     );
   }
 
+  // Add share vendor method
+// Add this method to your VendorDetailView class
+
+  void _shareVendor() async {
+    try {
+      // Show loading indicator
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primaryColor,
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      // Generate deep links for vendor
+      final vendorId = controller.vendorsItem?.venderID;
+      final vendorName = controller.vendorsItem?.venderBusinessName;
+      final vendorCategory = controller.vendorsItem?.vendorCategoryName;
+
+      if (vendorId == null) {
+        // Close loading dialog
+        if (Get.isDialogOpen ?? false) {
+          Get.back();
+        }
+
+        Get.snackbar(
+          'Error',
+          'Cannot share vendor at this time.',
+          backgroundColor: Colors.red.withOpacity(0.1),
+          colorText: Colors.red,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      // Create both HTTPS and custom scheme links
+      final httpsLink = 'https://asaanrishta.com/vendor-details-view/$vendorId';
+      final customLink = 'asaanrishta://vendor-details-view/$vendorId';
+
+      // Create share message
+      final shareMessage = '''
+🏪 Check out this amazing vendor on Asaan Rishta!
+
+Business: ${vendorName ?? 'Vendor'}
+Category: ${vendorCategory ?? 'Services'}
+
+📱 View Details: $httpsLink
+
+Download Asaan Rishta app:
+🤖 Android: https://play.google.com/store/apps/details?id=com.asan.rishta.matrimonial.asan_rishta
+
+
+Find your perfect match and trusted vendors on Asaan Rishta! 💕
+''';
+
+      // Close loading dialog
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      // Share the message
+      await Share.share(
+        shareMessage,
+        subject: 'Check out ${vendorName ?? 'this vendor'} on Asaan Rishta',
+      );
+
+      debugPrint('✅ Vendor shared successfully: $vendorId');
+
+      // Show success message
+      Get.snackbar(
+        'Shared Successfully! 🎉',
+        'Vendor details have been shared',
+        backgroundColor: Colors.green.withOpacity(0.1),
+        colorText: Colors.green,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+
+    } catch (e) {
+      // Close loading dialog if still open
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      debugPrint('❌ Error sharing vendor: $e');
+
+      // Show error message
+      Get.snackbar(
+        'Error',
+        'Failed to share vendor. Please try again.',
+        backgroundColor: Colors.red.withOpacity(0.1),
+        colorText: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
   getVendorInformation() {
     return Obx(
       () => controller.isButtonVisible.isTrue
@@ -206,7 +425,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     fontWeight: FontWeight.w500,
                   ),
                   AppText(
-                    text: controller.vendorsItem.vendorCityName,
+                    text: controller.vendorsItem?.vendorCityName,
                     fontSize: 16,
                     fontWeight: FontWeight.w400,
                   ),
@@ -217,7 +436,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     fontWeight: FontWeight.w500,
                   ),
                   Text(
-                    '${controller.vendorsItem.venderAddress}',
+                    '${controller.vendorsItem?.venderAddress}',
                     overflow: TextOverflow.visible,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
@@ -232,7 +451,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     fontWeight: FontWeight.w500,
                   ),
                   AppText(
-                    text: '${controller.vendorsItem.venderPhone}',
+                    text: '${controller.vendorsItem?.venderPhone}',
                     overflow: TextOverflow.visible,
                     fontSize: 16,
                     fontWeight: FontWeight.w400,
