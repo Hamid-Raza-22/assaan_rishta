@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
@@ -13,6 +14,7 @@ import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
 import 'app/core/services/deep_link_handler.dart';
 import 'app/core/services/firebase_service/export.dart';
+import 'app/data/repositories/chat_repository.dart';
 import 'app/domain/export.dart';
 import 'app/fast_pay/app/app.locator.dart';
 import 'app/fast_pay/app/app.router.dart';
@@ -48,6 +50,8 @@ Future<void> main() async {
   runApp(const AsanRishtaApp());
 }
 
+// main.dart - Fixed background message handler
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -57,32 +61,89 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (message.data['type'] == 'chat') {
     final senderId = message.data['senderId'];
     final receiverId = message.data['receiverId'];
+    final messageTimestamp = message.data['timestamp'] as String?;
 
-    if (senderId != null && senderId.isNotEmpty && receiverId != null) {
+    if (senderId != null && senderId.isNotEmpty && messageTimestamp != null && receiverId != null) {
       try {
         debugPrint('📱 Background: Adding $senderId to $receiverId\'s chat list');
 
-        final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        // FIXED: Use the actual message timestamp from notification
+        await confirmBackgroundMessageDelivery(
+          senderId: senderId,
+          receiverId: receiverId,
+          messageTimestamp: messageTimestamp, // Use actual message timestamp
+        );
 
-        // Add sender to receiver's my_users collection with timestamp
+        // Add sender to receiver's my_users collection
         await FirebaseFirestore.instance
             .collection('Hamid_users')
             .doc(receiverId)
             .collection('my_users')
             .doc(senderId)
             .set({
-          'last_message_time': timestamp,
-          'added_at': timestamp,
+          'last_message_time': messageTimestamp, // Use actual timestamp
+          'added_at': DateTime.now().millisecondsSinceEpoch.toString(),
         }, SetOptions(merge: true));
 
-        debugPrint('✅ Background: Sender added to chat list');
+        debugPrint('✅ Background: Sender added to chat list and message marked as delivered');
       } catch (e) {
-        debugPrint('❌ Background: Error adding sender: $e');
+        debugPrint('❌ Background: Error processing message: $e');
       }
     }
   }
 }
 
+// FIXED: Better delivery confirmation
+Future<void> confirmBackgroundMessageDelivery({
+  required String senderId,
+  required String receiverId,
+  required String messageTimestamp,
+}) async {
+  try {
+    final conversationId = getConversationId(senderId, receiverId);
+    final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // Check if message exists and needs delivery confirmation
+    final messageDoc = await FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageTimestamp)
+        .get();
+
+    if (messageDoc.exists) {
+      final data = messageDoc.data()!;
+
+      // Only update if not already delivered and message is for this receiver
+      if ((data['delivered'] == null || data['delivered'].toString().isEmpty) &&
+          data['toId'] == receiverId) {
+
+        await messageDoc.reference.update({
+          'delivered': deliveredTime,
+          'status': 'delivered',
+          'deliveryPending': false,
+        });
+
+        debugPrint('✅ Message delivery confirmed in background for timestamp: $messageTimestamp');
+      } else {
+        debugPrint('ℹ️ Message already delivered or not for this receiver');
+      }
+    } else {
+      debugPrint('⚠️ Message document not found: $messageTimestamp');
+    }
+  } catch (e) {
+    debugPrint('❌ Error confirming background delivery: $e');
+  }
+}
+// Confirm delivery when app receives notification in background
+
+String getConversationId(String userId1, String userId2) {
+  if (userId1.compareTo(userId2) <= 0) {
+    return '${userId1}_$userId2';
+  } else {
+    return '${userId2}_$userId1';
+  }
+}
 // FIXED: Main App with proper notification initialization
 class AsanRishtaApp extends StatefulWidget {
   const AsanRishtaApp({super.key});
@@ -111,7 +172,81 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     DeepLinkHandler.dispose();
     super.dispose();
   }
+// FIXED: Proper app lifecycle handling for message delivery
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('🔄 App lifecycle state: $state');
 
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _handleAppResume();
+        break;
+      case AppLifecycleState.paused:
+        _handleAppPause();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      // App is transitioning or hidden
+        break;
+    }
+  }
+
+  void _handleAppResume() async {
+    debugPrint('📱 App resumed from background');
+
+    try {
+      // Update Firebase app state
+      FirebaseService.setAppState(isInForeground: true);
+
+      // Update user online status
+      if (FirebaseService.me != null) {
+        await FirebaseService.updateActiveStatus(true);
+      }
+
+      // If we're in a chat, mark undelivered messages
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatViewModel = Get.find<ChatViewModel>();
+        if (chatViewModel.selectedUser.value != null) {
+          final selectedUserId = chatViewModel.selectedUser.value!.id;
+
+          // Mark any undelivered messages as delivered
+          final chatRepository = ChatRepository();
+          await chatRepository.markMessagesAsDelivered(selectedUserId);
+
+          debugPrint('✅ Marked undelivered messages as delivered for: $selectedUserId');
+        }
+      }
+
+      // Reset any stuck navigation states
+      if (Get.isRegistered<ChatListController>()) {
+        final controller = Get.find<ChatListController>();
+        controller.resetAllStates();
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error handling app resume: $e');
+    }
+  }
+
+  void _handleAppPause() {
+    debugPrint('📱 App went to background');
+
+    try {
+      // Update Firebase app state
+      FirebaseService.setAppState(isInForeground: false);
+
+      // Update user status to offline after a delay
+      Timer(const Duration(seconds: 30), () async {
+        if (FirebaseService.me != null) {
+          await FirebaseService.updateActiveStatus(false);
+        }
+      });
+
+    } catch (e) {
+      debugPrint('❌ Error handling app pause: $e');
+    }
+  }
   // @override
   // void didChangeAppLifecycleState(AppLifecycleState state) {
   //   debugPrint('🔄 App lifecycle state: $state');

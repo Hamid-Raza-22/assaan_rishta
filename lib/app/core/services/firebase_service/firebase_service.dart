@@ -34,13 +34,17 @@ class FirebaseService {
   static FirebaseMessaging fMessaging = FirebaseMessaging.instance;
 
   // ADDED: Track app state for proper notification handling
-   static bool _isAppInForeground = true;
+  static bool _isAppInForeground = true;
   static bool _isInChatScreen = false;
   static String? _currentChatUserId;
 
   // ADDED: App state management
-// Update the setAppState method to be more accurate
-  static void setAppState({bool? isInForeground, bool? isInChat, String? chatUserId}) {
+  // Update the setAppState method to be more accurate
+  static void setAppState({
+    bool? isInForeground,
+    bool? isInChat,
+    String? chatUserId,
+  }) {
     // Only update foreground state if explicitly provided
     if (isInForeground != null) {
       _isAppInForeground = isInForeground;
@@ -57,17 +61,24 @@ class FirebaseService {
       _currentChatUserId = null;
     }
 
-    debugPrint('📱 App State: Foreground=$_isAppInForeground, InChat=$_isInChatScreen, ChatUser=$_currentChatUserId');
+    debugPrint(
+      '📱 App State: Foreground=$_isAppInForeground, InChat=$_isInChatScreen, ChatUser=$_currentChatUserId',
+    );
   }
+
   // for checking if user exist or not?
   static Future<bool> userExists(uid) async =>
       (await firestore.collection('Hamid_users').doc(uid).get()).exists;
 
   // OPTIMIZED: Faster chat connection
   static Future<bool> addChatUser(String uid) async {
-    final data = await firestore.collection('Hamid_users').where('id', isEqualTo: uid).get();
+    final data = await firestore
+        .collection('Hamid_users')
+        .where('id', isEqualTo: uid)
+        .get();
 
-    if (data.docs.isNotEmpty && data.docs.first.id != useCase.getUserId().toString()) {
+    if (data.docs.isNotEmpty &&
+        data.docs.first.id != useCase.getUserId().toString()) {
       final currentUserId = useCase.getUserId().toString();
       final otherUserDocId = data.docs.first.id;
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
@@ -81,10 +92,7 @@ class FirebaseService {
             .doc(currentUserId)
             .collection('my_users')
             .doc(otherUserDocId),
-        {
-          'last_message_time': timestamp,
-          'added_at': timestamp,
-        },
+        {'last_message_time': timestamp, 'added_at': timestamp},
         SetOptions(merge: true),
       );
 
@@ -102,12 +110,12 @@ class FirebaseService {
         .doc(useCase.getUserId().toString())
         .get()
         .then((user) async {
-      if (user.exists) {
-        me = ChatUser.fromJson(user.data()!);
-        await getFirebaseMessagingToken();
-        await FirebaseService.updateActiveStatus(true);
-      }
-    });
+          if (user.exists) {
+            me = ChatUser.fromJson(user.data()!);
+            await getFirebaseMessagingToken();
+            await FirebaseService.updateActiveStatus(true);
+          }
+        });
   }
 
   static Future<ChatUser?> getUserById(String uid, String imageUrl) async {
@@ -153,7 +161,10 @@ class FirebaseService {
     debugPrint(id);
     bool isExist = await userExists(id);
     if (!isExist) {
-      return await firestore.collection('Hamid_users').doc(id).set(chatUser.toJson());
+      return await firestore
+          .collection('Hamid_users')
+          .doc(id)
+          .set(chatUser.toJson());
     }
   }
 
@@ -168,7 +179,9 @@ class FirebaseService {
   }
 
   // stream for getting all the users
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getAllUsers(List<String> userIds) {
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getAllUsers(
+    List<String> userIds,
+  ) {
     return firestore
         .collection('Hamid_users')
         .where('id', whereIn: userIds.isEmpty ? [''] : userIds)
@@ -176,7 +189,9 @@ class FirebaseService {
   }
 
   // stream for getting the user's Information
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getUserInfo({required String uid}) {
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getUserInfo({
+    required String uid,
+  }) {
     return firestore
         .collection('Hamid_users')
         .where('id', isEqualTo: uid)
@@ -192,11 +207,11 @@ class FirebaseService {
           .collection('Hamid_users')
           .doc(useCase.getUserId().toString())
           .update({
-        'is_online': isOnline,
-        'is_mobile_online': isOnline,
-        'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
-        'push_token': me!.pushToken,
-      });
+            'is_online': isOnline,
+            'is_mobile_online': isOnline,
+            'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+            'push_token': me!.pushToken,
+          });
 
       debugPrint('✅ Status updated: ${isOnline ? "Online" : "Offline"}');
     } catch (e) {
@@ -209,8 +224,8 @@ class FirebaseService {
         .collection('Hamid_users')
         .doc(useCase.getUserId().toString())
         .update({
-      'last_message': DateTime.now().millisecondsSinceEpoch.toString(),
-    });
+          'last_message': DateTime.now().millisecondsSinceEpoch.toString(),
+        });
   }
 
   static Future<void> insideChatStatus(bool isInside) async {
@@ -222,7 +237,9 @@ class FirebaseService {
         .doc(useCase.getUserId().toString())
         .update({'is_inside': isInside});
 
-    debugPrint('💬 Chat status updated: ${isInside ? "Inside chat" : "Outside chat"}');
+    debugPrint(
+      '💬 Chat status updated: ${isInside ? "Inside chat" : "Outside chat"}',
+    );
   }
 
   //update fcm token
@@ -253,10 +270,12 @@ class FirebaseService {
   //       .orderBy('sent', descending: true)
   //       .snapshots();
   // }
-// Updated Firebase Service methods to handle smart deletion
+  // Updated Firebase Service methods to handle smart deletion
 
-// Modified getAllMessages to filter out deleted messages
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) {
+  // Modified getAllMessages to filter out deleted messages
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(
+    ChatUser user,
+  ) {
     final currentUserId = useCase.getUserId().toString();
 
     return firestore
@@ -264,151 +283,157 @@ class FirebaseService {
         .orderBy('sent', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
-      // Check if this chat was deleted by current user
-      final deletionDoc = await firestore
-          .collection('Hamid_users')
-          .doc(currentUserId)
-          .collection('deleted_chats')
-          .doc(user.id)
-          .get();
+          // Check if this chat was deleted by current user
+          final deletionDoc = await firestore
+              .collection('Hamid_users')
+              .doc(currentUserId)
+              .collection('deleted_chats')
+              .doc(user.id)
+              .get();
 
-      if (!deletionDoc.exists) {
-        // Chat was never deleted, return all messages
-        return snapshot;
-      }
+          if (!deletionDoc.exists) {
+            // Chat was never deleted, return all messages
+            return snapshot;
+          }
 
-      // Get deletion timestamp
-      final deletionTime = deletionDoc.data()!['deleted_at'] as String;
-      final deletionTimestamp = int.parse(deletionTime);
+          // Get deletion timestamp
+          final deletionTime = deletionDoc.data()!['deleted_at'] as String;
+          final deletionTimestamp = int.parse(deletionTime);
 
-      // Filter messages - only show messages sent after deletion
-      final filteredDocs = snapshot.docs.where((doc) {
-        final messageSentTime = doc.data()['sent'] as String;
-        final messageTimestamp = int.parse(messageSentTime);
-        return messageTimestamp > deletionTimestamp;
-      }).toList();
+          // Filter messages - only show messages sent after deletion
+          final filteredDocs = snapshot.docs.where((doc) {
+            final messageSentTime = doc.data()['sent'] as String;
+            final messageTimestamp = int.parse(messageSentTime);
+            return messageTimestamp > deletionTimestamp;
+          }).toList();
 
-      // Create a new QuerySnapshot with filtered documents
-      return _createFilteredSnapshot(snapshot, filteredDocs);
-    });
+          // Create a new QuerySnapshot with filtered documents
+          return _createFilteredSnapshot(snapshot, filteredDocs);
+        });
   }
 
-// Modified getLastMessage to respect deletion time
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) {
+  // Modified getLastMessage to respect deletion time
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(
+    ChatUser user,
+  ) {
     return firestore
         .collection('Hamid_chats/${getConversationID(user.id)}/messages')
         .orderBy('sent', descending: true)
         .limit(1)
         .snapshots()
         .asyncMap((snapshot) async {
-      if (snapshot.docs.isEmpty) return snapshot;
+          if (snapshot.docs.isEmpty) return snapshot;
 
-      // Check if this message should be shown
-      final currentUserId = useCase.getUserId().toString();
-      final deletionDoc = await firestore
-          .collection('Hamid_users')
-          .doc(currentUserId)
-          .collection('deleted_chats')
-          .doc(user.id)
-          .get();
+          // Check if this message should be shown
+          final currentUserId = useCase.getUserId().toString();
+          final deletionDoc = await firestore
+              .collection('Hamid_users')
+              .doc(currentUserId)
+              .collection('deleted_chats')
+              .doc(user.id)
+              .get();
 
-      if (!deletionDoc.exists) {
-        return snapshot; // No deletion record, show message
-      }
+          if (!deletionDoc.exists) {
+            return snapshot; // No deletion record, show message
+          }
 
-      final deletionTime = int.parse(deletionDoc.data()!['deleted_at'] as String);
-      final messageTime = int.parse(snapshot.docs.first.data()['sent'] as String);
+          final deletionTime = int.parse(
+            deletionDoc.data()!['deleted_at'] as String,
+          );
+          final messageTime = int.parse(
+            snapshot.docs.first.data()['sent'] as String,
+          );
 
-      if (messageTime > deletionTime) {
-        return snapshot; // Message is newer than deletion, show it
-      } else {
-        // Message is older than deletion, return empty
-        return _createEmptySnapshot();
-      }
-    });
+          if (messageTime > deletionTime) {
+            return snapshot; // Message is newer than deletion, show it
+          } else {
+            // Message is older than deletion, return empty
+            return _createEmptySnapshot();
+          }
+        });
   }
 
-// Modified sendMessage to handle re-connection after deletion
-//   static Future<void> sendMessage(ChatUser chatUser, String msg, Type type) async {
-//     if (me == null) {
-//       await getSelfInfo();
-//     }
-//
-//     final time = DateTime.now().millisecondsSinceEpoch.toString();
-//     final currentUserId = useCase.getUserId().toString();
-//
-//     // Check if chat was deleted by current user
-//     final deletionDoc = await firestore
-//         .collection('Hamid_users')
-//         .doc(currentUserId)
-//         .collection('deleted_chats')
-//         .doc(chatUser.id)
-//         .get();
-//
-//     final Message message = Message(
-//       toId: chatUser.id,
-//       msg: msg,
-//       read: '',
-//       type: type,
-//       fromId: currentUserId,
-//       sent: time,
-//     );
-//
-//     try {
-//       // If chat was deleted by current user, restore connection
-//       if (deletionDoc.exists) {
-//         debugPrint('🔄 Restoring deleted chat connection...');
-//
-//         // Remove deletion record
-//         await firestore
-//             .collection('Hamid_users')
-//             .doc(currentUserId)
-//             .collection('deleted_chats')
-//             .doc(chatUser.id)
-//             .delete();
-//
-//         // Re-add to my_users
-//         await firestore
-//             .collection('Hamid_users')
-//             .doc(currentUserId)
-//             .collection('my_users')
-//             .doc(chatUser.id)
-//             .set({'last_message_time': time});
-//       }
-//
-//       // PARALLEL OPERATIONS for speed
-//       await Future.wait([
-//         // 1. Save message
-//         firestore
-//             .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
-//             .doc(time)
-//             .set(message.toJson()),
-//
-//         // 2. Update timestamps
-//         updateConversationTimestamp(currentUserId, chatUser.id, time),
-//         updateConversationTimestamp(chatUser.id, currentUserId, time),
-//
-//         // 3. Update receiver's last message
-//         firestore.collection('Hamid_users').doc(chatUser.id).update({
-//           'last_message': time,
-//         }),
-//       ]);
-//
-//       debugPrint('✅ Message sent successfully');
-//
-//       // 4. Send notification ONLY if needed (non-blocking)
-//       sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
-//
-//     } catch (e) {
-//       debugPrint('❌ Error sending message: $e');
-//     }
-//   }
+  // Modified sendMessage to handle re-connection after deletion
+  //   static Future<void> sendMessage(ChatUser chatUser, String msg, Type type) async {
+  //     if (me == null) {
+  //       await getSelfInfo();
+  //     }
+  //
+  //     final time = DateTime.now().millisecondsSinceEpoch.toString();
+  //     final currentUserId = useCase.getUserId().toString();
+  //
+  //     // Check if chat was deleted by current user
+  //     final deletionDoc = await firestore
+  //         .collection('Hamid_users')
+  //         .doc(currentUserId)
+  //         .collection('deleted_chats')
+  //         .doc(chatUser.id)
+  //         .get();
+  //
+  //     final Message message = Message(
+  //       toId: chatUser.id,
+  //       msg: msg,
+  //       read: '',
+  //       type: type,
+  //       fromId: currentUserId,
+  //       sent: time,
+  //     );
+  //
+  //     try {
+  //       // If chat was deleted by current user, restore connection
+  //       if (deletionDoc.exists) {
+  //         debugPrint('🔄 Restoring deleted chat connection...');
+  //
+  //         // Remove deletion record
+  //         await firestore
+  //             .collection('Hamid_users')
+  //             .doc(currentUserId)
+  //             .collection('deleted_chats')
+  //             .doc(chatUser.id)
+  //             .delete();
+  //
+  //         // Re-add to my_users
+  //         await firestore
+  //             .collection('Hamid_users')
+  //             .doc(currentUserId)
+  //             .collection('my_users')
+  //             .doc(chatUser.id)
+  //             .set({'last_message_time': time});
+  //       }
+  //
+  //       // PARALLEL OPERATIONS for speed
+  //       await Future.wait([
+  //         // 1. Save message
+  //         firestore
+  //             .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+  //             .doc(time)
+  //             .set(message.toJson()),
+  //
+  //         // 2. Update timestamps
+  //         updateConversationTimestamp(currentUserId, chatUser.id, time),
+  //         updateConversationTimestamp(chatUser.id, currentUserId, time),
+  //
+  //         // 3. Update receiver's last message
+  //         firestore.collection('Hamid_users').doc(chatUser.id).update({
+  //           'last_message': time,
+  //         }),
+  //       ]);
+  //
+  //       debugPrint('✅ Message sent successfully');
+  //
+  //       // 4. Send notification ONLY if needed (non-blocking)
+  //       sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
+  //
+  //     } catch (e) {
+  //       debugPrint('❌ Error sending message: $e');
+  //     }
+  //   }
 
-// Helper method to create filtered snapshot
+  // Helper method to create filtered snapshot
   static QuerySnapshot<Map<String, dynamic>> _createFilteredSnapshot(
-      QuerySnapshot<Map<String, dynamic>> originalSnapshot,
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> filteredDocs,
-      ) {
+    QuerySnapshot<Map<String, dynamic>> originalSnapshot,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> filteredDocs,
+  ) {
     // Return a custom filtered snapshot
     return FilteredQuerySnapshot(
       docs: filteredDocs,
@@ -416,13 +441,13 @@ class FirebaseService {
     );
   }
 
-// Helper method to create empty snapshot
+  // Helper method to create empty snapshot
   static QuerySnapshot<Map<String, dynamic>> _createEmptySnapshot() {
     // Return empty snapshot - implement based on your Firebase version
     throw UnimplementedError('Implement based on your Firebase setup');
   }
 
-// Method to restore chat when receiving new message
+  // Method to restore chat when receiving new message
   static Future<void> restoreChatIfDeleted(String senderId) async {
     try {
       final currentUserId = useCase.getUserId().toString();
@@ -442,11 +467,11 @@ class FirebaseService {
         WriteBatch batch = firestore.batch();
 
         batch.delete(
-            firestore
-                .collection('Hamid_users')
-                .doc(currentUserId)
-                .collection('deleted_chats')
-                .doc(senderId)
+          firestore
+              .collection('Hamid_users')
+              .doc(currentUserId)
+              .collection('deleted_chats')
+              .doc(senderId),
         );
 
         batch.set(
@@ -466,20 +491,20 @@ class FirebaseService {
     }
   }
   // Add these methods to your Firebase Service
-// These will filter messages to show only new ones after deletion
+  // These will filter messages to show only new ones after deletion
 
-// Modified getAllMessages to filter deleted messages
+  // Modified getAllMessages to filter deleted messages
   static Stream<List<Message>> getAllMessagesFiltered(ChatUser user) async* {
     final currentUserId = useCase.getUserId().toString();
 
     // Get deletion timestamp first
     String? deletionTime = await _getDeletionTime(currentUserId, user.id);
 
-    await for (final snapshot in firestore
-        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
-        .orderBy('sent', descending: true)
-        .snapshots()) {
-
+    await for (final snapshot
+        in firestore
+            .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+            .orderBy('sent', descending: true)
+            .snapshots()) {
       List<Message> filteredMessages = [];
 
       for (var doc in snapshot.docs) {
@@ -499,7 +524,6 @@ class FirebaseService {
           if (messageTimestamp > deletionTimestamp) {
             filteredMessages.add(message);
           }
-
         } catch (e) {
           debugPrint('❌ Error parsing message: $e');
         }
@@ -509,11 +533,18 @@ class FirebaseService {
     }
   }
 
-// Helper method to get deletion time
-  static Future<String?> _getDeletionTime(String userId, String chatUserId) async {
+  // Helper method to get deletion time
+  static Future<String?> _getDeletionTime(
+    String userId,
+    String chatUserId,
+  ) async {
     try {
-      final userDoc = await firestore.collection('Hamid_users').doc(userId).get();
-      final deletedChats = userDoc.data()?['deleted_chats'] as Map<String, dynamic>? ?? {};
+      final userDoc = await firestore
+          .collection('Hamid_users')
+          .doc(userId)
+          .get();
+      final deletedChats =
+          userDoc.data()?['deleted_chats'] as Map<String, dynamic>? ?? {};
       return deletedChats[chatUserId] as String?;
     } catch (e) {
       debugPrint('❌ Error getting deletion time: $e');
@@ -521,16 +552,16 @@ class FirebaseService {
     }
   }
 
-// Modified getLastMessage to respect deletion time
+  // Modified getLastMessage to respect deletion time
   static Stream<Message?> getLastMessageFiltered(ChatUser user) async* {
     final currentUserId = useCase.getUserId().toString();
 
-    await for (final snapshot in firestore
-        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
-        .orderBy('sent', descending: true)
-        .limit(1)
-        .snapshots()) {
-
+    await for (final snapshot
+        in firestore
+            .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+            .orderBy('sent', descending: true)
+            .limit(1)
+            .snapshots()) {
       if (snapshot.docs.isEmpty) {
         yield null;
         continue;
@@ -555,7 +586,6 @@ class FirebaseService {
         } else {
           yield null; // Message is older than deletion
         }
-
       } catch (e) {
         debugPrint('❌ Error parsing last message: $e');
         yield null;
@@ -563,15 +593,22 @@ class FirebaseService {
     }
   }
 
-// Updated ensureMutualChatConnection with better logic
-  static Future<void> ensureMutualChatConnection(String senderId, String receiverId) async {
+  // Updated ensureMutualChatConnection with better logic
+  static Future<void> ensureMutualChatConnection(
+    String senderId,
+    String receiverId,
+  ) async {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
       // Check if receiver had deleted this chat
-      final receiverDoc = await firestore.collection('Hamid_users').doc(receiverId).get();
+      final receiverDoc = await firestore
+          .collection('Hamid_users')
+          .doc(receiverId)
+          .get();
       final receiverData = receiverDoc.data() ?? {};
-      final deletedChats = receiverData['deleted_chats'] as Map<String, dynamic>? ?? {};
+      final deletedChats =
+          receiverData['deleted_chats'] as Map<String, dynamic>? ?? {};
 
       WriteBatch batch = firestore.batch();
 
@@ -604,7 +641,6 @@ class FirebaseService {
         // IMPORTANT: Don't remove deletion timestamp yet
         // Keep it so that old messages remain filtered
         // Only remove it when receiver manually starts chatting
-
       } else {
         // Normal case - just update timestamp
         batch.set(
@@ -625,7 +661,7 @@ class FirebaseService {
     }
   }
 
-// Call this method when user actively starts chatting (clears deletion filter)
+  // Call this method when user actively starts chatting (clears deletion filter)
   static Future<void> clearDeletionFilter(String chatUserId) async {
     try {
       final currentUserId = useCase.getUserId().toString();
@@ -639,11 +675,15 @@ class FirebaseService {
       debugPrint('❌ Error clearing deletion filter: $e');
     }
   }
-// Updated sendMessage in firebase_service.dart to handle re-connection
-// When user sends a message after deleting chat, it should restore the chat
+  // Updated sendMessage in firebase_service.dart to handle re-connection
+  // When user sends a message after deleting chat, it should restore the chat
 
-// Update sendMessage to NOT remove deletion record immediately
-  static Future<void> sendMessage(ChatUser chatUser, String msg, Type type) async {
+  // Update sendMessage to NOT remove deletion record immediately
+  static Future<void> sendMessage(
+    ChatUser chatUser,
+    String msg,
+    Type type,
+  ) async {
     if (me == null) {
       await getSelfInfo();
     }
@@ -709,30 +749,34 @@ class FirebaseService {
       });
 
       debugPrint('✅ Message sent successfully');
-      sendNotificationIfNeeded(chatUser, msg, type, currentUserId);
-
+      sendNotificationIfNeeded(chatUser, msg, type, currentUserId, time);
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
     }
   }
+
   // Add method to permanently clear deletion record (optional)
-// Call this when user explicitly wants to see old messages again
-//   Future<void> _clearChatDeletion(String userId) async {
-//     try {
-//       await FirebaseFirestore.instance
-//           .collection('Hamid_users')
-//           .doc(currentUserId)
-//           .collection('deleted_chats')
-//           .doc(userId)
-//           .delete();
-//
-//       debugPrint('✅ Chat deletion record cleared - all messages visible now');
-//     } catch (e) {
-//       debugPrint('❌ Error clearing deletion record: $e');
-//     }
-//   }
-// Updated sendFirstMessage to respect deletion status
- Future<void> sendFirstMessage(ChatUser chatUser, String msg, Type type) async {
+  // Call this when user explicitly wants to see old messages again
+  //   Future<void> _clearChatDeletion(String userId) async {
+  //     try {
+  //       await FirebaseFirestore.instance
+  //           .collection('Hamid_users')
+  //           .doc(currentUserId)
+  //           .collection('deleted_chats')
+  //           .doc(userId)
+  //           .delete();
+  //
+  //       debugPrint('✅ Chat deletion record cleared - all messages visible now');
+  //     } catch (e) {
+  //       debugPrint('❌ Error clearing deletion record: $e');
+  //     }
+  //   }
+  // Updated sendFirstMessage to respect deletion status
+  Future<void> sendFirstMessage(
+    ChatUser chatUser,
+    String msg,
+    Type type,
+  ) async {
     if (me == null) {
       await getSelfInfo();
     }
@@ -780,8 +824,8 @@ class FirebaseService {
     await sendMessage(chatUser, msg, type);
   }
 
-// Add this method to handle incoming messages
-// When receiving a message from a deleted chat, optionally restore it
+  // Add this method to handle incoming messages
+  // When receiving a message from a deleted chat, optionally restore it
 
   // static Future<void> handleIncomingMessage(String senderId) async {
   //   try {
@@ -827,7 +871,11 @@ class FirebaseService {
   //     debugPrint('❌ Error handling incoming message: $e');
   //   }
   // }
-  static Future<void> updateConversationTimestamp(String userId, String otherUserId, String timestamp) async {
+  static Future<void> updateConversationTimestamp(
+    String userId,
+    String otherUserId,
+    String timestamp,
+  ) async {
     try {
       await firestore
           .collection('Hamid_users')
@@ -888,9 +936,18 @@ class FirebaseService {
   // }
 
   // OPTIMIZED: Smart notification sending
-  static Future<void> sendNotificationIfNeeded(ChatUser chatUser, String msg, Type type, String currentUserId) async {
+  static Future<void> sendNotificationIfNeeded(
+    ChatUser chatUser,
+    String msg,
+    Type type,
+    String currentUserId,
+      String? messageTimestamp
+  ) async {
     try {
-      final userDoc = await firestore.collection('Hamid_users').doc(chatUser.id).get();
+      final userDoc = await firestore
+          .collection('Hamid_users')
+          .doc(chatUser.id)
+          .get();
       if (!userDoc.exists) return;
 
       final userData = userDoc.data()!;
@@ -899,11 +956,12 @@ class FirebaseService {
       final fcmToken = userData['push_token'] as String? ?? '';
 
       // SMART NOTIFICATION LOGIC
-      bool shouldSendNotification = fcmToken.isNotEmpty && (
-          !isReceiverOnline ||  // User is offline
-              !isReceiverInChat ||  // User is online but not in chat
+      bool shouldSendNotification =
+          fcmToken.isNotEmpty &&
+          (!isReceiverOnline || // User is offline
+              !isReceiverInChat || // User is online but not in chat
               (!_isAppInForeground) // App is in background
-      );
+              );
 
       if (shouldSendNotification) {
         final myToken = await _getFcmToken();
@@ -920,6 +978,7 @@ class FirebaseService {
             senderImage: senderImage,
             senderEmail: senderEmail,
             receiverId: chatUser.id,
+            messageTimestamp: messageTimestamp ?? DateTime.now().millisecondsSinceEpoch.toString(),
           );
 
           debugPrint('📨 Notification sent to ${chatUser.name}');
@@ -943,10 +1002,17 @@ class FirebaseService {
   // update read status of message
   static Future<void> updateMessageReadStatus(Message message) async {
     try {
-      await firestore
-          .collection('Hamid_chats/${getConversationID(message.fromId)}/messages')
+      final conversationId = getConversationID(message.fromId);
+      final readTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
           .doc(message.sent)
-          .update({'read': DateTime.now().millisecondsSinceEpoch.toString()});
+          .update({'read': readTime, 'status': MessageStatus.read.name});
+
+      debugPrint('✅ Message read status updated in Firestore');
     } catch (e) {
       if (e is FirebaseException && e.code == 'not-found') {
         debugPrint('Document not found: ${message.sent}');
@@ -966,14 +1032,22 @@ class FirebaseService {
   // }
 
   // for sending images in chats
-  static Future<void> sendChatImage(String currentUID, ChatUser chatUser, File file) async {
+  static Future<void> sendChatImage(
+    String currentUID,
+    ChatUser chatUser,
+    File file,
+  ) async {
     final ext = file.path.split('.').last;
 
     final ref = storage.ref().child(
-        'images/${getConversationID(chatUser.id)}/${DateTime.now().millisecondsSinceEpoch}.$ext');
+      'images/${getConversationID(chatUser.id)}/${DateTime.now().millisecondsSinceEpoch}.$ext',
+    );
 
-    await ref.putFile(file, SettableMetadata(contentType: 'image/$ext')).then(
-            (p0) => log('data transfered: ${p0.bytesTransferred / 1000} kbs'));
+    await ref
+        .putFile(file, SettableMetadata(contentType: 'image/$ext'))
+        .then(
+          (p0) => log('data transfered: ${p0.bytesTransferred / 1000} kbs'),
+        );
 
     final imageUrl = await ref.getDownloadURL();
     await sendMessage(chatUser, imageUrl, Type.image);
@@ -1057,8 +1131,8 @@ class FirebaseService {
           .collection('Hamid_users')
           .doc(useCase.getUserId().toString())
           .update({
-        'blockedUsers.$userIdToBlock': FieldValue.serverTimestamp(),
-      });
+            'blockedUsers.$userIdToBlock': FieldValue.serverTimestamp(),
+          });
 
       // await firestore.collection('Hamid_users').doc(userIdToBlock).update({
       //   'blockedUsers.${useCase.getUserId().toString()}': true,
@@ -1076,9 +1150,7 @@ class FirebaseService {
       await firestore
           .collection('Hamid_users')
           .doc(useCase.getUserId().toString())
-          .update({
-        'blockedUsers.$userIdToUnblock': FieldValue.delete(),
-      });
+          .update({'blockedUsers.$userIdToUnblock': FieldValue.delete()});
 
       // DO NOT update the other user's blockedUsers
       // Remove this part:
@@ -1106,6 +1178,7 @@ class FirebaseService {
       return false;
     }
   }
+
   // FIXED: Check if current user is blocked by someone
   static Future<bool> isBlockedByUser(String userId) async {
     try {
@@ -1138,15 +1211,16 @@ class FirebaseService {
       userForId: int.parse(userForId),
     );
     return response.fold(
-          (error) {
+      (error) {
         debugPrint(error.title);
       },
-          (success) {
+      (success) {
         debugPrint("deductConnects $success");
       },
     );
   }
 }
+
 // Custom QuerySnapshot implementation for filtered results
 class FilteredQuerySnapshot implements QuerySnapshot<Map<String, dynamic>> {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;

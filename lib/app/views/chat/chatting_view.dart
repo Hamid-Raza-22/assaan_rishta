@@ -6,11 +6,14 @@ import 'dart:io';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/export.dart';
 import '../../domain/export.dart';
@@ -18,6 +21,7 @@ import '../../utils/exports.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../widgets/export.dart';
+import '../../widgets/typing_indicator.dart';
 
 // State Management Controller for ChattingView
 // Fixed ChattingViewController in chatting_view.dart
@@ -29,7 +33,8 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   final bool? initialBlockedStatus;
   final bool? initialBlockedByOtherStatus;
   final bool? initialDeletedStatus;
-
+  final replyingTo = Rxn<Message>();
+  final replyPreview = ''.obs;
   ChattingViewController({
     required this.user,
     this.initialBlockedStatus,
@@ -63,7 +68,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   // Stream subscriptions
   StreamSubscription<List<Message>>? _messagesSubscription;
   StreamSubscription? _userStreamSubscription;
-
+  StreamSubscription? _statusUpdateSubscription;
   String currentUID = "";
 
   // FIXED: Add flag to track if this controller is active
@@ -71,7 +76,10 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
   // FIXED: Track the current chat user ID properly
   String? _currentChatUserId;
-
+  // Typing status
+  final RxBool isOtherUserTyping = false.obs;
+  StreamSubscription? _typingStatusSubscription;
+  Timer? _typingDebounceTimer;
   @override
   void onInit() {
     super.onInit();
@@ -80,7 +88,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     WidgetsBinding.instance.addObserver(this);
     currentUID = useCase.getUserId().toString();
     textController = TextEditingController();
+    // Set up text field listener for typing
+    textController.addListener(_onTextChanged);
 
+    // Start listening to typing status
+    _listenToTypingStatus();
     // FIXED: Set current chat user ID
     _currentChatUserId = user.id;
 
@@ -94,8 +106,368 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
     _initializeChat();
   }
+  void _listenToTypingStatus() {
+    final conversationId = chatController.getConversationId(
+      currentUID,
+      user.id,
+    );
 
-  @override
+    _typingStatusSubscription = FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(conversationId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        final typingStatus = data['typing_status'] as Map<String, dynamic>? ?? {};
+
+        if (typingStatus.containsKey(user.id)) {
+          final otherUserTyping = typingStatus[user.id] as Map<String, dynamic>;
+          final isTyping = otherUserTyping['is_typing'] as bool? ?? false;
+          final timestamp = otherUserTyping['timestamp'] as int? ?? 0;
+
+          // Check if typing status is recent (within last 3 seconds)
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final isRecent = (now - timestamp) < 3000;
+
+          isOtherUserTyping.value = isTyping && isRecent;
+        } else {
+          isOtherUserTyping.value = false;
+        }
+      }
+    });
+  }
+
+  // Handle text changes for typing indicator
+  void _onTextChanged() {
+    if (textController.text.isNotEmpty && !isAnyBlocked) {
+      _handleTyping();
+    } else {
+      _stopTyping();
+    }
+  }
+
+  // Handle typing with debounce
+  void _handleTyping() {
+    _typingDebounceTimer?.cancel();
+
+    // Send typing status
+    _updateTypingStatus(true);
+
+    // Stop typing after 2 seconds of inactivity
+    _typingDebounceTimer = Timer(const Duration(seconds: 2), () {
+      _stopTyping();
+    });
+  }
+
+  // Stop typing
+  void _stopTyping() {
+    _typingDebounceTimer?.cancel();
+    _updateTypingStatus(false);
+  }
+
+  // Update typing status in Firestore
+  Future<void> _updateTypingStatus(bool isTyping) async {
+    try {
+      final conversationId = chatController.getConversationId(
+        currentUID,
+        user.id,
+      );
+
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .set({
+        'typing_status': {
+          currentUID: {
+            'is_typing': isTyping,
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          }
+        }
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating typing status: $e');
+    }
+  }
+  void _retryFailedMessage(Message failedMessage) async {
+    try {
+      // Remove failed message from list
+      cachedMessages.removeWhere((m) => m.sent == failedMessage.sent);
+
+      // Resend the message
+      await sendRegularMessage(failedMessage.msg);
+
+      debugPrint('✅ Message retry successful');
+    } catch (e) {
+      debugPrint('❌ Message retry failed: $e');
+      Get.snackbar(
+        'Retry Failed',
+        'Unable to resend message',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+  void _listenForStatusUpdates() {
+    final conversationId = chatController.getConversationId(
+      currentUID,
+      user.id,
+    );
+
+    // Cancel previous subscription if exists
+    _statusUpdateSubscription?.cancel();
+
+    _statusUpdateSubscription = FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(conversationId)
+        .collection('messages')
+        .snapshots()
+        .listen((snapshot) {
+
+      for (var change in snapshot.docChanges) {
+        final data = change.doc.data()!;
+        final messageId = change.doc.id;
+
+        // Handle both added and modified messages
+        if (change.type == DocumentChangeType.modified ||
+            change.type == DocumentChangeType.added) {
+
+          // Find message in local list
+          final index = cachedMessages.indexWhere((m) => m.sent == messageId);
+          if (index != -1) {
+            final message = cachedMessages[index];
+
+            // Update status based on data
+            final newStatus = _parseMessageStatus(data);
+            final hasChanged = message.status != newStatus ||
+                message.read != (data['read'] ?? '') ||
+                message.delivered != (data['delivered'] ?? '');
+
+            if (hasChanged) {
+              // Update message fields
+              message.status = newStatus;
+              message.delivered = data['delivered'] ?? '';
+              message.read = data['read'] ?? '';
+
+              // Force refresh
+              cachedMessages[index] = message;
+              cachedMessages.refresh();
+
+              debugPrint('📊 Status updated for message ${messageId}: ${newStatus.name}');
+            }
+          }
+        }
+      }
+    });
+  }
+  MessageStatus _parseMessageStatus(Map<String, dynamic> data) {
+    // Check read first
+    if (data['read'] != null && data['read'].toString().isNotEmpty) {
+      return MessageStatus.read;
+    }
+    // Then check delivered
+    else if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
+      return MessageStatus.delivered;
+    }
+    // Check explicit status field
+    else if (data['status'] != null) {
+      try {
+        return MessageStatus.values.firstWhere(
+              (e) => e.name == data['status'],
+          orElse: () => MessageStatus.sent,
+        );
+      } catch (e) {
+        return MessageStatus.sent;
+      }
+    }
+    // Default to sent
+    return MessageStatus.sent;
+  }
+// Add image picking methods
+  // Enhanced reply method
+  void _handleReply(Message message) {
+    final isMe = useCase.getUserId().toString() == message.fromId;
+    final senderName = isMe ? 'You' : (cachedUserData.value?.name ?? 'User');
+
+    // Set reply context
+    replyingTo.value = message;
+
+    // Create preview text
+    final previewText = message.msg.length > 40
+        ? message.msg.substring(0, 40) + '...'
+        : message.msg;
+
+    replyPreview.value = '$senderName: $previewText';
+
+    // Focus text field
+    textController.text = '';
+    FocusScope.of(Get.context!).requestFocus(FocusNode());
+
+    HapticFeedback.lightImpact();
+  }
+  void _clearReply() {
+    replyingTo.value = null;
+    replyPreview.value = '';
+  }
+  // Enhanced send message with reply support
+  Future<void> _sendMessageWithReply() async {
+    final message = textController.text.trim();
+    if (message.isEmpty) return;
+
+    final finalMessage = replyingTo.value != null
+        ? '↪️ ${replyPreview.value}\n\n$message'
+        : message;
+
+    textController.clear();
+    _clearReply(); // Clear reply context
+
+    try {
+      if (cachedMessages.isEmpty) {
+        await createUserChat(finalMessage);
+      } else {
+        checkChatUser();
+        await sendRegularMessage(finalMessage);
+      }
+    } catch (e) {
+      debugPrint('Error sending message: $e');
+      textController.text = message; // Restore on error
+      Get.snackbar(
+        'Error',
+        'Failed to send message. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+Future<void> showImageOptions() async {
+    showModalBottomSheet(
+      context: Get.context!,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // ListTile(
+            //   leading: Container(
+            //     padding: const EdgeInsets.all(10),
+            //     decoration: BoxDecoration(
+            //       color: Colors.blue.withOpacity(0.1),
+            //       borderRadius: BorderRadius.circular(10),
+            //     ),
+            //     child: const Icon(Icons.photo_library, color: Colors.blue),
+            //   ),
+            //   title: const Text(
+            //     'Send Normal Image',
+            //     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            //   ),
+            //   subtitle: const Text('Image will remain in chat'),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     _pickImage(isViewOnce: false);
+            //   },
+            // ),
+            const SizedBox(height: 10),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.timelapse, color: Colors.orange),
+              ),
+              title: const Text(
+                'Send View Once Image',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Image will disappear after viewing'),
+              onTap: () {
+                Navigator.pop(context);
+                _showImageSourceOptions(isViewOnce: true);
+              },
+            ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showImageSourceOptions({required bool isViewOnce}) async {
+    showModalBottomSheet(
+      context: Get.context!,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: <Widget>[
+            ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () {
+                  _pickImage(source: ImageSource.gallery, isViewOnce: isViewOnce);
+                  Navigator.of(context).pop();
+                }),
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Camera'),
+              onTap: () {
+                _pickImage(source: ImageSource.camera, isViewOnce: isViewOnce);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(
+      {required ImageSource source, required bool isViewOnce}) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source, // Use the provided source parameter
+      imageQuality: 70,
+    );
+
+    if (image != null) {
+      uploading.value = true;
+
+      if (isViewOnce) {
+        // Send as view-once image
+        await chatController.sendViewOnceImage(
+          useCase.getUserId().toString(),
+          File(image.path),
+        );
+      } else {
+        // Send as normal image
+        await chatController.sendImage(
+          useCase.getUserId().toString(),
+          File(image.path),
+        );
+      }
+
+      uploading.value = false;
+    }
+  }
+
+
+
   @override
   void onClose() {
     debugPrint('🗑️ Closing ChattingViewController for ${user.name}');
@@ -103,13 +475,16 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     // Mark controller as inactive
     _isActiveController = false;
     _currentChatUserId = null;
-
+    _statusUpdateSubscription?.cancel();
     // Cancel all subscriptions
     _messagesSubscription?.cancel();
     _userStreamSubscription?.cancel();
     _messagesSubscription = null;
     _userStreamSubscription = null;
-
+    _stopTyping();
+    _typingDebounceTimer?.cancel();
+    _typingStatusSubscription?.cancel();
+    textController.removeListener(_onTextChanged);
     // CRITICAL: Properly exit chat and clear state
     if (chatController.selectedUser.value?.id == user.id) {
       chatController.exitChat();
@@ -188,7 +563,10 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     // Set chat status first
     chatController.setInsideChatStatus(true, chatUserId: user.id);
     chatController.checkDeletionRecord();
-
+// Mark incoming messages as delivered when entering chat
+    await chatController.markIncomingMessagesAsDelivered();
+// Start listening for status updates
+    _listenForStatusUpdates();
     // Start all operations in parallel
     _updateBlockStatus(); // Update in background without waiting
     _initializeMessagesStream();
@@ -742,10 +1120,17 @@ class _ChattingViewState extends State<ChattingView> {
     });
   }
 
+
+
+// In chatting_view.dart, fix the _buildMessagesList method:
+
+// Update _buildMessagesList method in chatting_view.dart
+
   Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
     return Obx(() {
       final messages = controller.cachedMessages;
       final isLoading = controller.isInitialLoading.value;
+      final isTyping = controller.isOtherUserTyping.value;
 
       if (isLoading && messages.isEmpty) {
         return const Center(
@@ -754,23 +1139,82 @@ class _ChattingViewState extends State<ChattingView> {
       }
 
       if (messages.isNotEmpty) {
-        return ListView.builder(
-          reverse: true,
-          itemCount: messages.length,
-          padding: EdgeInsets.only(top: chatMq.height * .01),
-          physics: const BouncingScrollPhysics(),
-          itemBuilder: (ctx, i) => ProfessionalMessageCard(
-            message: messages[i],
-            pause: controller.paused.value,
-            showUserAvatar: true,
-          ),
+        return Column(
+          children: [
+            // Typing indicator at the top
+            if (isTyping)
+              TypingIndicator(
+                isVisible: isTyping,
+                userName: controller.currentUserData.name,
+              ),
+
+            // Messages list
+            Expanded(
+              child: ListView.builder(
+                reverse: true,
+                itemCount: messages.length,
+                padding: EdgeInsets.only(top: chatMq.height * .01),
+                physics: const BouncingScrollPhysics(),
+                itemBuilder: (ctx, i) {
+                  final message = messages[i];
+                  final currentUserId = controller.useCase.getUserId().toString();
+                  final isMe = currentUserId == message.fromId;
+                  String currentUserAvatar = AppConstants.profileImg;
+
+                  return ProfessionalMessageCard(
+                    message: message,
+                    pause: controller.paused.value,
+                    showUserAvatar: true,
+                    currentUserId: currentUserId,
+                    userAvatarUrl: isMe ? currentUserAvatar : controller.userImageUrl,
+                    onReaction: (message, reaction) {
+                      // Handle reaction
+                    },
+                    onReply: (message) {
+                      controller._handleReply(message);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         );
       }
 
       return _buildEmptyState(controller);
     });
-  }
+  }// Add these methods to handle reactions and replies
+//   void _handleReaction(Message message, String reaction) {
+//     // You'll need to implement reaction functionality in your ChatRepository
+//     // For now, just show a snackbar
+//     Get.snackbar(
+//       'Reaction Added',
+//       'You reacted with $reaction',
+//       duration: Duration(seconds: 1),
+//     );
+//   }
 
+  // Enhanced reply handling method
+  // void _handleReply(Message message) {
+  //   final isMe = controller.useCase.getUserId().toString() == message.fromId;
+  //   final senderName = isMe ? 'You' : controller.currentUserData.name;
+  //
+  //   // Create a professional reply format
+  //   final replyText = message.msg.length > 30
+  //       ? message.msg.substring(0, 30) + '...'
+  //       : message.msg;
+  //
+  //   // Set the reply in text field with proper formatting
+  //   controller.textController.text = '↪️ Replying to $senderName: "$replyText"\n\n';
+  //
+  //   // Move cursor to end
+  //   controller.textController.selection = TextSelection.fromPosition(
+  //     TextPosition(offset: controller.textController.text.length),
+  //   );
+  //
+  //   // Show a small feedback
+  //   HapticFeedback.lightImpact();
+  // }
   Widget _buildEmptyState(ChattingViewController controller) {
     return Center(
       child: Column(
@@ -832,10 +1276,187 @@ class _ChattingViewState extends State<ChattingView> {
     return Obx(() {
       return controller.isAnyBlocked
           ? _buildBlockContainer(controller)
-          : _buildChatInput(controller);
+          // : _buildChatInput(controller);
+          : _buildChatInputWithReply(controller);
     });
   }
 
+  // Replace your existing _buildChatInput method in chatting_view.dart with this:
+// Enhanced chat input widget
+  Widget _buildChatInputWithReply(ChattingViewController controller) {
+    final Size chatMq = MediaQuery.of(context).size;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: chatMq.height * .01,
+        horizontal: chatMq.width * .025,
+      ),
+      child: Column(
+        children: [
+          // Reply preview
+          Obx(() {
+            if (controller.replyingTo.value == null) return const SizedBox.shrink();
+
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border(
+                  left: BorderSide(
+                    color: AppColors.secondaryColor,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.reply,
+                    color: AppColors.secondaryColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Replying to',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppColors.secondaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          controller.replyPreview.value,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: controller._clearReply,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          // Input row
+          Row(
+            children: [
+              // Attachment button
+              GestureDetector(
+                onTap: controller.showImageOptions,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F2F5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.attach_file_rounded,
+                    color: AppColors.secondaryColor,
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Text input
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F2F5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(width: chatMq.width * .02),
+                      Expanded(
+                        child: TextField(
+                          controller: controller.textController,
+                          textCapitalization: TextCapitalization.sentences,
+                          keyboardType: TextInputType.multiline,
+                          maxLines: null,
+                          onTap: controller.onTextFieldTap,
+                          decoration: InputDecoration(
+                            hintText: controller.replyingTo.value != null
+                                ? 'Type your reply...'
+                                : 'Write here ...',
+                            hintStyle: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.blackColor.withOpacity(0.5),
+                            ),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: controller.toggleEmoji,
+                        child: Container(
+                          height: 30,
+                          width: 30,
+                          decoration: BoxDecoration(
+                            color: AppColors.whiteColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.emoji_emotions_rounded,
+                            color: AppColors.blackColor.withOpacity(0.5),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: chatMq.width * .01),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+
+              // Send button
+              GestureDetector(
+                onTap: controller._sendMessageWithReply, // Use new method
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F2F5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.send,
+                    color: AppColors.secondaryColor,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildChatInput(ChattingViewController controller) {
     final Size chatMq = MediaQuery.of(context).size;
 
@@ -847,6 +1468,25 @@ class _ChattingViewState extends State<ChattingView> {
       ),
       child: Row(
         children: [
+          // Add Image Attachment Button Here
+          GestureDetector(
+            onTap: controller.showImageOptions,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F2F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.attach_file_rounded, // or Icons.image_rounded
+                color: AppColors.secondaryColor,
+                size: 24,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Text Input Field
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -858,7 +1498,7 @@ class _ChattingViewState extends State<ChattingView> {
                   SizedBox(width: chatMq.width * .02),
                   Expanded(
                     child: TextField(
-                      key: ValueKey('chat_input_${controllerTag}'), // Unique key
+                      key: ValueKey('chat_input_${controllerTag}'),
                       controller: controller.textController,
                       textCapitalization: TextCapitalization.sentences,
                       keyboardType: TextInputType.multiline,
@@ -897,6 +1537,8 @@ class _ChattingViewState extends State<ChattingView> {
             ),
           ),
           const SizedBox(width: 5),
+
+          // Send Button
           _buildSendButton(controller),
         ],
       ),

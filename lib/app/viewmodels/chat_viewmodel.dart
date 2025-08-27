@@ -1,6 +1,7 @@
 // chat_viewmodel.dart - Fixed cache management and deletion handling
 
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -12,12 +13,46 @@ import 'dart:io';
 import '../views/chat/export.dart';
 import 'chat_list_viewmodel.dart';
 
-class ChatViewModel extends GetxController {
+class ChatViewModel extends GetxController with WidgetsBindingObserver {
   // FIXED: Persistent cache that survives app restarts
+  final RxBool isOtherUserTyping = false.obs;
+  StreamSubscription? _typingStatusSubscription;
+// Start listening to typing status
+  void listenToTypingStatus(String otherUserId) {
+    _typingStatusSubscription?.cancel();
+
+    _typingStatusSubscription = _repo
+        .getTypingStatusStream(otherUserId)
+        .listen((status) {
+      isOtherUserTyping.value = status['is_typing'] as bool;
+    });
+  }
+
+  // Handle current user typing
+  void handleTyping() {
+    if (selectedUser.value != null) {
+      _repo.handleTyping(selectedUser.value!.id);
+    }
+  }
+
+  // Stop typing
+  void stopTyping() {
+    if (selectedUser.value != null) {
+      _repo.stopTyping(selectedUser.value!.id);
+    }
+  }
+
+  // Clean up typing status
+  void cleanupTypingStatus() {
+    if (selectedUser.value != null) {
+      _repo.cleanupTypingStatus(selectedUser.value!.id);
+    }
+  }
   static final Map<String, List<Message>> _persistentMessageCache = {};
   static final Map<String, String?> _persistentDeletionCache = {};
   static final Map<String, StreamSubscription> _activeStreams = {};
-
+  // Observable for tracking current sending message status
+  final currentMessageStatus = MessageStatus.pending.obs;
   final ChatRepository _repo = ChatRepository();
   String? get currentChatUserId => selectedUser.value?.id;
 
@@ -43,6 +78,125 @@ class ChatViewModel extends GetxController {
   void onInit() {
     super.onInit();
     _initializePersistentCache();
+
+    // Add lifecycle observer to handle app state changes
+    WidgetsBinding.instance.addObserver(this);
+  }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  // FIXED: Handle app lifecycle state changes for proper delivery confirmation
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    debugPrint('📱 App lifecycle state changed: $state');
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _handleAppResumed();
+        break;
+      case AppLifecycleState.paused:
+        _handleAppPaused();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+  // FIXED: Handle app resuming - mark pending messages as delivered
+  void _handleAppResumed() async {
+    debugPrint('🔄 App resumed - checking for undelivered messages');
+
+    try {
+      // Mark any pending messages as delivered when app comes to foreground
+      if (selectedUser.value != null) {
+        await _markIncomingMessagesAsDelivered(selectedUser.value!.id);
+      }
+
+      // Update online status
+      await _repo.updateActiveStatus(true);
+
+    } catch (e) {
+      debugPrint('❌ Error handling app resume: $e');
+    }
+  }
+
+  void _handleAppPaused() {
+    debugPrint('⏸️ App paused');
+    // App going to background - nothing specific needed here
+  }
+  // Send view-once image
+  Future<void> sendViewOnceImage(String currentUID, File imageFile) async {
+    if (selectedUser.value != null) {
+      await _repo.sendViewOnceChatImage(currentUID, selectedUser.value!, imageFile);
+    }
+  }
+// Add these methods to ChatViewModel class as well
+  Future<void> addMessageReaction(Message message, String reaction) async {
+    await _repo.addReactionToMessage(message, reaction);
+  }
+
+  Future<void> removeMessageReaction(Message message) async {
+    await _repo.removeReactionFromMessage(message);
+  }
+  // Mark view-once image as viewed and delete it
+  Future<void> markViewOnceAsViewed(Message message) async {
+    try {
+
+      // Update message as viewed in Firestore
+      await _repo.markViewOnceAsViewed(message);
+
+      // Delete the image from storage after a short delay
+      await Future.delayed(const Duration(seconds: 10));
+      await _repo.deleteViewOnceImage(message);
+
+      // Update local cache
+      final index = messages.indexWhere((m) => m.sent == message.sent);
+      if (index != -1) {
+        messages[index] = Message(
+          toId: message.toId,
+          msg: 'Photo was viewed', // Replace with viewed message
+          read: message.read,
+          type: Type.text,
+          fromId: message.fromId,
+          sent: message.sent,
+          isViewOnce: true,
+          isViewed: true,
+        );
+        messages.refresh();
+        await  _clearImageFromCache(message.msg);
+        // Also update cached messages
+        if (selectedUser.value != null) {
+          cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
+        }
+      }
+
+      debugPrint('✅ View-once image marked as viewed');
+
+
+    } catch (e) {
+      debugPrint('Error marking view-once as viewed: $e');
+    }
+  }
+  // Clear image from all caches
+_clearImageFromCache(String imageUrl) {
+    try {
+      // Clear from CachedNetworkImage cache
+      CachedNetworkImage.evictFromCache(imageUrl);
+
+      // Clear from memory cache
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+
+      debugPrint('✅ Cleared image from cache');
+    } catch (e) {
+      debugPrint('❌ Error clearing cache: $e');
+    }
   }
 
   // FIXED: Initialize persistent cache on app start
@@ -83,7 +237,8 @@ class ChatViewModel extends GetxController {
     debugPrint('📌 Setting selected user in stream: ${user.name} (${user.id})');
 
     setInsideChatStatus(true, chatUserId: user.id);
-
+    // Mark all pending messages as delivered when entering chat
+    _markIncomingMessagesAsDelivered(user.id);
     // IMPORTANT: Only check deletion record once per chat session
     if (!_persistentDeletionCache.containsKey(user.id)) {
       _loadDeletionRecord(user.id);
@@ -103,7 +258,8 @@ class ChatViewModel extends GetxController {
       final allMessages = snapshot.docs
           .map((doc) => Message.fromJson(doc.data()))
           .toList();
-
+      // Mark new incoming messages as delivered
+      _processIncomingMessages(allMessages, user.id);
       // Apply deletion filter
       final filteredMessages = _applyDeletionFilter(allMessages, user.id);
 
@@ -114,6 +270,45 @@ class ChatViewModel extends GetxController {
 
       return filteredMessages;
     });
+  }
+  // Process and mark incoming messages as delivered
+  void _processIncomingMessages(List<Message> messages, String senderId) {
+    final currentUserId = _repo.currentUserId;
+
+    // Find messages that need delivery confirmation
+    final undeliveredMessages = messages.where((msg) =>
+    msg.toId == currentUserId && // Message is for current user
+        msg.fromId == senderId && // Message is from the chat partner
+        (msg.delivered == null || msg.delivered!.isEmpty) // Not yet delivered
+    ).toList();
+
+    if (undeliveredMessages.isNotEmpty) {
+      debugPrint('📬 Found ${undeliveredMessages.length} undelivered messages');
+
+      // Mark them as delivered
+      for (var message in undeliveredMessages) {
+        _confirmDeliveryForMessage(message);
+      }
+    }
+  }
+  // Confirm delivery for a specific message
+  Future<void> _confirmDeliveryForMessage(Message message) async {
+    try {
+      await _repo.confirmMessageDelivery(message.fromId, message.sent);
+      debugPrint('✅ Confirmed delivery for message: ${message.sent}');
+    } catch (e) {
+      debugPrint('❌ Error confirming delivery: $e');
+    }
+  }
+
+  // Mark all incoming messages as delivered when entering chat
+  Future<void> _markIncomingMessagesAsDelivered(String senderId) async {
+    try {
+      await _repo.markMessagesAsDelivered(senderId);
+      debugPrint('✅ Marked all incoming messages as delivered');
+    } catch (e) {
+      debugPrint('❌ Error marking messages as delivered: $e');
+    }
   }
 
   // FIXED: Load deletion record only once per chat
@@ -305,29 +500,12 @@ class ChatViewModel extends GetxController {
   // FIXED: Better message sending with proper error handling
   // FIXED: Better message sending with validation
   Future<void> sendMessage(String text) async {
-    // Validate selected user
-    if (selectedUser.value == null) {
-      debugPrint('❌ ERROR: No selected user for sending message');
-      debugPrint('❌ This should not happen - selectedUser should be set in ChattingViewController');
-
-      // Try to recover if possible
-      if (messages.isNotEmpty && messages.first.toId.isNotEmpty) {
-        debugPrint('⚠️ Attempting recovery using message recipient ID');
-        // This is a fallback - ideally should not reach here
-        throw Exception('Selected user not set. Please exit and re-enter the chat.');
-      }
-      return;
-    }
-
-    if (text.trim().isEmpty) {
-      debugPrint('⚠️ Empty message text');
-      return;
-    }
+    if (selectedUser.value == null || text.trim().isEmpty) return;
 
     final user = selectedUser.value!;
-    debugPrint('📤 Sending message to ${user.name} (${user.id}): $text');
+    debugPrint('📤 Sending message to ${user.name}: $text');
 
-    // Optimistically update cache
+    // Create optimistic message with pending status
     final time = DateTime.now().millisecondsSinceEpoch.toString();
     final optimisticMessage = Message(
       toId: user.id,
@@ -336,6 +514,7 @@ class ChatViewModel extends GetxController {
       type: Type.text,
       fromId: _repo.currentUserId,
       sent: time,
+      status: MessageStatus.pending, // Start with pending
     );
 
     // Update UI immediately
@@ -345,38 +524,50 @@ class ChatViewModel extends GetxController {
     cacheMessages(user.id, currentMessages);
 
     try {
-      // Check if ChatListController exists and use optimized sending
-      if (Get.isRegistered<ChatListController>()) {
-        final listController = Get.find<ChatListController>();
+      await _repo.sendMessageWithStatus(
+        user,
+        text.trim(),
+        Type.text,
+        onMessageCreated: (message) {
+          debugPrint('✅ Message created with status: ${message.status}');
+        },
+        onStatusUpdate: (status) {
+          // Update the message status in the list
+          final index = messages.indexWhere((m) => m.sent == time);
+          if (index != -1) {
+            messages[index].status = status;
+            messages.refresh();
+          }
+          debugPrint('📊 Message status updated to: $status');
+        },
+      );
 
-        debugPrint('📨 Using optimized message sending...');
-        await _repo.sendMessageOptimized(
-          user,
-          text.trim(),
-          Type.text,
-          onMessageCreated: (message) {
-            debugPrint('✅ Message created, updating last message locally');
-            listController.updateLastMessageLocally(user.id, message);
-          },
-        );
-      } else {
-        debugPrint('📨 Using standard message sending...');
-        await _repo.sendMessage(user, text.trim(), Type.text);
-      }
-
-      debugPrint('✅ Message sent successfully to ${user.name}');
+      debugPrint('✅ Message sent successfully');
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
 
-      // Remove optimistic message on error
-      final updatedMessages = messages.where((m) => m.sent != time).toList();
-      messages.assignAll(updatedMessages);
-      cacheMessages(user.id, updatedMessages);
+      // Update status to failed
+      final index = messages.indexWhere((m) => m.sent == time);
+      if (index != -1) {
+        messages[index].status = MessageStatus.failed;
+        messages.refresh();
+      }
 
-      // Rethrow to handle in UI
       rethrow;
     }
   }
+
+  // Mark messages as delivered when entering chat
+  Future<void> markIncomingMessagesAsDelivered() async {
+    if (selectedUser.value == null) return;
+
+    try {
+      await _repo.markMessagesAsDelivered(selectedUser.value!.id);
+    } catch (e) {
+      debugPrint('Error marking messages as delivered: $e');
+    }
+  }
+
 
   // FIXED: Better first message handling
   // FIXED: Better first message handling
@@ -618,7 +809,30 @@ class ChatViewModel extends GetxController {
   }
 
   Future<void> markMessageAsRead(Message message) async {
-    await _repo.updateMessageReadStatus(message);
+    try {
+      // Don't mark our own messages as read
+      if (message.fromId == _repo.currentUserId) return;
+
+      // Update in Firestore
+      await _repo.updateMessageReadStatus(message);
+
+      // Update local message status
+      final index = messages.indexWhere((m) => m.sent == message.sent);
+      if (index != -1) {
+        messages[index].read = DateTime.now().millisecondsSinceEpoch.toString();
+        messages[index].status = MessageStatus.read;
+        messages.refresh();
+
+        // Update cache
+        if (selectedUser.value != null) {
+          cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
+        }
+      }
+
+      debugPrint('✅ Message marked as read: ${message.sent}');
+    } catch (e) {
+      debugPrint('❌ Error marking message as read: $e');
+    }
   }
 
   Future<void> blockUser(String userId) async {
@@ -725,6 +939,8 @@ class ChatViewModel extends GetxController {
   void onClose() {
     _activeStreams.values.forEach((subscription) => subscription.cancel());
     _activeStreams.clear();
+    _typingStatusSubscription?.cancel();
+    cleanupTypingStatus();
     exitChat(isDisposing: true).catchError((e) {
       debugPrint('⚠️ Error during cleanup: $e');
       return null;
