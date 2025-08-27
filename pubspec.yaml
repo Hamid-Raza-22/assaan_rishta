@@ -109,6 +109,7 @@ dependencies:
   share_plus: ^11.1.0
   app_links: ^6.4.1
   chatview: ^2.5.0
+  no_screenshot: ^0.3.1
 
 dev_dependencies:
   flutter_test:

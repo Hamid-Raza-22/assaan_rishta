@@ -281,15 +281,68 @@ class NotificationServices {
           handleMessage(context, message);
         });
   }
+  // Confirm delivery for foreground messages
+  Future<void> confirmForegroundMessageDelivery({
+    required String senderId,
+    required String receiverId,
+    required String messageTimestamp,
+  }) async {
+    try {
+      final chatController = Get.find<ChatViewModel>();
 
+      // If user is in chat with sender, it's already handled
+      if (chatController.selectedUser.value?.id == senderId) {
+        debugPrint('User is in chat, delivery already handled');
+        return;
+      }
+
+      // Otherwise, confirm delivery
+      final conversationId = getConversationId(senderId, receiverId);
+      final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageTimestamp)
+          .update({
+        'delivered': deliveredTime,
+        'status': 'delivered',
+        'deliveryPending': false,
+      });
+
+      debugPrint('✅ Foreground message delivery confirmed');
+    } catch (e) {
+      debugPrint('❌ Error confirming foreground delivery: $e');
+    }
+  }
+  String getConversationId(String userId1, String userId2) {
+    if (userId1.compareTo(userId2) <= 0) {
+      return '${userId1}_$userId2';
+    } else {
+      return '${userId2}_$userId1';
+    }
+  }
   void firebaseInit(BuildContext context) {
-    FirebaseMessaging.onMessage.listen((message) {
+    FirebaseMessaging.onMessage.listen((message) async {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
       Logger().d("notifications title:${notification!.title}");
       Logger().d("notifications body:${notification.body}");
       Logger().d('data:${message.data.toString()}');
+// Confirm delivery when message received in foreground
+      final data = message.data;
+      final senderId = data['senderId'] as String?;
+      final messageTimestamp = data['timestamp'] as String?;
+      final receiverId = data['receiverId'] as String?;
 
+      if (senderId != null && messageTimestamp != null && receiverId != null) {
+        await confirmForegroundMessageDelivery(
+        senderId: senderId,
+        receiverId: receiverId,
+        messageTimestamp: messageTimestamp,
+        );
+      }
       if (Platform.isIOS) {
         forGroundMessage();
       }
@@ -944,7 +997,8 @@ class NotificationServices {
     String? senderId,
     String? senderImage,
     String? senderEmail,
-    required String receiverId, // Make receiverId required
+    required String receiverId,   // Make receiverId required
+    String? messageTimestamp,
   }) async {
     try {
       if (fcmToken.isEmpty || receiverId.isEmpty) {
