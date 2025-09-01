@@ -21,6 +21,7 @@ import '../../../viewmodels/chat_viewmodel.dart';
 import '../../../views/bottom_nav/export.dart';
 import '../../../views/chat/export.dart';
 import '../../export.dart';
+import 'delivery_confirmation_service.dart';
 
 class NotificationServices {
   static bool _isNavigating = false;
@@ -35,6 +36,8 @@ class NotificationServices {
     _currentSessionId = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
     _sessionStartTime = DateTime.now();
     debugPrint('🔑 New notification session initialized: $_currentSessionId');
+    // Check for any pending deliveries when user logs in
+    DeliveryConfirmationService.processAllPendingDeliveries(userId);
   }
 
   // Clear session on logout
@@ -336,12 +339,26 @@ class NotificationServices {
       final messageTimestamp = data['timestamp'] as String?;
       final receiverId = data['receiverId'] as String?;
 
+      // if (senderId != null && messageTimestamp != null && receiverId != null) {
+      //   await confirmForegroundMessageDelivery(
+      //   senderId: senderId,
+      //   receiverId: receiverId,
+      //   messageTimestamp: messageTimestamp,
+      //   );
+      // }
       if (senderId != null && messageTimestamp != null && receiverId != null) {
-        await confirmForegroundMessageDelivery(
-        senderId: senderId,
-        receiverId: receiverId,
-        messageTimestamp: messageTimestamp,
-        );
+        // Check if user is logged in and is the intended recipient
+        final authService = AuthService.instance;
+        if (authService.isUserLoggedIn.value &&
+            authService.userId?.toString() == receiverId) {
+
+          // Mark as delivered immediately
+          await markMessageAsDeliveredImmediately(
+            senderId: senderId,
+            receiverId: receiverId,
+            messageTimestamp: messageTimestamp,
+          );
+        }
       }
       if (Platform.isIOS) {
         forGroundMessage();
@@ -354,6 +371,44 @@ class NotificationServices {
     });
   }
 
+// Add this new method to notification_service.dart
+  Future<void> markMessageAsDeliveredImmediately({
+    required String senderId,
+    required String receiverId,
+    required String messageTimestamp,
+  }) async {
+    try {
+      final conversationId = getConversationId(senderId, receiverId);
+      final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Check if message exists and needs delivery confirmation
+      final messageDoc = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageTimestamp)
+          .get();
+
+      if (messageDoc.exists) {
+        final data = messageDoc.data()!;
+
+        // Only update if not already delivered and message is for this receiver
+        if ((data['delivered'] == null || data['delivered'].toString().isEmpty) &&
+            data['toId'] == receiverId) {
+
+          await messageDoc.reference.update({
+            'delivered': deliveredTime,
+            'status': 'delivered',
+            'deliveryPending': false,
+          });
+
+          debugPrint('✅ Message marked as delivered immediately on receipt');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error marking message as delivered immediately: $e');
+    }
+  }
   void requestNotificationPermission() async {
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
@@ -988,6 +1043,7 @@ class NotificationServices {
       return null;
     }
   }
+// In NotificationServices class
 
   // UPDATED: Send notification method with receiverId
   static Future<void> sendNotification({

@@ -43,6 +43,52 @@ class ChatListController extends GetxController {
     // _initializeStreams();
     // _loadDeletionRecords();
     _initializeController();
+    // Process deliveries after a short delay
+    Future.delayed(const Duration(milliseconds: 400), () {
+      _processMyPendingDeliveries();
+    });
+  }
+  // Add this method to chat_list_viewmodel.dart
+  Future<void> _processMyPendingDeliveries() async {
+    try {
+      final currentUserId = useCase.getUserId().toString();
+      int processedCount = 0;
+
+      // Process deliveries for all active chats
+      for (var user in chatUsers) {
+        final conversationId = getConversationId(currentUserId, user.id);
+
+        final undelivered = await FirebaseFirestore.instance
+            .collection('Hamid_chats')
+            .doc(conversationId)
+            .collection('messages')
+            .where('toId', isEqualTo: currentUserId)
+            .where('delivered', isEqualTo: '')
+            .limit(20)
+            .get();
+
+        if (undelivered.docs.isNotEmpty) {
+          final batch = FirebaseFirestore.instance.batch();
+          final deliveryTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+          for (var doc in undelivered.docs) {
+            batch.update(doc.reference, {
+              'delivered': deliveryTime,
+              'status': 'delivered',
+            });
+            processedCount++;
+          }
+
+          await batch.commit();
+        }
+      }
+
+      if (processedCount > 0) {
+        debugPrint('✅ Processed $processedCount pending deliveries in chat list');
+      }
+    } catch (e) {
+      debugPrint('❌ Error processing chat list deliveries: $e');
+    }
   }
   Future<void> _initializeController() async {
     // Load deletion records first

@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../data/repositories/chat_repository.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
@@ -56,10 +57,47 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
 
     if (state == AppLifecycleState.resumed) {
       debugPrint('📱 App resumed - checking chat list streams');
+      _handleAppResume();
       // Ensure streams are active when app resumes
      await listController.ensureStreamsActive();
     } else if (state == AppLifecycleState.paused) {
       debugPrint('📱 App paused');
+    }
+  }
+  void _handleAppResume() async {
+    debugPrint('📱 App resumed from background');
+
+    try {
+      // Update Firebase app state
+      FirebaseService.setAppState(isInForeground: true);
+
+      // Update user online status
+      if (FirebaseService.me != null) {
+        await FirebaseService.updateActiveStatus(true);
+      }
+
+      // If we're in a chat, mark undelivered messages
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatViewModel = Get.find<ChatViewModel>();
+        if (chatViewModel.selectedUser.value != null) {
+          final selectedUserId = chatViewModel.selectedUser.value!.id;
+
+          // Mark any undelivered messages as delivered
+          final chatRepository = ChatRepository();
+          await chatRepository.markMessagesAsDelivered(selectedUserId);
+
+          debugPrint('✅ Marked undelivered messages as delivered for: $selectedUserId');
+        }
+      }
+
+      // Reset any stuck navigation states
+      if (Get.isRegistered<ChatListController>()) {
+        final controller = Get.find<ChatListController>();
+        controller.resetAllStates();
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error handling app resume: $e');
     }
   }
   @override

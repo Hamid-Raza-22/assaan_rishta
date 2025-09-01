@@ -259,7 +259,7 @@ _clearImageFromCache(String imageUrl) {
           .map((doc) => Message.fromJson(doc.data()))
           .toList();
       // Mark new incoming messages as delivered
-      _processIncomingMessages(allMessages, user.id);
+      processMessageStatuses(allMessages, user.id);
       // Apply deletion filter
       final filteredMessages = _applyDeletionFilter(allMessages, user.id);
 
@@ -272,34 +272,58 @@ _clearImageFromCache(String imageUrl) {
     });
   }
   // Process and mark incoming messages as delivered
-  void _processIncomingMessages(List<Message> messages, String senderId) {
+  // Process message statuses properly
+  void processMessageStatuses(List<Message> messages, String chatUserId) {
     final currentUserId = _repo.currentUserId;
 
-    // Find messages that need delivery confirmation
-    final undeliveredMessages = messages.where((msg) =>
-    msg.toId == currentUserId && // Message is for current user
-        msg.fromId == senderId && // Message is from the chat partner
-        (msg.delivered == null || msg.delivered!.isEmpty) // Not yet delivered
-    ).toList();
-
-    if (undeliveredMessages.isNotEmpty) {
-      debugPrint('📬 Found ${undeliveredMessages.length} undelivered messages');
-
-      // Mark them as delivered
-      for (var message in undeliveredMessages) {
-        _confirmDeliveryForMessage(message);
+    for (var message in messages) {
+      // For incoming messages - confirm delivery
+      if (message.toId == currentUserId &&
+          message.fromId == chatUserId &&
+          message.delivered!.isEmpty) {
+        // Mark as delivered in background
+        _repo.confirmMessageDelivery(chatUserId, message.sent);
       }
     }
   }
-  // Confirm delivery for a specific message
-  Future<void> _confirmDeliveryForMessage(Message message) async {
+  // Mark message as read when user views it
+  Future<void> markMessageAsRead(Message message) async {
     try {
-      await _repo.confirmMessageDelivery(message.fromId, message.sent);
-      debugPrint('✅ Confirmed delivery for message: ${message.sent}');
+      // Don't mark our own messages as read
+      if (message.fromId == _repo.currentUserId) return;
+
+      // Don't re-mark if already read
+      if (message.read.isNotEmpty) return;
+
+      // Update in Firestore
+      await _repo.markMessageAsRead(message.fromId, message.sent);
+
+      // Update local message
+      final index = messages.indexWhere((m) => m.sent == message.sent);
+      if (index != -1) {
+        messages[index].read = DateTime.now().millisecondsSinceEpoch.toString();
+        messages[index].status = MessageStatus.read;
+        messages.refresh();
+
+        // Update cache
+        if (selectedUser.value != null) {
+          cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
+        }
+      }
     } catch (e) {
-      debugPrint('❌ Error confirming delivery: $e');
+      debugPrint('❌ Error marking message as read: $e');
     }
   }
+
+  // Confirm delivery for a specific message
+  // Future<void> _confirmDeliveryForMessage(Message message) async {
+  //   try {
+  //     await _repo.confirmMessageDelivery(message.fromId, message.sent);
+  //     debugPrint('✅ Confirmed delivery for message: ${message.sent}');
+  //   } catch (e) {
+  //     debugPrint('❌ Error confirming delivery: $e');
+  //   }
+  // }
 
   // Mark all incoming messages as delivered when entering chat
   Future<void> _markIncomingMessagesAsDelivered(String senderId) async {
@@ -808,32 +832,6 @@ _clearImageFromCache(String imageUrl) {
     await _repo.updateMessage(message, newText);
   }
 
-  Future<void> markMessageAsRead(Message message) async {
-    try {
-      // Don't mark our own messages as read
-      if (message.fromId == _repo.currentUserId) return;
-
-      // Update in Firestore
-      await _repo.updateMessageReadStatus(message);
-
-      // Update local message status
-      final index = messages.indexWhere((m) => m.sent == message.sent);
-      if (index != -1) {
-        messages[index].read = DateTime.now().millisecondsSinceEpoch.toString();
-        messages[index].status = MessageStatus.read;
-        messages.refresh();
-
-        // Update cache
-        if (selectedUser.value != null) {
-          cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
-        }
-      }
-
-      debugPrint('✅ Message marked as read: ${message.sent}');
-    } catch (e) {
-      debugPrint('❌ Error marking message as read: $e');
-    }
-  }
 
   Future<void> blockUser(String userId) async {
     await _repo.blockUser(userId);

@@ -135,6 +135,7 @@ class ChatRepository {
       fromId: currentUserId,
       sent: time,
       status: MessageStatus.pending,
+      delivered: '',
     );
 
     // Notify UI immediately with pending status
@@ -154,7 +155,9 @@ class ChatRepository {
             ...message.toJson(),
             'status': MessageStatus.sent.name,
             'delivered': '', // Empty until actually delivered
+            'read': '', // Keep empty until read
             'deliveryPending': true, // Track delivery pending status
+        'createdAt': FieldValue.serverTimestamp(),
           });
 
       // Update status to sent
@@ -163,9 +166,16 @@ class ChatRepository {
       // Update timestamps
       await updateConversationTimestamps(currentUserId, user.id, time);
       // Set up real-time listener for delivery confirmation
-      _listenForDeliveryConfirmation(
+      // _listenForMessageStatusUpdates(
+      //   conversationId: conversationId,
+      //   messageId: time,
+      //   onStatusUpdate: onStatusUpdate,
+      // );
+      // Set up real-time delivery listener
+      _setupDeliveryListener(
         conversationId: conversationId,
         messageId: time,
+        recipientId: user.id,
         onStatusUpdate: onStatusUpdate,
       );
       // Check if recipient is online to update delivery status
@@ -179,13 +189,15 @@ class ChatRepository {
     }
   }
 // Listen for delivery confirmation from recipient
-  void _listenForDeliveryConfirmation({
+  // Enhanced listener for message status updates
+  void _listenForMessageStatusUpdates({
     required String conversationId,
     required String messageId,
+
     Function(MessageStatus)? onStatusUpdate,
   }) {
-    // Set up a listener for this specific message with timeout
-    late StreamSubscription subscription;
+    StreamSubscription? subscription;
+    Timer? timeoutTimer;
 
     subscription = FirebaseFirestore.instance
         .collection('Hamid_chats')
@@ -193,43 +205,120 @@ class ChatRepository {
         .collection('messages')
         .doc(messageId)
         .snapshots()
-        .timeout(const Duration(minutes: 5)) // Auto cleanup after 5 minutes
         .listen((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data()!;
-        final currentStatus = data['status'] as String?;
 
-        // Check if message has been delivered
-        if (data['delivered'] != null &&
-            data['delivered'].toString().isNotEmpty &&
-            currentStatus != 'delivered') {
-          onStatusUpdate?.call(MessageStatus.delivered);
-          debugPrint('✅ Message delivery confirmed via listener');
+        // Check for read status first (blue double tick)
+        if (data['read'] != null && data['read'].toString().isNotEmpty) {
+          onStatusUpdate?.call(MessageStatus.read);
+          debugPrint('✅ Message read confirmed');
+
+          // Clean up listener after read
+          subscription?.cancel();
+          timeoutTimer?.cancel();
+          return;
         }
 
-        // Check if message has been read
-        if (data['read'] != null &&
-            data['read'].toString().isNotEmpty &&
-            currentStatus != 'read') {
-          onStatusUpdate?.call(MessageStatus.read);
-          debugPrint('✅ Message read confirmed via listener');
-
-          // Cancel subscription after message is read
-          subscription.cancel();
+        // Check for delivered status (grey double tick)
+        if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
+          onStatusUpdate?.call(MessageStatus.delivered);
+          debugPrint('✅ Message delivered confirmed');
+          // Don't cancel subscription - wait for read status
+          return;
         }
       }
     }, onError: (error) {
-      debugPrint('❌ Error in delivery listener: $error');
-      subscription.cancel();
+      debugPrint('❌ Error in status listener: $error');
+      subscription?.cancel();
+      timeoutTimer?.cancel();
     });
 
-    // Auto cleanup after timeout
-    Timer(const Duration(minutes: 5), () {
-      subscription.cancel();
-      debugPrint('🕐 Delivery listener auto-canceled after timeout');
+    // Set timeout to clean up listener after 10 minutes
+    timeoutTimer = Timer(const Duration(minutes: 10), () {
+      subscription?.cancel();
+      debugPrint('🕐 Status listener auto-canceled after timeout');
     });
   }
+// Enhanced delivery listener with auto-check
+  void _setupDeliveryListener({
+    required String conversationId,
+    required String messageId,
+    required String recipientId,
+    Function(MessageStatus)? onStatusUpdate,
+  }) {
+    StreamSubscription? subscription;
+    Timer? checkTimer;
 
+    // Set up real-time listener
+    subscription = FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data()!;
+
+        // Check for read status
+        if (data['read'] != null && data['read'].toString().isNotEmpty) {
+          onStatusUpdate?.call(MessageStatus.read);
+          subscription?.cancel();
+          checkTimer?.cancel();
+          return;
+        }
+
+        // Check for delivered status
+        if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
+          onStatusUpdate?.call(MessageStatus.delivered);
+          // Continue listening for read status
+        }
+      }
+    });
+
+    // Also check recipient's online status periodically
+    checkTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        final recipientDoc = await FirebaseFirestore.instance
+            .collection('Hamid_users')
+            .doc(recipientId)
+            .get();
+
+        if (recipientDoc.exists) {
+          final isOnline = recipientDoc.data()?['is_online'] ?? false;
+          if (isOnline) {
+            // If recipient is online, check if message is delivered
+            final messageDoc = await FirebaseFirestore.instance
+                .collection('Hamid_chats')
+                .doc(conversationId)
+                .collection('messages')
+                .doc(messageId)
+                .get();
+
+            if (messageDoc.exists) {
+              final delivered = messageDoc.data()?['delivered'];
+              if (delivered == null || delivered.toString().isEmpty) {
+                // Force mark as delivered if recipient is online
+                await messageDoc.reference.update({
+                  'delivered': DateTime.now().millisecondsSinceEpoch.toString(),
+                  'status': MessageStatus.delivered.name,
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error in delivery check timer: $e');
+      }
+    });
+
+    // Clean up after 10 minutes
+    Timer(const Duration(minutes: 10), () {
+      subscription?.cancel();
+      checkTimer?.cancel();
+    });
+  }
 // FIXED: Proper delivery confirmation method
   Future<void> confirmMessageDelivery(String senderId, String messageId) async {
     try {
@@ -237,7 +326,7 @@ class ChatRepository {
       final conversationId = getConversationId(currentUserId, senderId);
       final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
 
-      // Get the message first to verify it exists and needs delivery confirmation
+      // Get the message document
       final messageDoc = await FirebaseFirestore.instance
           .collection('Hamid_chats')
           .doc(conversationId)
@@ -246,22 +335,17 @@ class ChatRepository {
           .get();
 
       if (!messageDoc.exists) {
-        debugPrint('⚠️ Message not found for delivery confirmation: $messageId');
+        debugPrint('⚠️ Message not found: $messageId');
         return;
       }
 
       final messageData = messageDoc.data()!;
 
-      // Verify this message is for the current user
-      if (messageData['toId'] != currentUserId) {
-        debugPrint('⚠️ Message not for current user, skipping delivery confirmation');
-        return;
-      }
-
-      // Only update if not already delivered
-      if (messageData['delivered'] == null ||
-          messageData['delivered'].toString().isEmpty ||
-          messageData['delivered'] == '') {
+      // Only update delivery if:
+      // 1. Message is for current user
+      // 2. Not already delivered
+      if (messageData['toId'] == currentUserId &&
+          (messageData['delivered'] == null || messageData['delivered'] == '')) {
 
         await messageDoc.reference.update({
           'delivered': deliveredTime,
@@ -269,9 +353,7 @@ class ChatRepository {
           'deliveryPending': false,
         });
 
-        debugPrint('✅ Message delivery confirmed for: $messageId');
-      } else {
-        debugPrint('ℹ️ Message already delivered: $messageId');
+        debugPrint('✅ Delivery confirmed for message: $messageId');
       }
     } catch (e) {
       debugPrint('❌ Error confirming delivery: $e');
@@ -286,7 +368,7 @@ class ChatRepository {
           .toString();
       final conversationId = getConversationId(currentUserId, senderId);
 
-      // Get all undelivered messages from this sender
+      // Get all undelivered messages sent TO current user FROM sender
       final undeliveredMessages = await FirebaseFirestore.instance
           .collection('Hamid_chats')
           .doc(conversationId)
@@ -294,12 +376,10 @@ class ChatRepository {
           .where('toId', isEqualTo: currentUserId)
           .where('fromId', isEqualTo: senderId)
           .where('delivered', isEqualTo: '')
-          .orderBy('sent', descending: true)
-          .limit(20) // Limit to recent messages for performance
           .get();
 
       if (undeliveredMessages.docs.isEmpty) {
-        debugPrint('No undelivered messages to mark from $senderId');
+        debugPrint('No undelivered messages from $senderId');
         return;
       }
 
@@ -315,11 +395,78 @@ class ChatRepository {
       }
 
       await batch.commit();
-      debugPrint('✅ Marked ${undeliveredMessages.docs.length} messages as delivered from $senderId');
+      debugPrint('✅ Marked ${undeliveredMessages.docs.length} messages as delivered');
     } catch (e) {
       debugPrint('❌ Error marking messages as delivered: $e');
     }
   }
+
+  // Mark message as read when user views it
+  Future<void> markMessageAsRead(String senderId, String messageId) async {
+    try {
+      final currentUserId = Get.find<UserManagementUseCase>().getUserId().toString();
+      final conversationId = getConversationId(currentUserId, senderId);
+      final readTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId)
+          .update({
+        'read': readTime,
+        'status': MessageStatus.read.name,
+        // Also ensure delivered is set if it wasn't
+        'delivered': readTime,
+        'deliveryPending': false,
+      });
+
+      debugPrint('✅ Message marked as read: $messageId');
+    } catch (e) {
+      debugPrint('❌ Error marking message as read: $e');
+    }
+  }
+
+  // Batch mark messages as read
+  Future<void> markMessagesAsRead(String senderId) async {
+    try {
+      final currentUserId = Get.find<UserManagementUseCase>()
+          .getUserId()
+          .toString();
+      final conversationId = getConversationId(currentUserId, senderId);
+
+      // Get all unread messages
+      final unreadMessages = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .where('toId', isEqualTo: currentUserId)
+          .where('fromId', isEqualTo: senderId)
+          .where('read', isEqualTo: '')
+          .limit(50) // Limit for performance
+          .get();
+
+      if (unreadMessages.docs.isEmpty) return;
+
+      final batch = FirebaseFirestore.instance.batch();
+      final readTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      for (var doc in unreadMessages.docs) {
+        batch.update(doc.reference, {
+          'read': readTime,
+          'delivered': readTime, // Ensure delivered is also set
+          'status': MessageStatus.read.name,
+          'deliveryPending': false,
+        });
+      }
+
+      await batch.commit();
+      debugPrint('✅ Marked ${unreadMessages.docs.length} messages as read');
+    } catch (e) {
+      debugPrint('❌ Error batch marking as read: $e');
+    }
+  }
+
 
 // FIXED: Enhanced message sending with better delivery tracking
 //   Future<void> sendMessageWithStatus(

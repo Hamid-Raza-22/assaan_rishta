@@ -1,15 +1,18 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 
 class TypingIndicator extends StatefulWidget {
   final bool isVisible;
   final String userName;
+  final String userAvatarUrl; // Add this parameter
 
   const TypingIndicator({
     super.key,
     required this.isVisible,
     required this.userName,
+    required this.userAvatarUrl, // Add this required parameter
   });
 
   @override
@@ -65,17 +68,54 @@ class _TypingIndicatorState extends State<TypingIndicator>
       child: widget.isVisible
           ? Container(
         key: const ValueKey('typing_indicator'),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Row(
           children: [
-            Text(
-              '${widget.userName} is typing',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+            // User Avatar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: CachedNetworkImage(
+                fit: BoxFit.cover,
+                height: 30,
+                width: 30,
+                imageUrl: widget.userAvatarUrl,
+                errorWidget: (c, url, e) => Container(
+                  height: 30,
+                  width: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 18,
+                  ),
+                ),
+                placeholder: (c, url) => Container(
+                  height: 30,
+                  width: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 18,
+                  ),
+                ),
               ),
             ),
+            // const SizedBox(width: 8),
+            // Text(
+            //   'is typing',
+            //   style: GoogleFonts.poppins(
+            //     fontSize: 13,
+            //     color: Colors.grey[600],
+            //     fontStyle: FontStyle.italic,
+            //   ),
+            // ),
             const SizedBox(width: 8),
             _buildDots(),
           ],
