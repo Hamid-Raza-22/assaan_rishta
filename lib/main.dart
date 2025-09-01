@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
 import 'app/core/services/deep_link_handler.dart';
+import 'app/core/services/firebase_service/delivery_confirmation_service.dart';
 import 'app/core/services/firebase_service/export.dart';
 import 'app/data/repositories/chat_repository.dart';
 import 'app/domain/export.dart';
@@ -52,49 +54,141 @@ Future<void> main() async {
 
 // main.dart - Fixed background message handler
 
+//@pragma('vm:entry-point')
+// Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+//   await Firebase.initializeApp();
+//   debugPrint('🔥 Background message received: ${message.data}');
+//
+//   // If it's a chat message, ensure sender is added to receiver's list
+//   if (message.data['type'] == 'chat') {
+//     final senderId = message.data['senderId'];
+//     final receiverId = message.data['receiverId'];
+//     final messageTimestamp = message.data['timestamp'] as String?;
+//
+//     if (senderId != null &&
+//         senderId.isNotEmpty &&
+//         messageTimestamp != null &&
+//         receiverId != null &&
+//         receiverId.isNotEmpty) {
+//       try {
+//         debugPrint('📱 Background: Adding $senderId to $receiverId\'s chat list');
+//
+//         // FIXED: Use the actual message timestamp from notification
+//         await confirmBackgroundMessageDelivery(
+//           isBackground: true, // Indicate this is a background call
+//           senderId: senderId,
+//           receiverId: receiverId,
+//           messageTimestamp: messageTimestamp, // Use actual message timestamp
+//         );
+//         debugPrint('✅ Background: Message delivery confirmed for $messageTimestamp');
+//
+//         // Add sender to receiver's my_users collection
+//         await FirebaseFirestore.instance
+//             .collection('Hamid_users')
+//             .doc(receiverId)
+//             .collection('my_users')
+//             .doc(senderId)
+//             .set({
+//           'last_message_time': messageTimestamp, // Use actual timestamp
+//           'added_at': DateTime.now().millisecondsSinceEpoch.toString(),
+//         }, SetOptions(merge: true));
+//
+//         debugPrint(
+//             '✅ Background: Sender added to chat list successfully.');
+//       } catch (e) {
+//         debugPrint('❌ Background: Error processing message: $e');
+//       }
+//     }
+//   }
+// }
+
+
+// In main.dart - Improved background handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   debugPrint('🔥 Background message received: ${message.data}');
 
-  // If it's a chat message, ensure sender is added to receiver's list
   if (message.data['type'] == 'chat') {
     final senderId = message.data['senderId'];
     final receiverId = message.data['receiverId'];
     final messageTimestamp = message.data['timestamp'] as String?;
 
-    if (senderId != null && senderId.isNotEmpty && messageTimestamp != null && receiverId != null) {
+    if (senderId != null && receiverId != null && messageTimestamp != null) {
+      // Try multiple approaches to ensure delivery confirmation
+      bool deliveryConfirmed = false;
+
+      // Approach 1: Direct Firestore update with retry
+      for (int attempt = 0; attempt < 3; attempt++) {
+        try {
+          deliveryConfirmed = await _confirmDeliveryDirectly(
+            senderId: senderId,
+            receiverId: receiverId,
+            messageTimestamp: messageTimestamp,
+          );
+
+          if (deliveryConfirmed) {
+            debugPrint('✅ Delivery confirmed on attempt ${attempt + 1}');
+            break;
+          }
+        } catch (e) {
+          debugPrint('⚠️ Attempt ${attempt + 1} failed: $e');
+          if (attempt < 2) {
+            await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+          }
+        }
+      }
+
+      // Approach 2: If direct update failed, try batch operation
+      if (!deliveryConfirmed) {
+        try {
+          deliveryConfirmed = await _confirmDeliveryWithBatch(
+            senderId: senderId,
+            receiverId: receiverId,
+            messageTimestamp: messageTimestamp,
+          );
+        } catch (e) {
+          debugPrint('❌ Batch operation failed: $e');
+        }
+      }
+
+      // Approach 3: Cloud Function as last resort
+      if (!deliveryConfirmed) {
+        try {
+          final result = await DeliveryConfirmationService.confirmDeliveryViaCloudFunction(
+            senderId: senderId,
+            receiverId: receiverId,
+            messageTimestamp: messageTimestamp,
+          );
+          deliveryConfirmed = result;
+        } catch (e) {
+          debugPrint('❌ Cloud function failed: $e');
+        }
+      }
+
+      // Always add sender to receiver's chat list
       try {
-        debugPrint('📱 Background: Adding $senderId to $receiverId\'s chat list');
-
-        // FIXED: Use the actual message timestamp from notification
-        await confirmBackgroundMessageDelivery(
-          senderId: senderId,
-          receiverId: receiverId,
-          messageTimestamp: messageTimestamp, // Use actual message timestamp
-        );
-
-        // Add sender to receiver's my_users collection
         await FirebaseFirestore.instance
             .collection('Hamid_users')
             .doc(receiverId)
             .collection('my_users')
             .doc(senderId)
             .set({
-          'last_message_time': messageTimestamp, // Use actual timestamp
+          'last_message_time': messageTimestamp,
           'added_at': DateTime.now().millisecondsSinceEpoch.toString(),
         }, SetOptions(merge: true));
-
-        debugPrint('✅ Background: Sender added to chat list and message marked as delivered');
       } catch (e) {
-        debugPrint('❌ Background: Error processing message: $e');
+        debugPrint('❌ Failed to add to chat list: $e');
       }
     }
   }
 }
 
-// FIXED: Better delivery confirmation
-Future<void> confirmBackgroundMessageDelivery({
+// Helper function for direct Firestore update
+Future<bool> _confirmDeliveryDirectly({
   required String senderId,
   required String receiverId,
   required String messageTimestamp,
@@ -103,36 +197,71 @@ Future<void> confirmBackgroundMessageDelivery({
     final conversationId = getConversationId(senderId, receiverId);
     final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
 
-    // Check if message exists and needs delivery confirmation
-    final messageDoc = await FirebaseFirestore.instance
+    final messageRef = FirebaseFirestore.instance
         .collection('Hamid_chats')
         .doc(conversationId)
         .collection('messages')
-        .doc(messageTimestamp)
-        .get();
+        .doc(messageTimestamp);
 
-    if (messageDoc.exists) {
-      final data = messageDoc.data()!;
+    // First check if message exists
+    final messageDoc = await messageRef.get();
 
-      // Only update if not already delivered and message is for this receiver
-      if ((data['delivered'] == null || data['delivered'].toString().isEmpty) &&
-          data['toId'] == receiverId) {
-
-        await messageDoc.reference.update({
-          'delivered': deliveredTime,
-          'status': 'delivered',
-          'deliveryPending': false,
-        });
-
-        debugPrint('✅ Message delivery confirmed in background for timestamp: $messageTimestamp');
-      } else {
-        debugPrint('ℹ️ Message already delivered or not for this receiver');
-      }
-    } else {
-      debugPrint('⚠️ Message document not found: $messageTimestamp');
+    if (!messageDoc.exists) {
+      debugPrint('⚠️ Message document not found');
+      return false;
     }
+
+    final data = messageDoc.data()!;
+
+    // Check if already delivered
+    if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
+      debugPrint('ℹ️ Message already delivered');
+      return true;
+    }
+
+    // Update delivery status
+    await messageRef.update({
+      'delivered': deliveredTime,
+      'status': 'delivered',
+      'deliveryPending': false,
+    });
+
+    return true;
   } catch (e) {
-    debugPrint('❌ Error confirming background delivery: $e');
+    debugPrint('❌ Direct update error: $e');
+    return false;
+  }
+}
+
+// Helper function for batch operation
+Future<bool> _confirmDeliveryWithBatch({
+  required String senderId,
+  required String receiverId,
+  required String messageTimestamp,
+}) async {
+  try {
+    final conversationId = getConversationId(senderId, receiverId);
+    final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    final messageRef = FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(conversationId)
+        .collection('messages')
+        .doc(messageTimestamp);
+
+    batch.update(messageRef, {
+      'delivered': deliveredTime,
+      'status': 'delivered',
+      'deliveryPending': false,
+    });
+
+    await batch.commit();
+    return true;
+  } catch (e) {
+    debugPrint('❌ Batch update error: $e');
+    return false;
   }
 }
 // Confirm delivery when app receives notification in background
@@ -185,6 +314,8 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
         _handleAppPause();
         break;
       case AppLifecycleState.inactive:
+        _handleAppInActive();
+        break;
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
       // App is transitioning or hidden
@@ -202,6 +333,42 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
       // Update user online status
       if (FirebaseService.me != null) {
         await FirebaseService.updateActiveStatus(true);
+      }
+
+      // If we're in a chat, mark undelivered messages
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatViewModel = Get.find<ChatViewModel>();
+        if (chatViewModel.selectedUser.value != null) {
+          final selectedUserId = chatViewModel.selectedUser.value!.id;
+
+          // Mark any undelivered messages as delivered
+          final chatRepository = ChatRepository();
+          await chatRepository.markMessagesAsDelivered(selectedUserId);
+
+          debugPrint('✅ Marked undelivered messages as delivered for: $selectedUserId');
+        }
+      }
+
+      // Reset any stuck navigation states
+      if (Get.isRegistered<ChatListController>()) {
+        final controller = Get.find<ChatListController>();
+        controller.resetAllStates();
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error handling app resume: $e');
+    }
+  }
+ void _handleAppInActive() async {
+    debugPrint('📱 App resumed from background');
+
+    try {
+      // Update Firebase app state
+      FirebaseService.setAppState(isInForeground: false);
+
+      // Update user online status
+      if (FirebaseService.me != null) {
+        await FirebaseService.updateActiveStatus(false);
       }
 
       // If we're in a chat, mark undelivered messages

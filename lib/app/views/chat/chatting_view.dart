@@ -30,6 +30,7 @@ import '../../widgets/typing_indicator.dart';
 
 class ChattingViewController extends GetxController with WidgetsBindingObserver {
   final ChatUser user;
+  final currentUserProfile = Rx<String?>(null);
   final bool? initialBlockedStatus;
   final bool? initialBlockedByOtherStatus;
   final bool? initialDeletedStatus;
@@ -46,7 +47,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
   final chatListController = Get.find<ChatListController>();
-
+  var profileDetails = CurrentUserProfile().obs;
   // Text controller
   late TextEditingController textController;
 
@@ -80,6 +81,8 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   final RxBool isOtherUserTyping = false.obs;
   StreamSubscription? _typingStatusSubscription;
   Timer? _typingDebounceTimer;
+  // Current user ki profile image URL store karne ke liye
+  final currentUserImageUrl = ''.obs;
   @override
   void onInit() {
     super.onInit();
@@ -90,7 +93,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     textController = TextEditingController();
     // Set up text field listener for typing
     textController.addListener(_onTextChanged);
-
+    _fetchCurrentUserProfile();
     // Start listening to typing status
     _listenToTypingStatus();
     // FIXED: Set current chat user ID
@@ -103,9 +106,28 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
     // FIXED: Mark this controller as active
     _isActiveController = true;
-
+    _markMessagesAsDeliveredOnEntry();
     _initializeChat();
   }
+  // Add this method to fetch current user's profile
+  Future<void> _fetchCurrentUserProfile() async {
+    try {
+      // Get current user's profile from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(currentUID)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        currentUserImageUrl.value = data?['image'] ?? AppConstants.profileImg;
+      }
+    } catch (e) {
+      debugPrint('Error fetching current user profile: $e');
+      currentUserImageUrl.value = AppConstants.profileImg;
+    }
+  }
+
   void _listenToTypingStatus() {
     final conversationId = chatController.getConversationId(
       currentUID,
@@ -137,7 +159,15 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       }
     });
   }
+  Future<void> _markMessagesAsDeliveredOnEntry() async {
+    // Small delay to ensure proper initialization
+    await Future.delayed(const Duration(milliseconds: 500));
 
+    // Mark all undelivered messages as delivered
+    await chatController.markIncomingMessagesAsDelivered();
+
+    debugPrint('✅ Marked messages as delivered on chat entry');
+  }
   // Handle text changes for typing indicator
   void _onTextChanged() {
     if (textController.text.isNotEmpty && !isAnyBlocked) {
@@ -525,13 +555,13 @@ Future<void> showImageOptions() async {
 
     switch (state) {
       case AppLifecycleState.resumed:
-      // FIXED: Only set status if this is the active chat
         if (_currentChatUserId == user.id && _isActiveController) {
           chatController.setInsideChatStatus(true, chatUserId: user.id);
           paused.value = false;
 
-          // FIXED: Only mark messages as read for the current active chat
+          // Mark messages as delivered and read when app resumes
           if (chatController.selectedUser.value?.id == user.id) {
+            chatController.markIncomingMessagesAsDelivered();
             _markMessagesAsRead(cachedMessages);
           }
         }
@@ -1142,11 +1172,6 @@ class _ChattingViewState extends State<ChattingView> {
         return Column(
           children: [
             // Typing indicator at the top
-            if (isTyping)
-              TypingIndicator(
-                isVisible: isTyping,
-                userName: controller.currentUserData.name,
-              ),
 
             // Messages list
             Expanded(
@@ -1159,14 +1184,14 @@ class _ChattingViewState extends State<ChattingView> {
                   final message = messages[i];
                   final currentUserId = controller.useCase.getUserId().toString();
                   final isMe = currentUserId == message.fromId;
-                  String currentUserAvatar = AppConstants.profileImg;
+                  final currentUserAvatar = controller.currentUserProfile.value ?? AppConstants.profileImg;
 
                   return ProfessionalMessageCard(
                     message: message,
                     pause: controller.paused.value,
                     showUserAvatar: true,
                     currentUserId: currentUserId,
-                    userAvatarUrl: isMe ? currentUserAvatar : controller.userImageUrl,
+                    userAvatarUrl: isMe ? controller.currentUserImageUrl.value  : controller.userImageUrl,
                     onReaction: (message, reaction) {
                       // Handle reaction
                     },
@@ -1177,6 +1202,14 @@ class _ChattingViewState extends State<ChattingView> {
                 },
               ),
             ),
+            // Typing indicator at the bottom, above input field
+            if (isTyping)
+              TypingIndicator(
+                isVisible: isTyping,
+                userName: controller.currentUserData.name,
+                userAvatarUrl: controller.userImageUrl, // Add this line
+
+              ),
           ],
         );
       }

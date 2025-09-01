@@ -3,10 +3,13 @@ import 'dart:async';
 import 'dart:io';
 import 'package:assaan_rishta/app/views/account_type/account_type_view.dart';
 import 'package:assaan_rishta/app/views/login/login_view.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../core/models/chat_model/message.dart';
 import '../core/services/firebase_service/export.dart';
+import '../data/repositories/chat_repository.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import '../views/chat/chat_user_listing_view.dart';
@@ -14,6 +17,7 @@ import '../views/filter/export.dart';
 import '../views/vendor/export.dart';
 import '../views/home/home_view.dart';
 import '../views/profile/export.dart';
+import 'chat_list_viewmodel.dart';
 import 'chat_viewmodel.dart';
 
 class BottomNavController extends GetxController with WidgetsBindingObserver {
@@ -142,8 +146,10 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
       case AppLifecycleState.resumed:
         FirebaseService.setAppState(isInForeground: true, isInChat: selectedTab.value == 2);
         _updateStatusDebounced(true);
+        _handleAppResume();
         break;
       case AppLifecycleState.paused:
+        // _handleAppPause();
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
         FirebaseService.setAppState(isInForeground: false);
@@ -154,6 +160,92 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
         _updateStatusImmediate(false);
         break;
     }
+  }
+  void _handleAppResume() async {
+    debugPrint('📱 App resumed - processing pending deliveries');
+
+    try {
+      FirebaseService.setAppState(isInForeground: true);
+
+      if (FirebaseService.me != null) {
+        await FirebaseService.updateActiveStatus(true);
+      }
+
+      // Process ALL pending message deliveries
+      await _processAllPendingDeliveries();
+
+      // If in chat, also mark messages as read
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatViewModel = Get.find<ChatViewModel>();
+        if (chatViewModel.selectedUser.value != null) {
+          await chatViewModel.markIncomingMessagesAsDelivered();
+        }
+      }
+
+      if (Get.isRegistered<ChatListController>()) {
+        final controller = Get.find<ChatListController>();
+        controller.resetAllStates();
+      }
+    } catch (e) {
+      debugPrint('❌ Error handling app resume: $e');
+    }
+  }
+  Future<void> _processAllPendingDeliveries() async {
+    try {
+      final currentUserId = useCase.getUserId().toString();
+
+      // Get all conversations
+      final myUsersSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(currentUserId)
+          .collection('my_users')
+          .get();
+
+      final batch = FirebaseFirestore.instance.batch();
+      int updateCount = 0;
+
+      for (var userDoc in myUsersSnapshot.docs) {
+        final otherUserId = userDoc.id;
+        final conversationId = _getConversationId(currentUserId, otherUserId);
+
+        // Get ALL undelivered messages for this conversation
+        final undeliveredMessages = await FirebaseFirestore.instance
+            .collection('Hamid_chats')
+            .doc(conversationId)
+            .collection('messages')
+            .where('toId', isEqualTo: currentUserId)
+            .where('fromId', isEqualTo: otherUserId)
+            .get();
+
+        final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+        for (var doc in undeliveredMessages.docs) {
+          final data = doc.data();
+          // Check if not already delivered
+          if (data['delivered'] == null || data['delivered'].toString().isEmpty) {
+            batch.update(doc.reference, {
+              'delivered': deliveredTime,
+              'status': MessageStatus.delivered.name,
+              'deliveryPending': false,
+            });
+            updateCount++;
+          }
+        }
+      }
+
+      if (updateCount > 0) {
+        await batch.commit();
+        debugPrint('✅ Marked $updateCount messages as delivered on app resume');
+      }
+    } catch (e) {
+      debugPrint('❌ Error processing pending deliveries: $e');
+    }
+  }
+
+  String _getConversationId(String userId1, String userId2) {
+    return userId1.compareTo(userId2) <= 0
+        ? '${userId1}_$userId2'
+        : '${userId2}_$userId1';
   }
 
   void _updateStatusDebounced(bool isOnline) {
