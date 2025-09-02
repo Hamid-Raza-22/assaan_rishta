@@ -2,13 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:stacked_services/stacked_services.dart';
 
 import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
@@ -19,7 +16,6 @@ import 'app/core/services/firebase_service/export.dart';
 import 'app/data/repositories/chat_repository.dart';
 import 'app/domain/export.dart';
 import 'app/fast_pay/app/app.locator.dart';
-import 'app/fast_pay/app/app.router.dart';
 import 'app/utils/app_colors.dart';
 import 'app/viewmodels/chat_list_viewmodel.dart';
 import 'app/viewmodels/chat_viewmodel.dart';
@@ -52,227 +48,105 @@ Future<void> main() async {
   runApp(const AsanRishtaApp());
 }
 
-// main.dart - Fixed background message handler
-
-//@pragma('vm:entry-point')
-// Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-//   await Firebase.initializeApp();
-//   debugPrint('🔥 Background message received: ${message.data}');
-//
-//   // If it's a chat message, ensure sender is added to receiver's list
-//   if (message.data['type'] == 'chat') {
-//     final senderId = message.data['senderId'];
-//     final receiverId = message.data['receiverId'];
-//     final messageTimestamp = message.data['timestamp'] as String?;
-//
-//     if (senderId != null &&
-//         senderId.isNotEmpty &&
-//         messageTimestamp != null &&
-//         receiverId != null &&
-//         receiverId.isNotEmpty) {
-//       try {
-//         debugPrint('📱 Background: Adding $senderId to $receiverId\'s chat list');
-//
-//         // FIXED: Use the actual message timestamp from notification
-//         await confirmBackgroundMessageDelivery(
-//           isBackground: true, // Indicate this is a background call
-//           senderId: senderId,
-//           receiverId: receiverId,
-//           messageTimestamp: messageTimestamp, // Use actual message timestamp
-//         );
-//         debugPrint('✅ Background: Message delivery confirmed for $messageTimestamp');
-//
-//         // Add sender to receiver's my_users collection
-//         await FirebaseFirestore.instance
-//             .collection('Hamid_users')
-//             .doc(receiverId)
-//             .collection('my_users')
-//             .doc(senderId)
-//             .set({
-//           'last_message_time': messageTimestamp, // Use actual timestamp
-//           'added_at': DateTime.now().millisecondsSinceEpoch.toString(),
-//         }, SetOptions(merge: true));
-//
-//         debugPrint(
-//             '✅ Background: Sender added to chat list successfully.');
-//       } catch (e) {
-//         debugPrint('❌ Background: Error processing message: $e');
-//       }
-//     }
-//   }
-// }
-
-
-// In main.dart - Improved background handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  debugPrint('🔥 Background message received: ${message.data}');
+  debugPrint('🔥 Background message received');
+  debugPrint('📋 Message data: ${message.data}');
 
   if (message.data['type'] == 'chat') {
-    final senderId = message.data['senderId'];
-    final receiverId = message.data['receiverId'];
-    final messageTimestamp = message.data['timestamp'] as String?;
+    // Extract and validate data
+    final senderId = message.data['senderId']?.toString().trim();
+    final receiverId = message.data['receiverId']?.toString().trim();
+    final messageTimestamp = message.data['timestamp']?.toString().trim();
 
-    if (senderId != null && receiverId != null && messageTimestamp != null) {
-      // Try multiple approaches to ensure delivery confirmation
+    // Log received values for debugging
+    debugPrint('📍 Processing chat message:');
+    debugPrint('  From: $senderId');
+    debugPrint('  To: $receiverId');
+    debugPrint('  Timestamp: $messageTimestamp');
+
+    // Validate all required fields are present and not empty
+    if (senderId != null && senderId.isNotEmpty &&
+        receiverId != null && receiverId.isNotEmpty &&
+        messageTimestamp != null && messageTimestamp.isNotEmpty) {
+
       bool deliveryConfirmed = false;
 
-      // Approach 1: Direct Firestore update with retry
-      for (int attempt = 0; attempt < 3; attempt++) {
+      // Step 1: Try direct Firestore update (fastest and most reliable)
+      try {
+        debugPrint('🔄 Attempting direct Firestore update...');
+        deliveryConfirmed = await DeliveryConfirmationService.confirmDeliveryDirectly(
+          senderId: senderId,
+          receiverId: receiverId,
+          messageTimestamp: messageTimestamp,
+        );
+
+        if (deliveryConfirmed) {
+          debugPrint('✅ Delivery confirmed via direct update');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Direct update failed: $e');
+      }
+
+      // Step 2: If direct update failed, try cloud function
+      if (!deliveryConfirmed) {
         try {
-          deliveryConfirmed = await _confirmDeliveryDirectly(
+          debugPrint('☁️ Attempting cloud function...');
+          deliveryConfirmed = await DeliveryConfirmationService.confirmDeliveryViaDio(
             senderId: senderId,
             receiverId: receiverId,
             messageTimestamp: messageTimestamp,
           );
 
           if (deliveryConfirmed) {
-            debugPrint('✅ Delivery confirmed on attempt ${attempt + 1}');
-            break;
+            debugPrint('✅ Delivery confirmed via cloud function');
           }
         } catch (e) {
-          debugPrint('⚠️ Attempt ${attempt + 1} failed: $e');
-          if (attempt < 2) {
-            await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-          }
+          debugPrint('⚠️ Cloud function failed: $e');
         }
       }
 
-      // Approach 2: If direct update failed, try batch operation
-      if (!deliveryConfirmed) {
-        try {
-          deliveryConfirmed = await _confirmDeliveryWithBatch(
-            senderId: senderId,
-            receiverId: receiverId,
-            messageTimestamp: messageTimestamp,
-          );
-        } catch (e) {
-          debugPrint('❌ Batch operation failed: $e');
-        }
-      }
-
-      // Approach 3: Cloud Function as last resort
-      if (!deliveryConfirmed) {
-        try {
-          final result = await DeliveryConfirmationService.confirmDeliveryViaCloudFunction(
-            senderId: senderId,
-            receiverId: receiverId,
-            messageTimestamp: messageTimestamp,
-          );
-          deliveryConfirmed = result;
-        } catch (e) {
-          debugPrint('❌ Cloud function failed: $e');
-        }
-      }
-
-      // Always add sender to receiver's chat list
+      // Step 3: Always update the chat list (this ensures the chat appears even if message not found)
       try {
-        await FirebaseFirestore.instance
-            .collection('Hamid_users')
-            .doc(receiverId)
-            .collection('my_users')
-            .doc(senderId)
-            .set({
-          'last_message_time': messageTimestamp,
-          'added_at': DateTime.now().millisecondsSinceEpoch.toString(),
-        }, SetOptions(merge: true));
+        await DeliveryConfirmationService.addToChatList(
+          senderId: senderId,
+          receiverId: receiverId,
+          messageTimestamp: messageTimestamp,
+        );
+        debugPrint('✅ Chat list updated successfully');
       } catch (e) {
-        debugPrint('❌ Failed to add to chat list: $e');
+        debugPrint('❌ Failed to update chat list: $e');
+      }
+
+      // Log final status
+      if (deliveryConfirmed) {
+        debugPrint('🎯 Message delivery fully confirmed');
+      } else {
+        debugPrint('⚠️ Message delivery could not be confirmed, but chat list was updated');
+      }
+
+    } else {
+      // Log exactly what's missing
+      debugPrint('❌ Missing required fields:');
+      if (senderId == null || senderId.isEmpty) {
+        debugPrint('  - senderId is ${senderId == null ? "null" : "empty"}');
+      }
+      if (receiverId == null || receiverId.isEmpty) {
+        debugPrint('  - receiverId is ${receiverId == null ? "null" : "empty"}');
+      }
+      if (messageTimestamp == null || messageTimestamp.isEmpty) {
+        debugPrint('  - messageTimestamp is ${messageTimestamp == null ? "null" : "empty"}');
       }
     }
-  }
-}
-
-// Helper function for direct Firestore update
-Future<bool> _confirmDeliveryDirectly({
-  required String senderId,
-  required String receiverId,
-  required String messageTimestamp,
-}) async {
-  try {
-    final conversationId = getConversationId(senderId, receiverId);
-    final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
-
-    final messageRef = FirebaseFirestore.instance
-        .collection('Hamid_chats')
-        .doc(conversationId)
-        .collection('messages')
-        .doc(messageTimestamp);
-
-    // First check if message exists
-    final messageDoc = await messageRef.get();
-
-    if (!messageDoc.exists) {
-      debugPrint('⚠️ Message document not found');
-      return false;
-    }
-
-    final data = messageDoc.data()!;
-
-    // Check if already delivered
-    if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
-      debugPrint('ℹ️ Message already delivered');
-      return true;
-    }
-
-    // Update delivery status
-    await messageRef.update({
-      'delivered': deliveredTime,
-      'status': 'delivered',
-      'deliveryPending': false,
-    });
-
-    return true;
-  } catch (e) {
-    debugPrint('❌ Direct update error: $e');
-    return false;
-  }
-}
-
-// Helper function for batch operation
-Future<bool> _confirmDeliveryWithBatch({
-  required String senderId,
-  required String receiverId,
-  required String messageTimestamp,
-}) async {
-  try {
-    final conversationId = getConversationId(senderId, receiverId);
-    final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
-
-    final batch = FirebaseFirestore.instance.batch();
-
-    final messageRef = FirebaseFirestore.instance
-        .collection('Hamid_chats')
-        .doc(conversationId)
-        .collection('messages')
-        .doc(messageTimestamp);
-
-    batch.update(messageRef, {
-      'delivered': deliveredTime,
-      'status': 'delivered',
-      'deliveryPending': false,
-    });
-
-    await batch.commit();
-    return true;
-  } catch (e) {
-    debugPrint('❌ Batch update error: $e');
-    return false;
-  }
-}
-// Confirm delivery when app receives notification in background
-
-String getConversationId(String userId1, String userId2) {
-  if (userId1.compareTo(userId2) <= 0) {
-    return '${userId1}_$userId2';
   } else {
-    return '${userId2}_$userId1';
+    debugPrint('📨 Non-chat notification received: ${message.data['type']}');
   }
 }
+
 // FIXED: Main App with proper notification initialization
 class AsanRishtaApp extends StatefulWidget {
   const AsanRishtaApp({super.key});
@@ -414,64 +288,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
       debugPrint('❌ Error handling app pause: $e');
     }
   }
-  // @override
-  // void didChangeAppLifecycleState(AppLifecycleState state) {
-  //   debugPrint('🔄 App lifecycle state: $state');
-  //
-  //   // Handle app lifecycle for notifications
-  //   if (state == AppLifecycleState.resumed) {
-  //     // App came to foreground
-  //     _handleAppResume();
-  //   } else if (state == AppLifecycleState.paused) {
-  //     // App went to background
-  //     _handleAppPause();
-  //   }
-  // }
 
-  // void _initializeNotifications() {
-  //   try {
-  //     // Get context from navigator key or use widget's context
-  //     final currentContext = navigatorKey.currentContext ?? context;
-  //
-  //     if (currentContext != null) {
-  //       debugPrint('🔔 Initializing notifications...');
-  //       NotificationInitializer.initializeNotifications(currentContext);
-  //     } else {
-  //       // Retry after a delay if context not available
-  //       Future.delayed(const Duration(milliseconds: 500), () {
-  //         _initializeNotifications();
-  //       });
-  //     }
-  //   } catch (e) {
-  //     debugPrint('❌ Error initializing notifications: $e');
-  //   }
-  // }
-
-  // void _handleAppResume() {
-  //   debugPrint('📱 App resumed from background');
-  //
-  //   // CRITICAL: Clear any lingering chat state when app resumes
-  //   if (Get.isRegistered<ChatViewModel>()) {
-  //     final chatViewModel = Get.find<ChatViewModel>();
-  //     // Only clear if not currently in a chat view
-  //     final currentRoute = Get.currentRoute;
-  //     if (!currentRoute.contains('/chatting_view/') &&
-  //         !currentRoute.contains('/ChattingView')) {
-  //       chatViewModel.forceClearChatState();
-  //       debugPrint('🧹 Cleared chat state on app resume');
-  //     }
-  //   }
-  //
-  //   // Reset any stuck navigation states
-  //   if (Get.isRegistered<ChatListController>()) {
-  //     final controller = Get.find<ChatListController>();
-  //     controller.resetAllStates();
-  //   }
-  // }
-  //
-  // void _handleAppPause() {
-  //   debugPrint('📱 App went to background');
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -504,58 +321,3 @@ class MyHttpOverrides extends HttpOverrides {
           (X509Certificate cert, String host, int port) => true;
   }
 }
-
-// // FIXED: Notification initializer with proper static method
-// class NotificationInitializer {
-//   static NotificationServices? _notificationService;
-//
-//   static void initializeNotifications(BuildContext context) {
-//     try {
-//       // Create notification service instance if not exists
-//       _notificationService ??= NotificationServices();
-//       final notificationService = _notificationService!;
-//
-//       // Request permissions
-//       notificationService.requestNotificationPermission();
-//
-//       // Setup Firebase init with context
-//       notificationService.firebaseInit(context);
-//
-//       // Setup interaction handler with context
-//       notificationService.setupInteractMessage(context);
-//
-//       // Get and store device token
-//       notificationService.getDeviceToken().then((token) {
-//         debugPrint('🔑 Device token received: ${token?.substring(0, 20)}...');
-//
-//         // Store token if user is logged in
-//         if (Get.isRegistered<UserManagementUseCase>()) {
-//           final useCase = Get.find<UserManagementUseCase>();
-//           final userId = useCase.getUserId();
-//           if (userId != null && token != null) {
-//             NotificationServices.storeFCMToken(userId.toString());
-//           }
-//         }
-//       });
-//
-//       // Listen for token refresh
-//       notificationService.isTokenRefresh();
-//
-//       debugPrint('✅ Notifications initialized successfully');
-//     } catch (e) {
-//       debugPrint('❌ Error in notification initialization: $e');
-//     }
-//   }
-//
-//   // Method to reinitialize if needed
-//   static void reinitialize(BuildContext context) {
-//     debugPrint('🔄 Reinitializing notifications...');
-//     _notificationService = null;
-//     initializeNotifications(context);
-//   }
-//
-//   // Clean up method
-//   static void dispose() {
-//     _notificationService = null;
-//   }
-// }

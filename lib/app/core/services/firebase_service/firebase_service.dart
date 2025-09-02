@@ -941,7 +941,7 @@ class FirebaseService {
     String msg,
     Type type,
     String currentUserId,
-      String? messageTimestamp
+      String messageTimestamp
   ) async {
     try {
       final userDoc = await firestore
@@ -978,7 +978,7 @@ class FirebaseService {
             senderImage: senderImage,
             senderEmail: senderEmail,
             receiverId: chatUser.id,
-            messageTimestamp: messageTimestamp ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            messageTimestamp: messageTimestamp,
           );
 
           debugPrint('📨 Notification sent to ${chatUser.name}');

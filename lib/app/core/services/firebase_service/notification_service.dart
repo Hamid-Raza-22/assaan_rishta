@@ -1080,7 +1080,7 @@ class NotificationServices {
 
       String serverTokenKey = await getAccessToken();
       String endPoint = "https://fcm.googleapis.com/v1/projects/asaan-rishta-chat/messages:send";
-      final currentTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      //final currentTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
       Map<String, dynamic> message = {
         "message": {
@@ -1097,9 +1097,10 @@ class NotificationServices {
             "senderEmail": senderEmail ?? '',
             "receiverId": receiverId, // FIXED: Include receiverId in data
             "targetUserId": receiverId,
-            "timestamp": currentTimestamp?? '',
+            "timestamp": messageTimestamp?? '',
+            // "timestamp": currentTimestamp?? '',
             "sessionId":_currentSessionId??"",// Alternative key for validation
-            "notificationId": '${senderId}_${receiverId}_$currentTimestamp', // Unique ID
+            "notificationId": '${senderId}_${receiverId}_$messageTimestamp', // Unique ID
           },
         }
       };
@@ -1117,7 +1118,7 @@ class NotificationServices {
       if (res.statusCode == 200 || res.statusCode == 201) {
         Logger().d('message send success');
         debugPrint('✅ Notification sent successfully to user: $receiverId');
-        debugPrint('   Timestamp: $currentTimestamp');
+        debugPrint('   Timestamp: $messageTimestamp');
         debugPrint('   Session: $_currentSessionId');
       } else {
         Logger().d('response ${res.body}');
