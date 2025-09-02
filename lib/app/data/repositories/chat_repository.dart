@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/export.dart';
 import '../../core/services/firebase_service/export.dart';
@@ -14,6 +15,7 @@ class ChatRepository {
   // Timer for debouncing typing updates
   Timer? _typingTimer;
   bool _isTyping = false;
+
   // Update typing status for current user
   Future<void> updateTypingStatus(String receiverId, bool isTyping) async {
     try {
@@ -115,6 +117,7 @@ class ChatRepository {
       Get.find<UserManagementUseCase>().getUserId().toString();
   // Send message with status tracking
   Future<void> sendMessageWithStatus(
+
     ChatUser user,
     String msg,
     Type type, {
@@ -122,6 +125,12 @@ class ChatRepository {
     Function(MessageStatus)? onStatusUpdate,
   }) async {
     final time = DateTime.now().millisecondsSinceEpoch.toString();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_message_time', time);
+    // Example of getting the value, you might use this elsewhere
+     final lastMessageTime = prefs.getString('last_message_time');
+    debugPrint('Last message time from prefs: $lastMessageTime');
+
     final currentUserId = Get.find<UserManagementUseCase>()
         .getUserId()
         .toString();
@@ -133,7 +142,7 @@ class ChatRepository {
       read: '',
       type: type,
       fromId: currentUserId,
-      sent: time,
+      sent: lastMessageTime!,
       status: MessageStatus.pending,
       delivered: '',
     );
@@ -150,7 +159,7 @@ class ChatRepository {
           .collection('Hamid_chats')
           .doc(conversationId)
           .collection('messages')
-          .doc(time)
+          .doc(lastMessageTime)
           .set({
             ...message.toJson(),
             'status': MessageStatus.sent.name,
@@ -164,7 +173,7 @@ class ChatRepository {
       onStatusUpdate?.call(MessageStatus.sent);
 
       // Update timestamps
-      await updateConversationTimestamps(currentUserId, user.id, time);
+      await updateConversationTimestamps(currentUserId, user.id, lastMessageTime);
       // Set up real-time listener for delivery confirmation
       // _listenForMessageStatusUpdates(
       //   conversationId: conversationId,
@@ -174,13 +183,13 @@ class ChatRepository {
       // Set up real-time delivery listener
       _setupDeliveryListener(
         conversationId: conversationId,
-        messageId: time,
+        messageId: lastMessageTime,
         recipientId: user.id,
         onStatusUpdate: onStatusUpdate,
       );
       // Check if recipient is online to update delivery status
       // await checkAndUpdateDeliveryStatus(user.id, time, conversationId);
-      await sendNotificationIfNeeded(user, msg, type, currentUserId);
+      await sendNotificationIfNeeded(user, msg, type, currentUserId,lastMessageTime);
     } catch (e) {
       // Update status to failed
       onStatusUpdate?.call(MessageStatus.failed);
@@ -727,83 +736,83 @@ class ChatRepository {
   //       .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   // }
   // Optimized message sending with immediate UI update
-  Future<void> sendMessageOptimized(
-    ChatUser user,
-    String msg,
-    Type type, {
-    Function(Message)? onMessageCreated,
-  }) async {
-    final time = DateTime.now().millisecondsSinceEpoch.toString();
-    final currentUserId = FirebaseService.me!.id;
-
-    // Create message object
-    final Message message = Message(
-      toId: user.id,
-      msg: msg,
-      read: '',
-      type: type,
-      fromId: currentUserId,
-      sent: time,
-    );
-
-    // Notify UI immediately
-    onMessageCreated?.call(message);
-
-    // Update in Firestore
-    final batch = FirebaseFirestore.instance.batch();
-
-    // Add message
-    // Add message to specific conversation only
-    final chatId = getConversationId(currentUserId, user.id);
-    final messageRef = FirebaseFirestore.instance
-        .collection('Hamid_chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(time);
-
-    batch.set(messageRef, message.toJson());
-
-    // Update only the involved users' last message time
-    // For sender (current user)
-    batch.set(
-      FirebaseFirestore.instance
-          .collection('Hamid_users')
-          .doc(currentUserId)
-          .collection('my_users')
-          .doc(user.id),
-      {
-        'last_message_time': time,
-        'updated_by': currentUserId, // Track who updated
-      },
-      SetOptions(merge: true),
-    );
-
-    // For receiver
-    batch.set(
-      FirebaseFirestore.instance
-          .collection('Hamid_users')
-          .doc(user.id)
-          .collection('my_users')
-          .doc(currentUserId),
-      {
-        'last_message_time': time,
-        'updated_by': currentUserId, // Track who updated
-      },
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
-    await sendNotificationIfNeeded(user, msg, type, currentUserId);
-    debugPrint('✅ Message sent in isolated conversation: $chatId');
-  }
-
-  // Listen to real-time updates for a specific conversation
-  Stream<DocumentSnapshot> getConversationMetadata(String chatId) {
-    return FirebaseFirestore.instance
-        .collection('Hamid_chats')
-        .doc(chatId)
-        .snapshots();
-  }
+  // Future<void> sendMessageOptimized(
+  //   ChatUser user,
+  //   String msg,
+  //   Type type, {
+  //   Function(Message)? onMessageCreated,
+  // }) async {
+  //   final time = DateTime.now().millisecondsSinceEpoch.toString();
+  //   final currentUserId = FirebaseService.me!.id;
+  //
+  //   // Create message object
+  //   final Message message = Message(
+  //     toId: user.id,
+  //     msg: msg,
+  //     read: '',
+  //     type: type,
+  //     fromId: currentUserId,
+  //     sent: time,
+  //   );
+  //
+  //   // Notify UI immediately
+  //   onMessageCreated?.call(message);
+  //
+  //   // Update in Firestore
+  //   final batch = FirebaseFirestore.instance.batch();
+  //
+  //   // Add message
+  //   // Add message to specific conversation only
+  //   final chatId = getConversationId(currentUserId, user.id);
+  //   final messageRef = FirebaseFirestore.instance
+  //       .collection('Hamid_chats')
+  //       .doc(chatId)
+  //       .collection('messages')
+  //       .doc(time);
+  //
+  //   batch.set(messageRef, message.toJson());
+  //
+  //   // Update only the involved users' last message time
+  //   // For sender (current user)
+  //   batch.set(
+  //     FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(currentUserId)
+  //         .collection('my_users')
+  //         .doc(user.id),
+  //     {
+  //       'last_message_time': time,
+  //       'updated_by': currentUserId, // Track who updated
+  //     },
+  //     SetOptions(merge: true),
+  //   );
+  //
+  //   // For receiver
+  //   batch.set(
+  //     FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(user.id)
+  //         .collection('my_users')
+  //         .doc(currentUserId),
+  //     {
+  //       'last_message_time': time,
+  //       'updated_by': currentUserId, // Track who updated
+  //     },
+  //     SetOptions(merge: true),
+  //   );
+  //
+  //   await batch.commit();
+  //   await sendNotificationIfNeeded(user, msg, type, currentUserId, lastMessageTime!);
+  //   debugPrint('✅ Message sent in isolated conversation: $chatId');
+  // }
+  //
+  // // Listen to real-time updates for a specific conversation
+  // Stream<DocumentSnapshot> getConversationMetadata(String chatId) {
+  //   return FirebaseFirestore.instance
+  //       .collection('Hamid_chats')
+  //       .doc(chatId)
+  //       .snapshots();
+  // }
 
   Future<void> createUser({
     required String name,
@@ -858,7 +867,7 @@ class ChatRepository {
     String msg,
     Type type,
     String currentUserId,
-      {String? messageTimestamp}
+      String messageTimestamp
   ) => FirebaseService.sendNotificationIfNeeded(user, msg, type, currentUserId, messageTimestamp);
 
   Future<void> sendFirstMessage(ChatUser user, String msg, Type type) =>
