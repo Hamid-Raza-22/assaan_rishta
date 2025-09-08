@@ -1,0 +1,81 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+
+default_platform(:android)
+
+platform :android do
+
+  desc "Build APK for testing"
+  lane :build_apk do
+    gradle(task: "clean assembleRelease")
+  end
+
+  desc "Build AAB (Android App Bundle) for Play Store"
+  lane :build_aab do
+    gradle(task: "clean bundleRelease")
+  end
+
+  desc "Deploy to Play Store Internal Testing Track"
+  lane :internal do
+    # Build the app bundle
+    gradle(task: "clean bundleRelease")
+
+    # Upload to internal testing track
+    upload_to_play_store(
+      track: 'internal',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy to Play Store Alpha Track"
+  lane :alpha do
+    gradle(task: "clean bundleRelease")
+
+    upload_to_play_store(
+      track: 'alpha',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy to Play Store Beta Track"
+  lane :beta do
+    gradle(task: "clean bundleRelease")
+
+    upload_to_play_store(
+      track: 'beta',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy to Play Store Production"
+  lane :deploy do
+    gradle(task: "clean bundleRelease")
+
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy to Production with Release Notes"
+  lane :deploy_with_notes do |options|
+    gradle(task: "clean bundleRelease")
+
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      release_notes: {
+        'en-US' => options[:notes] || 'Bug fixes and improvements'
+      }
+    )
+  end
+
+  desc "Promote from Beta to Production"
+  lane :promote_to_production do
+    upload_to_play_store(
+      track: 'beta',
+      track_promote_to: 'production'
+    )
+  end
+
+end
