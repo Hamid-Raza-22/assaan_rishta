@@ -7,11 +7,11 @@ import '../core/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 
-
 class FilterController extends BaseController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   final userManagementUseCases = Get.find<UserManagementUseCase>();
   final searchTEC = TextEditingController();
+  final userIdSearchTEC = TextEditingController(); // New controller for User ID search
   final scrollController = ScrollController();
 
   List<ProfilesList> profileList = [];
@@ -62,6 +62,7 @@ class FilterController extends BaseController {
   Rx<bool> isReloadMore = false.obs;
 
   Rx<bool> isFilterApplied = false.obs;
+  Rx<bool> isSearchByUserId = false.obs; // New flag for User ID search
 
   @override
   void onInit() {
@@ -84,7 +85,10 @@ class FilterController extends BaseController {
         isFirstLoad.value = false;
         isReloadMore.value = true;
         update();
-        if (isFilterApplied.isTrue) {
+        if (isSearchByUserId.isTrue) {
+          // Don't load more data for User ID search as it returns single result
+          return;
+        } else if (isFilterApplied.isTrue) {
           getAllProfilesByFilter(page: pageNo);
         } else {
           getAllProfiles(page: pageNo);
@@ -93,7 +97,19 @@ class FilterController extends BaseController {
     }
   }
 
-  ///Apis
+
+
+  ///Clear search functionality
+  clearSearch() {
+    isSearchByUserId.value = false;
+    userIdSearchTEC.clear();
+    isFirstLoad.value = true;
+    profileList.clear();
+    update();
+    getAllProfiles(page: 1);
+  }
+
+  ///Existing Apis
   Future<void> getAllProfilesByFilter({
     required int page,
     BuildContext? context,
@@ -105,6 +121,7 @@ class FilterController extends BaseController {
     }
 
     isFilterApplied.value = true;
+    isSearchByUserId.value = false; // Reset search flag
 
     ProfileFilter filter = ProfileFilter(
       userId: userManagementUseCases.getUserId(),
@@ -145,6 +162,10 @@ class FilterController extends BaseController {
       profileList = [];
       isLoading.value = true;
     }
+
+    // Reset search flags when getting all profiles
+    isSearchByUserId.value = false;
+
     final response = await userManagementUseCases.getAllFeaturedProfiles(
       pageNo: page ?? 1,
       pageLimit: "12",
@@ -243,6 +264,7 @@ class FilterController extends BaseController {
 
   clearAllFilters() {
     isFilterApplied.value = false;
+    isSearchByUserId.value = false; // Reset search flag
     caste = "".obs;
     ageFrom = "".obs;
     ageTo = "".obs;
@@ -253,6 +275,7 @@ class FilterController extends BaseController {
     gender = "".obs;
     maritalStatus = "".obs;
     religion = "".obs;
+    userIdSearchTEC.clear(); // Clear search field
     isFirstLoad.value = true;
     update();
     getAllProfiles(page: 1);
@@ -264,5 +287,13 @@ class FilterController extends BaseController {
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
+  }
+
+  @override
+  void onClose() {
+    searchTEC.dispose();
+    userIdSearchTEC.dispose();
+    scrollController.dispose();
+    super.onClose();
   }
 }

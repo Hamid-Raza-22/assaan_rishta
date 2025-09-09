@@ -9,6 +9,8 @@ class ProfileFilter {
   int? pageNumber;
   int? pageSize;
   int? userId;
+  String? searchUserId; // New field for user ID search
+
 
   ProfileFilter({
     this.ageFrom,
@@ -21,6 +23,7 @@ class ProfileFilter {
     this.pageNumber,
     this.pageSize,
     this.userId,
+    this.searchUserId, // New field for user ID search
   });
 
   ProfileFilter.fromJson(Map<String, dynamic> json) {
@@ -34,6 +37,7 @@ class ProfileFilter {
     pageNumber = json['pageNumber'];
     pageSize = json['PageSize'];
     userId = json['userId'];
+    searchUserId = json['searchUserId']; // New field for user ID search
   }
 
   Map<String, dynamic> toJson() {
@@ -48,6 +52,7 @@ class ProfileFilter {
     data['pageNumber'] = pageNumber;
     data['PageSize'] = pageSize;
     data['userId'] = userId;
+    data['searchUserId'] = searchUserId; // New field for user ID search
     return data;
   }
 }
