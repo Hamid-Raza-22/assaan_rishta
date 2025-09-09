@@ -7,6 +7,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../core/export.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/filter_viewmodel.dart';
+import 'package:flutter/services.dart';
 import '../../widgets/export.dart';
 import '../../core/routes/app_routes.dart';
 import '../user_details/user_details_view.dart';
@@ -37,44 +38,52 @@ class FilterView extends GetView<FilterController> {
                   icon: const Icon(
                     Icons.filter_list_sharp,
                   ),
-                )
+                ),
+                IconButton(
+                  onPressed: () {
+                    showSearchBottomSheet(context);
+                  },
+                  icon: const Icon(
+                    Icons.search,
+                  ),
+                ),
               ],
             ),
           ),
           body: controller.isLoading.isFalse
               ? controller.profileList.isNotEmpty
-                  ? ListView.builder(
-                      controller: controller.scrollController,
-                      itemCount: controller.profileList.length +
-                          (controller.isReloadMore.value ? 1 : 0),
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      physics: const ScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        if (index == controller.profileList.length) {
-                          return const SizedBox(
-                            height: 200,
-                            width: double.infinity,
-                            child: Align(
-                              alignment: Alignment.center,
-                              child: CircularProgressIndicator(
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          );
-                        } else {
-                          return filterItem(context, index);
-                        }
-                      },
-                    )
-                  : const Center(
-                      child: AppText(
-                        text: "No Record Found",
-                        color: AppColors.blackColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    )
+              ? ListView.builder(
+            controller: controller.scrollController,
+            itemCount: controller.profileList.length +
+                (controller.isReloadMore.value ? 1 : 0),
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            physics: const ScrollPhysics(),
+            itemBuilder: (context, index) {
+              if (index == controller.profileList.length) {
+                return const SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryColor,
+                    ),
+                  ),
+                );
+              } else {
+                return filterItem(context, index);
+              }
+            },
+          )
+              : const Center(
+            child: AppText(
+              text: "No Record Found",
+              color: AppColors.blackColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          )
               : filterShimmer(context),
         );
       },
@@ -228,14 +237,6 @@ class FilterView extends GetView<FilterController> {
                       fontSize: 18,
                       onTap: () {
                         Get.toNamed(AppRoutes.USER_DETAILS_VIEW, arguments: user.userId);
-
-                        //   Get.to(
-                      //     () => const UserDetailsView(),
-                      //     binding: AppBindings(),
-                      //     transition: Transition.downToUp,
-                      //     duration: const Duration(milliseconds: 500),
-                      //     arguments: user.userId,
-                      //   );
                       },
                     ),
                     const SizedBox(height: 30),
@@ -296,9 +297,123 @@ class FilterView extends GetView<FilterController> {
     );
   }
 
+  showSearchBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.whiteColor,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SingleChildScrollView(
+          padding: EdgeInsets.only( // Add this padding
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Padding( // Wrap Column with Padding for horizontal and vertical
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 20),
+                const AppText(
+                  text: "Search by User ID",
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.blackColor,
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: controller.userIdSearchTEC,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  decoration: InputDecoration(
+                    hintText: 'Enter User ID',
+                    hintStyle: GoogleFonts.poppins(
+                      color: AppColors.greyColor,
+                      fontSize: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.greyColor,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.greyColor,
+                        width: 1,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                CustomButton(
+                  text: "Search",
+                  isGradient: true,
+                  fontColor: AppColors.whiteColor,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18,
+                  onTap: () {
+                    if (controller.userIdSearchTEC.text.trim().isNotEmpty) {
+                      Navigator.pop(context);
+                      Get.toNamed(AppRoutes.USER_DETAILS_VIEW,
+                          arguments: controller.userIdSearchTEC.text.trim());
+                      controller.clearSearch();
+                    } else {
+                      Get.snackbar(
+                        'Please Enter a User ID',
+                        'User ID cannot be empty',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                CustomButton(
+                  text: "Clear Search",
+                  isGradient: false,
+                  fontColor: AppColors.whiteColor,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18,
+                  onTap: () {
+                    controller.clearSearch();
+                    Navigator.pop(context);
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   showFilterBottomSheet(BuildContext context) {
     List<String> ageFromList =
-        List.generate(33, (index) => (18 + index).toString());
+    List.generate(33, (index) => (18 + index).toString());
 
     showModalBottomSheet(
       context: context,
@@ -310,179 +425,184 @@ class FilterView extends GetView<FilterController> {
       ),
       builder: (context) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16.0,
-            vertical: 16,
+          padding: EdgeInsets.only( // Add this padding
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 30),
-              CustomDropdown<String>.search(
-                hintText:
-                    controller.caste.isEmpty ? 'Cast' : controller.caste.value,
-                items: controller.castNameList,
-                onChanged: (value) {
-                  controller.caste.value = value!;
-                  controller.update();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.caste.value),
+          child: Padding( // Wrap Column with Padding for horizontal and vertical
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 30),
+                CustomDropdown<String>.search(
+                  hintText:
+                  controller.caste.isEmpty ? 'Cast' : controller.caste.value,
+                  items: controller.castNameList,
+                  onChanged: (value) {
+                    controller.caste.value = value!;
+                    controller.update();
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.caste.value),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: CustomDropdown<String>(
-                      hintText: controller.ageFrom.isEmpty
-                          ? 'Age From'
-                          : controller.ageFrom.value,
-                      items: ageFromList,
-                      onChanged: (value) {
-                        controller.ageFrom.value = value!;
-                        controller.update();
-                      },
-                      decoration: basicInfoDecoration(
-                        hintStyle: getHintStyle(controller.ageFrom.value),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: CustomDropdown<String>(
+                        hintText: controller.ageFrom.isEmpty
+                            ? 'Age From'
+                            : controller.ageFrom.value,
+                        items: ageFromList,
+                        onChanged: (value) {
+                          controller.ageFrom.value = value!;
+                          controller.update();
+                        },
+                        decoration: basicInfoDecoration(
+                          hintStyle: getHintStyle(controller.ageFrom.value),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 1,
-                    child: CustomDropdown<String>(
-                      hintText: controller.ageTo.isEmpty
-                          ? 'Age To'
-                          : controller.ageTo.value,
-                      items: ageFromList,
-                      onChanged: (value) {
-                        controller.ageTo.value = value!;
-                        controller.update();
-                      },
-                      decoration: basicInfoDecoration(
-                        hintStyle: getHintStyle(controller.ageTo.value),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 1,
+                      child: CustomDropdown<String>(
+                        hintText: controller.ageTo.isEmpty
+                            ? 'Age To'
+                            : controller.ageTo.value,
+                        items: ageFromList,
+                        onChanged: (value) {
+                          controller.ageTo.value = value!;
+                          controller.update();
+                        },
+                        decoration: basicInfoDecoration(
+                          hintStyle: getHintStyle(controller.ageTo.value),
+                        ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                CustomDropdown<String>(
+                  hintText: controller.gender.isEmpty
+                      ? 'Gender'
+                      : controller.gender.value,
+                  items: const ["Male", "Female"],
+                  onChanged: (value) {
+                    controller.gender.value = value!;
+                    controller.update();
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.gender.value),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              CustomDropdown<String>(
-                hintText: controller.gender.isEmpty
-                    ? 'Gender'
-                    : controller.gender.value,
-                items: const ["Male", "Female"],
-                onChanged: (value) {
-                  controller.gender.value = value!;
-                  controller.update();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.gender.value),
                 ),
-              ),
-              const SizedBox(height: 10),
-              CustomDropdown<AllCountries>.search(
-                hintText:
-                    controller.country.isEmpty ? 'Country' : controller.country,
-                items: controller.countryList,
-                onChanged: (value) {
-                  controller.country = '${value?.name}';
-                  controller.getAllStates(value?.id, context);
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.country),
+                const SizedBox(height: 10),
+                CustomDropdown<AllCountries>.search(
+                  hintText:
+                  controller.country.isEmpty ? 'Country' : controller.country,
+                  items: controller.countryList,
+                  onChanged: (value) {
+                    controller.country = '${value?.name}';
+                    controller.getAllStates(value?.id, context);
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.country),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              CustomDropdown<AllStates>.search(
-                hintText: controller.state.value.isEmpty
-                    ? 'State'
-                    : controller.state.value,
-                items: controller.stateList,
-                onChanged: (value) {
-                  controller.state.value = '${value?.name}';
-                  controller.getAllCities(value!.id, context);
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.state.value),
+                const SizedBox(height: 10),
+                CustomDropdown<AllStates>.search(
+                  hintText: controller.state.value.isEmpty
+                      ? 'State'
+                      : controller.state.value,
+                  items: controller.stateList,
+                  onChanged: (value) {
+                    controller.state.value = '${value?.name}';
+                    controller.getAllCities(value!.id, context);
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.state.value),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              CustomDropdown<AllCities>.search(
-                hintText: controller.city.value.isEmpty
-                    ? 'City'
-                    : controller.city.value,
-                items: controller.cityList,
-                onChanged: (value) {
-                  controller.city.value = '${value?.name}';
-                  controller.cityId.value = value!.id.toString();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.city.value),
+                const SizedBox(height: 10),
+                CustomDropdown<AllCities>.search(
+                  hintText: controller.city.value.isEmpty
+                      ? 'City'
+                      : controller.city.value,
+                  items: controller.cityList,
+                  onChanged: (value) {
+                    controller.city.value = '${value?.name}';
+                    controller.cityId.value = value!.id.toString();
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.city.value),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              CustomDropdown<String>(
-                hintText: controller.maritalStatus.isEmpty
-                    ? 'Marital Status'
-                    : controller.maritalStatus.value,
-                items: controller.maritalStatusList,
-                onChanged: (value) {
-                  controller.maritalStatus.value = value!;
-                  controller.update();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.maritalStatus.value),
+                const SizedBox(height: 10),
+                CustomDropdown<String>(
+                  hintText: controller.maritalStatus.isEmpty
+                      ? 'Marital Status'
+                      : controller.maritalStatus.value,
+                  items: controller.maritalStatusList,
+                  onChanged: (value) {
+                    controller.maritalStatus.value = value!;
+                    controller.update();
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.maritalStatus.value),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              CustomDropdown<String>(
-                hintText: controller.religion.isEmpty
-                    ? 'Religion'
-                    : controller.religion.value,
-                items: controller.religionList,
-                onChanged: (value) {
-                  controller.religion.value = value!;
-                  controller.update();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.religion.value),
+                const SizedBox(height: 10),
+                CustomDropdown<String>(
+                  hintText: controller.religion.isEmpty
+                      ? 'Religion'
+                      : controller.religion.value,
+                  items: controller.religionList,
+                  onChanged: (value) {
+                    controller.religion.value = value!;
+                    controller.update();
+                  },
+                  decoration: basicInfoDecoration(
+                    hintStyle: getHintStyle(controller.religion.value),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              CustomButton(
-                text: "Apply Filter",
-                isGradient: true,
-                fontColor: AppColors.whiteColor,
-                fontWeight: FontWeight.w500,
-                fontSize: 18,
-                onTap: () {
-                  controller
-                      .getAllProfilesByFilter(context: context, page: 1)
-                      .then((onValue) {
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
-              CustomButton(
-                text: "Clear Filter",
-                isGradient: false,
-                fontColor: AppColors.whiteColor,
-                fontWeight: FontWeight.w500,
-                fontSize: 18,
-                onTap: () {
-                  controller.clearAllFilters();
-                  Navigator.pop(context); // Close the bottom sheet
-                },
-              ),
-              const SizedBox(height: 10),
-            ],
+                const SizedBox(height: 30),
+                CustomButton(
+                  text: "Apply Filter",
+                  isGradient: true,
+                  fontColor: AppColors.whiteColor,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18,
+                  onTap: () {
+                    controller
+                        .getAllProfilesByFilter(context: context, page: 1)
+                        .then((onValue) {
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                CustomButton(
+                  text: "Clear Filter",
+                  isGradient: false,
+                  fontColor: AppColors.whiteColor,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18,
+                  onTap: () {
+                    controller.clearAllFilters();
+                    Navigator.pop(context);
+                  },
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
         );
       },

@@ -41,11 +41,19 @@ class UserDetailsView extends GetView<UserDetailsController> {
               );
             }
 
-            // Check if profile data is empty/null
-            // if (controller.profileDetails.value.firstName == null ||
-            //     controller.profileDetails.value.firstName!.isEmpty) {
-            //   return _buildErrorState(controller);
-            // }
+            // ADDED: Check if user details are valid
+            if (controller.profileDetails.value.firstName == null || controller.profileDetails.value.lastName == null) {
+              return const Center(
+                child: AppText(
+                  text: "User not found",
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.greyColor,
+                ),
+              );
+            }
+
+
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -65,52 +73,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
       },
     );
   }
-  // Add error state widget
-  // Widget _buildErrorState(UserDetailsController controller) {
-  //   return Center(
-  //     child: Column(
-  //       mainAxisAlignment: MainAxisAlignment.center,
-  //       children: [
-  //         const Icon(
-  //           Icons.error_outline,
-  //           size: 80,
-  //           color: AppColors.greyColor,
-  //         ),
-  //         const SizedBox(height: 16),
-  //         const AppText(
-  //           text: "Profile not found",
-  //           fontSize: 18,
-  //           fontWeight: FontWeight.w500,
-  //           color: AppColors.greyColor,
-  //         ),
-  //         const SizedBox(height: 8),
-  //         AppText(
-  //           text: "Profile ID: ${Get.arguments ?? 'Not provided'}",
-  //           fontSize: 14,
-  //           color: AppColors.greyColor,
-  //         ),
-  //         const SizedBox(height: 20),
-  //         ElevatedButton(
-  //           onPressed: () {
-  //             // Retry loading
-  //             controller.getProfileDetails();
-  //           },
-  //           style: ElevatedButton.styleFrom(
-  //             backgroundColor: AppColors.primaryColor,
-  //             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-  //           ),
-  //           child: const Text(
-  //             'Retry',
-  //             style: TextStyle(color: Colors.white),
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 
-
-// Updated getProfileImage method in user_details_view.dart
 
   getProfileImage(context) {
     // Check if user is logged in
@@ -242,36 +205,6 @@ class UserDetailsView extends GetView<UserDetailsController> {
     );
   }
 
-// Alternative version with share button in the row
-//   Widget _buildShareButton(BuildContext context) {
-//     return CustomButton(
-//       text: "Share",
-//       isGradient: false,
-//       backgroundColor: AppColors.whiteColor,
-//       fontColor: AppColors.primaryColor,
-//       fontWeight: FontWeight.w500,
-//       borderColor: AppColors.primaryColor,
-//      // borderWidth: 1.5,
-//       prefixIcon: const Padding(
-//         padding: EdgeInsets.only(right: 4.0),
-//         child: Icon(
-//           Icons.share,
-//           color: AppColors.primaryColor,
-//           size: 20,
-//         ),
-//       ),
-//       fontSize: 16,
-//       onTap: () => _shareProfile(context),
-//     );
-//   }
-
-// Share profile method
-// Updated _shareProfile method in user_details_view.dart
-
-
-// Updated share method for user_details_view.dart
-
-// Share profile method with proper deep link
 
   void _shareProfile(BuildContext context) async {
     final profileName = '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}';
@@ -345,102 +278,7 @@ Don't have the app? Download now:
   }
 
 
-// // Alternative: Generate a short shareable link
-//   Future<String?> _generateShareableLink(String profileId) async {
-//     // If you have a URL shortener service or Firebase Dynamic Links
-//     // you can generate a short link here
-//
-//     // For Firebase Dynamic Links (if you're using Firebase):
-//     /*
-//   try {
-//     final DynamicLinkParameters parameters = DynamicLinkParameters(
-//       uriPrefix: 'https://assaanrishta.page.link',
-//       link: Uri.parse('https://assaanrishta.com/profile/$profileId'),
-//       androidParameters: AndroidParameters(
-//         packageName: 'com.asan.rishta.matrimonial.asan_rishta',
-//         minimumVersion: 1,
-//       ),
-//       iosParameters: IOSParameters(
-//         bundleId: 'com.asan.rishta.matrimonial.asan_rishta',
-//         minimumVersion: '1.0.0',
-//       ),
-//       socialMetaTagParameters: SocialMetaTagParameters(
-//         title: 'View Profile on Assaan Rishta',
-//         description: 'Check out this amazing profile on Assaan Rishta matrimonial app',
-//       ),
-//     );
-//
-//     final dynamicLink = await FirebaseDynamicLinks.instance.buildShortLink(
-//       parameters,
-//       shortLinkType: ShortDynamicLinkType.unguessable,
-//     );
-//
-//     return dynamicLink.shortUrl.toString();
-//   } catch (e) {
-//     debugPrint('Error creating dynamic link: $e');
-//     return null;
-//   }
-//   */
-//
-//     // For now, return the regular link
-//     return 'https://assaanrishta.com/profile/$profileId';
-//   }
-//
-// // Copy link to clipboard (alternative to share)
-//   void _copyProfileLink(BuildContext context) {
-//     final profileId = controller.profileDetails.value.userId;
-//
-//     if (profileId != null) {
-//       final link = 'https://assaanrishta.com/profile/$profileId';
-//
-//       Clipboard.setData(ClipboardData(text: link)).then((_) {
-//         Get.snackbar(
-//           'Link Copied!',
-//           'Profile link has been copied to clipboard',
-//           snackPosition: SnackPosition.BOTTOM,
-//           backgroundColor: AppColors.greenColor,
-//           colorText: AppColors.whiteColor,
-//           duration: const Duration(seconds: 2),
-//         );
-//       });
-//     }
-//   }
-//
-// // Alternative method to directly open app or Play Store
-//   Future<void> _openAppOrPlayStore() async {
-//     final String packageName = 'com.asan.rishta.matrimonial.asan_rishta';
-//
-//     try {
-//       // Try to open app directly using package name
-//       final bool canLaunchApp = await canLaunchUrl(
-//           Uri.parse('package:$packageName')
-//       );
-//
-//       if (canLaunchApp) {
-//         // App is installed, open it
-//         await launchUrl(
-//           Uri.parse('package:$packageName'),
-//           mode: LaunchMode.externalApplication,
-//         );
-//       } else {
-//         // App not installed, open Play Store
-//         final playStoreUrl = 'https://play.google.com/store/apps/details?id=$packageName';
-//         await launchUrl(
-//           Uri.parse(playStoreUrl),
-//           mode: LaunchMode.externalApplication,
-//         );
-//       }
-//     } catch (e) {
-//       debugPrint("Error opening app: $e");
-//       // Fallback to Play Store
-//       final playStoreUrl = 'https://play.google.com/store/apps/details?id=$packageName';
-//       await launchUrl(
-//         Uri.parse(playStoreUrl),
-//         mode: LaunchMode.externalApplication,
-//       );
-//     }
-//   }
-// Updated message button methods (keeping your existing code)
+
 
   Widget _buildLoggedInMessageButton(BuildContext context) {
     return CustomButton(

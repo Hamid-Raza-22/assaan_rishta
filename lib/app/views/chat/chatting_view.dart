@@ -475,25 +475,85 @@ Future<void> showImageOptions() async {
       imageQuality: 70,
     );
 
+    if (image == null) return;
+
+    // Show confirmation for view-once images from the gallery
+    if (isViewOnce && source == ImageSource.gallery) {
+      final confirmed = await _showViewOnceConfirmationDialog(File(image.path));
+      if (!confirmed) {
+        return; // User cancelled
+      }
+    }
+
     if (image != null) {
       uploading.value = true;
-
-      if (isViewOnce) {
-        // Send as view-once image
-        await chatController.sendViewOnceImage(
-          useCase.getUserId().toString(),
-          File(image.path),
-        );
-      } else {
-        // Send as normal image
-        await chatController.sendImage(
-          useCase.getUserId().toString(),
-          File(image.path),
-        );
+      try {
+        if (isViewOnce) {
+          // Send as view-once image
+          await chatController.sendViewOnceImage(
+            useCase.getUserId().toString(),
+            File(image.path),
+          );
+        } else {
+          // Send as normal image
+          await chatController.sendImage(
+            useCase.getUserId().toString(),
+            File(image.path),
+          );
+        }
+      } finally {
+        uploading.value = false;
       }
-
-      uploading.value = false;
     }
+  }
+
+  Future<bool> _showViewOnceConfirmationDialog(File imageFile) async {
+    return await Get.dialog<bool>(
+      AlertDialog.adaptive(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.timelapse_rounded, color: Colors.orange),
+            SizedBox(width: 10),
+            Text('Send as View-Once?'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(imageFile, height: 150, fit: BoxFit.cover),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'This photo will disappear after it has been viewed once by the recipient.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Get.back(result: true),
+            icon: const Icon(Icons.send_rounded, size: 18),
+            label: const Text('Send'),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: AppColors.secondaryColor,
+            ),
+          ),
+        ],
+      ),
+    ) ?? false; // Return false if dialog is dismissed
   }
 
 
@@ -1156,6 +1216,8 @@ class _ChattingViewState extends State<ChattingView> {
 
 // Update _buildMessagesList method in chatting_view.dart
 
+// Update the _buildMessagesList method in chatting_view.dart to add spacing for reactions
+
   Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
     return Obx(() {
       final messages = controller.cachedMessages;
@@ -1171,14 +1233,15 @@ class _ChattingViewState extends State<ChattingView> {
       if (messages.isNotEmpty) {
         return Column(
           children: [
-            // Typing indicator at the top
-
             // Messages list
             Expanded(
               child: ListView.builder(
                 reverse: true,
                 itemCount: messages.length,
-                padding: EdgeInsets.only(top: chatMq.height * .01),
+                padding: EdgeInsets.only(
+                  top: chatMq.height * .01,
+                  bottom: 10, // Add bottom padding
+                ),
                 physics: const BouncingScrollPhysics(),
                 itemBuilder: (ctx, i) {
                   final message = messages[i];
@@ -1186,18 +1249,26 @@ class _ChattingViewState extends State<ChattingView> {
                   final isMe = currentUserId == message.fromId;
                   final currentUserAvatar = controller.currentUserProfile.value ?? AppConstants.profileImg;
 
-                  return ProfessionalMessageCard(
-                    message: message,
-                    pause: controller.paused.value,
-                    showUserAvatar: true,
-                    currentUserId: currentUserId,
-                    userAvatarUrl: isMe ? controller.currentUserImageUrl.value  : controller.userImageUrl,
-                    onReaction: (message, reaction) {
-                      // Handle reaction
-                    },
-                    onReply: (message) {
-                      controller._handleReply(message);
-                    },
+                  // Check if message has reactions to add extra spacing
+                  final hasReactions = message.reactions != null && message.reactions!.isNotEmpty;
+
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: hasReactions ? 12.0 : 0.0, // Extra padding if reactions exist
+                    ),
+                    child: ProfessionalMessageCard(
+                      message: message,
+                      pause: controller.paused.value,
+                      showUserAvatar: true,
+                      currentUserId: currentUserId,
+                      userAvatarUrl: isMe ? controller.currentUserImageUrl.value : controller.userImageUrl,
+                      onReaction: (message, reaction) {
+                        // Handle reaction
+                      },
+                      onReply: (message) {
+                        controller._handleReply(message);
+                      },
+                    ),
                   );
                 },
               ),
@@ -1207,8 +1278,7 @@ class _ChattingViewState extends State<ChattingView> {
               TypingIndicator(
                 isVisible: isTyping,
                 userName: controller.currentUserData.name,
-                userAvatarUrl: controller.userImageUrl, // Add this line
-
+                userAvatarUrl: controller.userImageUrl,
               ),
           ],
         );
@@ -1216,38 +1286,7 @@ class _ChattingViewState extends State<ChattingView> {
 
       return _buildEmptyState(controller);
     });
-  }// Add these methods to handle reactions and replies
-//   void _handleReaction(Message message, String reaction) {
-//     // You'll need to implement reaction functionality in your ChatRepository
-//     // For now, just show a snackbar
-//     Get.snackbar(
-//       'Reaction Added',
-//       'You reacted with $reaction',
-//       duration: Duration(seconds: 1),
-//     );
-//   }
-
-  // Enhanced reply handling method
-  // void _handleReply(Message message) {
-  //   final isMe = controller.useCase.getUserId().toString() == message.fromId;
-  //   final senderName = isMe ? 'You' : controller.currentUserData.name;
-  //
-  //   // Create a professional reply format
-  //   final replyText = message.msg.length > 30
-  //       ? message.msg.substring(0, 30) + '...'
-  //       : message.msg;
-  //
-  //   // Set the reply in text field with proper formatting
-  //   controller.textController.text = '↪️ Replying to $senderName: "$replyText"\n\n';
-  //
-  //   // Move cursor to end
-  //   controller.textController.selection = TextSelection.fromPosition(
-  //     TextPosition(offset: controller.textController.text.length),
-  //   );
-  //
-  //   // Show a small feedback
-  //   HapticFeedback.lightImpact();
-  // }
+  }
   Widget _buildEmptyState(ChattingViewController controller) {
     return Center(
       child: Column(
@@ -1400,6 +1439,7 @@ class _ChattingViewState extends State<ChattingView> {
               // Attachment button
               GestureDetector(
                 onTap: controller.showImageOptions,
+                // onTap: controller.showImageOptions,
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -1407,7 +1447,8 @@ class _ChattingViewState extends State<ChattingView> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    Icons.attach_file_rounded,
+                    Icons.camera_alt,
+                    // Icons.attach_file_rounded,
                     color: AppColors.secondaryColor,
                     size: 24,
                   ),
