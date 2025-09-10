@@ -36,6 +36,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   final bool? initialDeletedStatus;
   final replyingTo = Rxn<Message>();
   final replyPreview = ''.obs;
+  final isSelectionMode = false.obs;
+  final selectedMessages = <Message>[].obs;
+  late ScrollController scrollController;
+  // Add flag to track keyboard state
+  final RxBool isKeyboardVisible = false.obs;
   ChattingViewController({
     required this.user,
     this.initialBlockedStatus,
@@ -87,6 +92,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   void onInit() {
     super.onInit();
     // Add disposal flag
+    scrollController = ScrollController();
+    // Listen to keyboard visibility
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _listenToKeyboardVisibility();
+    });
    _isDisposed = false;
     WidgetsBinding.instance.addObserver(this);
     currentUID = useCase.getUserId().toString();
@@ -108,6 +118,246 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     _isActiveController = true;
     _markMessagesAsDeliveredOnEntry();
     _initializeChat();
+  }
+  void _listenToKeyboardVisibility() {
+    final bottomInset = MediaQuery.of(Get.context!).viewInsets.bottom;
+    isKeyboardVisible.value = bottomInset > 0;
+  }
+  // Multi-select methods
+  void enterSelectionMode(Message initialMessage) {
+    isSelectionMode.value = true;
+    selectedMessages.clear();
+    selectedMessages.add(initialMessage);
+    HapticFeedback.lightImpact();
+    // Auto-scroll to selected message after keyboard closes
+    _scrollToSelectedMessage(initialMessage);// Dismiss keyboard first
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    // Wait for keyboard to close, then scroll to selected message
+    Future.delayed(const Duration(milliseconds: 400), () {
+      _scrollToSelectedMessage(initialMessage);
+    });  }
+
+  void exitSelectionMode() {
+    isSelectionMode.value = false;
+    selectedMessages.clear();
+    HapticFeedback.lightImpact();
+  }
+
+  void toggleMessageSelection(Message message) {
+    if (selectedMessages.contains(message)) {
+      selectedMessages.remove(message);
+      if (selectedMessages.isEmpty) {
+        exitSelectionMode();
+      }
+    } else {
+      selectedMessages.add(message);
+      _scrollToSelectedMessage(message);
+    }
+    HapticFeedback.selectionClick();
+  }
+// Fix 3: Add scroll to message method
+// Fix 5: Improved scroll to selected message
+  void _scrollToSelectedMessage(Message message) {
+    if (!scrollController.hasClients || cachedMessages.isEmpty) return;
+
+    // Find message index in the list
+    final messageIndex = cachedMessages.indexOf(message);
+    if (messageIndex == -1) return;
+
+    // Calculate position - since ListView is reversed, we need to calculate from bottom
+    const double estimatedItemHeight = 100.0; // Adjust based on your message height
+    final double listHeight = scrollController.position.viewportDimension;
+
+    // For reversed ListView, index 0 is at the bottom
+    final double targetPosition = messageIndex * estimatedItemHeight;
+
+    // Ensure the selected message is visible in the viewport
+    final double currentPosition = scrollController.offset;
+    final double messageTop = targetPosition;
+    final double messageBottom = messageTop + estimatedItemHeight;
+
+    // Only scroll if message is not fully visible
+    if (messageTop < currentPosition || messageBottom > currentPosition + listHeight) {
+      scrollController.animateTo(
+        targetPosition,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+  bool isMessageSelected(Message message) {
+    return selectedMessages.contains(message);
+  }
+
+  void selectAllMessages() {
+    selectedMessages.clear();
+    selectedMessages.addAll(cachedMessages);
+    HapticFeedback.lightImpact();
+  }
+
+  void deselectAllMessages() {
+    selectedMessages.clear();
+    exitSelectionMode();
+    HapticFeedback.lightImpact();
+  }
+
+  // Bulk actions
+  Future<void> deleteSelectedMessages() async {
+    if (selectedMessages.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete ${selectedMessages.length} messages?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirmed) {
+      showLoading.value = true;
+      try {
+        for (final message in selectedMessages) {
+          await chatController.deleteMessage(message);
+        }
+        exitSelectionMode();
+        AppUtils.successData(
+          title: "Deleted",
+          message: '${selectedMessages.length} messages deleted',
+        );
+      } catch (e) {
+        AppUtils.failedData(
+          title: "Error",
+          message: 'Failed to delete some messages',
+        );
+      } finally {
+        showLoading.value = false;
+      }
+    }
+  }
+
+  Future<void> copySelectedMessages() async {
+    if (selectedMessages.isEmpty) return;
+
+    // Sort messages by time
+    final sortedMessages = List<Message>.from(selectedMessages)
+      ..sort((a, b) => a.sent.compareTo(b.sent));
+
+    // Build text
+    final buffer = StringBuffer();
+    for (final message in sortedMessages) {
+      if (message.type == Type.text) {
+        final senderName = message.fromId == currentUID ? 'You' : user.name;
+        final time = MyDateUtill.getFormatedTime(
+          context: Get.context!,
+          time: message.sent,
+        );
+        buffer.writeln('[$time] $senderName: ${message.msg}');
+      }
+    }
+
+    if (buffer.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: buffer.toString()));
+      exitSelectionMode();
+      AppUtils.successData(
+        title: "Copied",
+        message: '${selectedMessages.length} messages copied',
+      );
+    }
+  }
+
+  Future<void> forwardSelectedMessages() async {
+    if (selectedMessages.isEmpty) return;
+
+    // Navigate to forward screen with selected messages
+    exitSelectionMode();
+    // Get.to(() => ForwardMessagesScreen(messages: selectedMessages.toList()));
+    AppUtils.successData(
+      title: "Forward",
+      message: 'Forward feature coming soon',
+    );
+  }
+
+  // Enhanced reply method with proper message identification
+  void _handleReply(Message message) {
+    final isMe = useCase.getUserId().toString() == message.fromId;
+    final senderName = isMe ? 'You' : (cachedUserData.value?.name ?? 'User');
+
+    // Store the actual message for reply
+    replyingTo.value = message;
+
+    // Extract clean message text (remove reply context if exists)
+    String cleanMessage = message.msg;
+    if (cleanMessage.contains('↪️')) {
+      final parts = cleanMessage.split('\n\n');
+      if (parts.length > 1) {
+        cleanMessage = parts.sublist(1).join('\n\n');
+      }
+    }
+
+    // Create preview text
+    final previewText = cleanMessage.length > 40
+        ? cleanMessage.substring(0, 40) + '...'
+        : cleanMessage;
+
+    replyPreview.value = '$senderName: $previewText';
+
+    // Focus text field
+    textController.text = '';
+    FocusScope.of(Get.context!).requestFocus(FocusNode());
+
+    HapticFeedback.lightImpact();
+  }
+
+  void _clearReply() {
+    replyingTo.value = null;
+    replyPreview.value = '';
+  }
+
+  // Enhanced send message with reply support
+  Future<void> _sendMessageWithReply() async {
+    final message = textController.text.trim();
+    if (message.isEmpty) return;
+
+    final finalMessage = replyingTo.value != null
+        ? '↪️ ${replyPreview.value}\n\n$message'
+        : message;
+
+    textController.clear();
+    _clearReply();
+
+    try {
+      if (cachedMessages.isEmpty) {
+        await createUserChat(finalMessage);
+      } else {
+        checkChatUser();
+        await sendRegularMessage(finalMessage);
+      }
+    } catch (e) {
+      debugPrint('Error sending message: $e');
+      textController.text = message;
+      Get.snackbar(
+        'Error',
+        'Failed to send message. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
   }
   // Add this method to fetch current user's profile
   Future<void> _fetchCurrentUserProfile() async {
@@ -316,61 +566,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   }
 // Add image picking methods
   // Enhanced reply method
-  void _handleReply(Message message) {
-    final isMe = useCase.getUserId().toString() == message.fromId;
-    final senderName = isMe ? 'You' : (cachedUserData.value?.name ?? 'User');
 
-    // Set reply context
-    replyingTo.value = message;
-
-    // Create preview text
-    final previewText = message.msg.length > 40
-        ? message.msg.substring(0, 40) + '...'
-        : message.msg;
-
-    replyPreview.value = '$senderName: $previewText';
-
-    // Focus text field
-    textController.text = '';
-    FocusScope.of(Get.context!).requestFocus(FocusNode());
-
-    HapticFeedback.lightImpact();
-  }
-  void _clearReply() {
-    replyingTo.value = null;
-    replyPreview.value = '';
-  }
-  // Enhanced send message with reply support
-  Future<void> _sendMessageWithReply() async {
-    final message = textController.text.trim();
-    if (message.isEmpty) return;
-
-    final finalMessage = replyingTo.value != null
-        ? '↪️ ${replyPreview.value}\n\n$message'
-        : message;
-
-    textController.clear();
-    _clearReply(); // Clear reply context
-
-    try {
-      if (cachedMessages.isEmpty) {
-        await createUserChat(finalMessage);
-      } else {
-        checkChatUser();
-        await sendRegularMessage(finalMessage);
-      }
-    } catch (e) {
-      debugPrint('Error sending message: $e');
-      textController.text = message; // Restore on error
-      Get.snackbar(
-        'Error',
-        'Failed to send message. Please try again.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
-  }
 
 Future<void> showImageOptions() async {
     showModalBottomSheet(
@@ -561,6 +757,7 @@ Future<void> showImageOptions() async {
   @override
   void onClose() {
     debugPrint('🗑️ Closing ChattingViewController for ${user.name}');
+    scrollController.dispose();
 
     // Mark controller as inactive
     _isActiveController = false;
@@ -898,6 +1095,13 @@ Future<void> showImageOptions() async {
   void hideEmoji() {
     if (showEmoji.value) {
       showEmoji.value = false;
+
+      // If in selection mode, ensure selected messages are visible after keyboard closes
+      if (isSelectionMode.value && selectedMessages.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _scrollToSelectedMessage(selectedMessages.first);
+        });
+      }
     }
   }
 
@@ -905,8 +1109,12 @@ Future<void> showImageOptions() async {
     if (showEmoji.value) {
       showEmoji.value = false;
     }
-  }
 
+    // If in selection mode, exit it when user starts typing
+    if (isSelectionMode.value) {
+      exitSelectionMode();
+    }
+  }
   // Navigation methods
   // void navigateBack() {
   //   // FIXED: Deactivate controller before navigating
@@ -1075,21 +1283,34 @@ class _ChattingViewState extends State<ChattingView> {
     final Size chatMq = MediaQuery.of(context).size;
 
     return PopScope(
-      canPop: !controller.showEmoji.value,
-      onPopInvoked: (_) => controller.hideEmoji(),
+      canPop: !controller.showEmoji.value && !controller.isSelectionMode.value,
+      onPopInvoked: (_) {
+        if (controller.isSelectionMode.value) {
+          controller.exitSelectionMode();
+        } else {
+          controller.hideEmoji();
+        }
+      },
       child: Scaffold(
         backgroundColor: AppColors.whiteColor,
         appBar: AppBar(
           backgroundColor: AppColors.whiteColor,
           surfaceTintColor: AppColors.whiteColor,
           automaticallyImplyLeading: false,
-          title: _buildAppBar(controller, chatMq),
+          // title: _buildAppBar(controller, chatMq),
+          title: Obx(() => controller.isSelectionMode.value
+              ? _buildSelectionModeAppBar(controller)
+              : _buildNormalAppBar(controller, chatMq)),
         ),
+        // ),
         body: Column(
           children: [
             Expanded(child: _buildMessagesList(controller, chatMq)),
             _buildUploadingIndicator(controller),
-            _buildBottomSection(controller),
+            // _buildBottomSection(controller),
+            Obx(() => controller.isSelectionMode.value
+                ? _buildSelectionModeActions(controller)
+                : _buildBottomSection(controller)),
             _buildEmojiPicker(controller, chatMq),
           ],
         ),
@@ -1097,8 +1318,85 @@ class _ChattingViewState extends State<ChattingView> {
     );
   }
 
-  // Move all build methods here as instance methods
-  Widget _buildAppBar(ChattingViewController controller, Size chatMq) {
+  // Selection mode app bar
+  Widget _buildSelectionModeAppBar(ChattingViewController controller) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.close, color: Colors.black),
+          onPressed: controller.exitSelectionMode,
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Obx(() => Text(
+            '${controller.selectedMessages.length} selected',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          )),
+        ),
+        // Select all button
+        IconButton(
+          icon: const Icon(Icons.select_all, color: Colors.black),
+          onPressed: controller.selectedMessages.length == controller.cachedMessages.length
+              ? controller.deselectAllMessages
+              : controller.selectAllMessages,
+        ),
+      ],
+    );
+  }
+
+  // Selection mode actions bar
+  Widget _buildSelectionModeActions(ChattingViewController controller) {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Copy
+          IconButton(
+            onPressed: controller.copySelectedMessages,
+            icon: const Icon(Icons.copy),
+            tooltip: 'Copy',
+          ),
+          // Forward
+          IconButton(
+            onPressed: controller.forwardSelectedMessages,
+            icon: const Icon(Icons.forward),
+            tooltip: 'Forward',
+          ),
+          // Delete
+          Obx(() {
+            final hasOwnMessages = controller.selectedMessages
+                .any((msg) => msg.fromId == controller.currentUID);
+            return IconButton(
+              onPressed: hasOwnMessages ? controller.deleteSelectedMessages : null,
+              icon: Icon(
+                Icons.delete,
+                color: hasOwnMessages ? Colors.red : Colors.grey,
+              ),
+              tooltip: 'Delete',
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // Normal app bar (existing _buildAppBar renamed)
+  Widget _buildNormalAppBar(ChattingViewController controller, Size chatMq) {
     return Obx(() {
       final userData = controller.currentUserData;
       final hasBlockedThem = controller.isBlocked.value;
@@ -1111,7 +1409,6 @@ class _ChattingViewState extends State<ChattingView> {
             onTap: controller.navigateBack,
             child: const Icon(Icons.arrow_back_ios, color: Colors.black),
           ),
-          // Only show user image if not blocked by them or deleted
           if (!isBlockedByThem && !isDelete && !hasBlockedThem)
             ClipRRect(
               borderRadius: BorderRadius.circular(chatMq.height * .3),
@@ -1133,22 +1430,8 @@ class _ChattingViewState extends State<ChattingView> {
                     size: 30,
                   ),
                 ),
-                placeholder: (c, url) => Container(
-                  height: chatMq.height * .05,
-                  width: chatMq.height * .05,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(chatMq.height * .3),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.person,
-                    color: Colors.grey,
-                    size: 30,
-                  ),
-                ),
               ),
             ),
-          // Add a placeholder if blocked or deleted
           if (isBlockedByThem || isDelete || hasBlockedThem)
             Container(
               height: chatMq.height * .05,
@@ -1158,13 +1441,12 @@ class _ChattingViewState extends State<ChattingView> {
                 borderRadius: BorderRadius.circular(chatMq.height * .3),
               ),
               child: const Icon(
-                CupertinoIcons.person_fill, // Using person_fill for a more solid look
+                CupertinoIcons.person_fill,
                 color: Colors.grey,
                 size: 30,
               ),
             ),
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1209,6 +1491,118 @@ class _ChattingViewState extends State<ChattingView> {
       );
     });
   }
+  // Move all build methods here as instance methods
+  // Widget _buildAppBar(ChattingViewController controller, Size chatMq) {
+  //   return Obx(() {
+  //     final userData = controller.currentUserData;
+  //     final hasBlockedThem = controller.isBlocked.value;
+  //     final isBlockedByThem = controller.isBlockedByOther.value;
+  //     final isDelete = controller.isDelete.value;
+  //
+  //     return Row(
+  //       children: [
+  //         GestureDetector(
+  //           onTap: controller.navigateBack,
+  //           child: const Icon(Icons.arrow_back_ios, color: Colors.black),
+  //         ),
+  //         // Only show user image if not blocked by them or deleted
+  //         if (!isBlockedByThem && !isDelete && !hasBlockedThem)
+  //           ClipRRect(
+  //             borderRadius: BorderRadius.circular(chatMq.height * .3),
+  //             child: CachedNetworkImage(
+  //               fit: BoxFit.cover,
+  //               height: chatMq.height * .05,
+  //               width: chatMq.height * .05,
+  //               imageUrl: controller.userImageUrl,
+  //               errorWidget: (c, url, e) => Container(
+  //                 height: chatMq.height * .05,
+  //                 width: chatMq.height * .05,
+  //                 decoration: BoxDecoration(
+  //                   color: Colors.grey[300],
+  //                   borderRadius: BorderRadius.circular(chatMq.height * .3),
+  //                 ),
+  //                 child: const Icon(
+  //                   CupertinoIcons.person,
+  //                   color: Colors.grey,
+  //                   size: 30,
+  //                 ),
+  //               ),
+  //               placeholder: (c, url) => Container(
+  //                 height: chatMq.height * .05,
+  //                 width: chatMq.height * .05,
+  //                 decoration: BoxDecoration(
+  //                   color: Colors.grey[200],
+  //                   borderRadius: BorderRadius.circular(chatMq.height * .3),
+  //                 ),
+  //                 child: const Icon(
+  //                   CupertinoIcons.person,
+  //                   color: Colors.grey,
+  //                   size: 30,
+  //                 ),
+  //               ),
+  //             ),
+  //           ),
+  //         // Add a placeholder if blocked or deleted
+  //         if (isBlockedByThem || isDelete || hasBlockedThem)
+  //           Container(
+  //             height: chatMq.height * .05,
+  //             width: chatMq.height * .05,
+  //             decoration: BoxDecoration(
+  //               color: Colors.grey[300],
+  //               borderRadius: BorderRadius.circular(chatMq.height * .3),
+  //             ),
+  //             child: const Icon(
+  //               CupertinoIcons.person_fill, // Using person_fill for a more solid look
+  //               color: Colors.grey,
+  //               size: 30,
+  //             ),
+  //           ),
+  //         const SizedBox(width: 12),
+  //
+  //         Expanded(
+  //           child: Column(
+  //             mainAxisAlignment: MainAxisAlignment.center,
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Text(
+  //                 userData.name,
+  //                 style: const TextStyle(
+  //                   color: Colors.black87,
+  //                   fontSize: 18,
+  //                   fontWeight: FontWeight.w500,
+  //                 ),
+  //                 overflow: TextOverflow.ellipsis,
+  //               ),
+  //               const SizedBox(height: 3),
+  //               if (!isBlockedByThem && !isDelete && !hasBlockedThem)
+  //                 Text(
+  //                   userData.isOnline
+  //                       ? 'Online'
+  //                       : MyDateUtill.getLastActiveTime(
+  //                     context: Get.context!,
+  //                     lastActive: userData.lastActive,
+  //                   ),
+  //                   style: const TextStyle(
+  //                     color: Colors.black54,
+  //                     fontSize: 15,
+  //                   ),
+  //                 ),
+  //             ],
+  //           ),
+  //         ),
+  //         if (hasBlockedThem || isBlockedByThem || hasBlockedThem)
+  //           const Padding(
+  //             padding: EdgeInsets.only(right: 10),
+  //             child: Icon(
+  //               Icons.block,
+  //               color: Colors.red,
+  //               size: 24,
+  //             ),
+  //           ),
+  //       ],
+  //     );
+  //   });
+  // }
 
 
 
@@ -1218,62 +1612,77 @@ class _ChattingViewState extends State<ChattingView> {
 
 // Update the _buildMessagesList method in chatting_view.dart to add spacing for reactions
 
+// Fix 7: Update ListView builder in ChattingView
   Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
     return Obx(() {
       final messages = controller.cachedMessages;
       final isLoading = controller.isInitialLoading.value;
       final isTyping = controller.isOtherUserTyping.value;
+      final isSelectionMode = controller.isSelectionMode.value;
 
       if (isLoading && messages.isEmpty) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
+        return const Center(child: CircularProgressIndicator());
       }
 
       if (messages.isNotEmpty) {
         return Column(
           children: [
-            // Messages list
             Expanded(
-              child: ListView.builder(
-                reverse: true,
-                itemCount: messages.length,
-                padding: EdgeInsets.only(
-                  top: chatMq.height * .01,
-                  bottom: 10, // Add bottom padding
-                ),
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (ctx, i) {
-                  final message = messages[i];
-                  final currentUserId = controller.useCase.getUserId().toString();
-                  final isMe = currentUserId == message.fromId;
-                  final currentUserAvatar = controller.currentUserProfile.value ?? AppConstants.profileImg;
-
-                  // Check if message has reactions to add extra spacing
-                  final hasReactions = message.reactions != null && message.reactions!.isNotEmpty;
-
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: hasReactions ? 12.0 : 0.0, // Extra padding if reactions exist
-                    ),
-                    child: ProfessionalMessageCard(
-                      message: message,
-                      pause: controller.paused.value,
-                      showUserAvatar: true,
-                      currentUserId: currentUserId,
-                      userAvatarUrl: isMe ? controller.currentUserImageUrl.value : controller.userImageUrl,
-                      onReaction: (message, reaction) {
-                        // Handle reaction
-                      },
-                      onReply: (message) {
-                        controller._handleReply(message);
-                      },
-                    ),
-                  );
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification scrollInfo) {
+                  // Update keyboard visibility when scrolling
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+                    controller.isKeyboardVisible.value = bottomInset > 0;
+                  });
+                  return false;
                 },
+                child: ListView.builder(
+                  controller: controller.scrollController,
+                  reverse: true,
+                  itemCount: messages.length,
+                  padding: EdgeInsets.only(
+                    top: chatMq.height * .01,
+                    bottom: 10,
+                  ),
+                  physics: const BouncingScrollPhysics(),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  itemBuilder: (ctx, i) {
+                    final message = messages[i];
+                    final currentUserId = controller.useCase.getUserId().toString();
+                    final isMe = currentUserId == message.fromId;
+                    final hasReactions = message.reactions != null && message.reactions!.isNotEmpty;
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: hasReactions ? 12.0 : 0.0,
+                      ),
+                      child: Obx(() => ProfessionalMessageCard(
+                        message: message,
+                        pause: controller.paused.value,
+                        showUserAvatar: true,
+                        currentUserId: currentUserId,
+                        userAvatarUrl: isMe ? controller.currentUserImageUrl.value : controller.userImageUrl,
+                        isSelected: controller.isMessageSelected(message),
+                        isSelectionMode: isSelectionMode,
+                        onSelectionToggle: controller.toggleMessageSelection,
+                        onMessageLongPress: (msg) {
+                          if (!isSelectionMode) {
+                            controller.enterSelectionMode(msg);
+                          }
+                        },
+                        onReaction: (message, reaction) {
+                          // Handle reaction
+                        },
+                        onReply: (message) {
+                          controller._handleReply(message);
+                        },
+                      )),
+                    );
+                  },
+                ),
               ),
             ),
-            // Typing indicator at the bottom, above input field
             if (isTyping)
               TypingIndicator(
                 isVisible: isTyping,
