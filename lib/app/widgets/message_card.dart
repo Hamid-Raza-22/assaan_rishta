@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:assaan_rishta/app/widgets/view_once_image_viewer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-import 'package:chatview/chatview.dart' as chatview;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
@@ -23,6 +21,9 @@ class ProfessionalMessageCard extends StatefulWidget {
   final Function(Message)? onMessageTap;
   final bool showMessageTime;
   final bool showUserAvatar;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final Function(Message)? onSelectionToggle;
   final String? userAvatarUrl;
   final Function(Message, String)? onReaction;
   final Function(Message)? onReply;
@@ -36,6 +37,9 @@ class ProfessionalMessageCard extends StatefulWidget {
     this.onMessageTap,
     this.showMessageTime = true,
     this.showUserAvatar = false,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelectionToggle,
     this.userAvatarUrl,
     this.onReaction,
     this.onReply,
@@ -54,7 +58,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
 
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
-
+  // Swipe animation
   @override
   void initState() {
     super.initState();
@@ -93,29 +97,75 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       });
     }
 
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: _buildMessageContainer(context, chatMq, theme, isMe),
-        );
+    // Wrap with Dismissible for swipe-to-reply
+    return Dismissible(
+      key: Key('message_${widget.message.sent}'),
+      direction: isMe ? DismissDirection.endToStart : DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        // Trigger reply
+        widget.onReply?.call(widget.message);
+        HapticFeedback.mediumImpact();
+        return false; // Don't actually dismiss
       },
+      background: Container(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        padding: EdgeInsets.symmetric(horizontal: 20),
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.secondaryColor.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.reply,
+            color: AppColors.secondaryColor,
+            size: 24,
+          ),
+        ),
+      ),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: _buildMessageContainer(context, chatMq, theme, isMe),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildMessageContainer(BuildContext context,
+  Widget _buildMessageContainer(
+      BuildContext context,
       Size chatMq,
       ThemeData theme,
-      bool isMe,) {
+      bool isMe,
+      ) {
     final isViewedOnce =
         widget.message.isViewOnce == true && widget.message.isViewed == true;
+    final isRepliedMessage = widget.message.msg.contains('↪️');
 
-    return Container(
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 200),
       margin: EdgeInsets.symmetric(
         horizontal: chatMq.width * 0.02,
         vertical: chatMq.height * 0.005,
       ),
+      // Selection highlighting without checkbox
+      decoration: widget.isSelected && widget.isSelectionMode
+          ? BoxDecoration(
+        color: AppColors.secondaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.secondaryColor.withOpacity(0.3),
+          width: 2,
+        ),
+      )
+          : null,
+      padding: widget.isSelected && widget.isSelectionMode
+          ? EdgeInsets.all(4)
+          : null,
       child: Row(
         mainAxisAlignment: isMe
             ? MainAxisAlignment.end
@@ -133,11 +183,19 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                 minWidth: chatMq.width * 0.1,
               ),
               child: Stack(
-                clipBehavior: Clip.none, // Allow reactions to overflow
+                clipBehavior: Clip.none,
                 children: [
                   // Main message bubble
                   GestureDetector(
                     onTap: () {
+                      // Handle selection mode tap
+                      if (widget.isSelectionMode) {
+                        widget.onSelectionToggle?.call(widget.message);
+                        HapticFeedback.selectionClick();
+                        return;
+                      }
+
+                      // Handle view once image
                       if (widget.message.type == Type.viewOnceImage &&
                           widget.message.isViewed != true &&
                           !isMe) {
@@ -148,11 +206,10 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                       HapticFeedback.selectionClick();
                     },
                     onLongPress: () {
-                      if (widget.message.type != Type.viewOnceImage) {
+                      if (!widget.isSelectionMode && widget.message.type != Type.viewOnceImage) {
                         _animationController.forward().then((_) {
                           _animationController.reverse();
                         });
-                        // Show overlay reactions on long press
                         _showQuickReactions(context, widget.message, isMe);
                         HapticFeedback.mediumImpact();
                       }
@@ -164,7 +221,12 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                       decoration: BoxDecoration(
                         gradient: isMe
                             ? LinearGradient(
-                          colors: [
+                          colors: isRepliedMessage
+                              ? [
+                            AppColors.secondaryColor.withOpacity(0.95),
+                            AppColors.secondaryColor.withOpacity(0.75),
+                          ]
+                              : [
                             AppColors.secondaryColor,
                             AppColors.secondaryColor.withOpacity(0.8),
                           ],
@@ -172,7 +234,12 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                           end: Alignment.bottomRight,
                         )
                             : LinearGradient(
-                          colors: [
+                          colors: isRepliedMessage
+                              ? [
+                            const Color(0xFFF0F4F8),
+                            const Color(0xFFE2E8F0),
+                          ]
+                              : [
                             const Color(0xFFF8F9FA),
                             const Color(0xFFE9ECEF),
                           ],
@@ -187,9 +254,18 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                             offset: const Offset(0, 2),
                           ),
                         ],
+                        // Add border for replied messages
+                        border: isRepliedMessage
+                            ? Border.all(
+                          color: isMe
+                              ? Colors.white.withOpacity(0.3)
+                              : AppColors.secondaryColor.withOpacity(0.2),
+                          width: 1,
+                        )
+                            : null,
                       ),
-                      child: _buildMessageContentWithoutReactions(
-                          context, chatMq, isMe),
+                      child: _buildMessageContentWithReply(
+                          context, chatMq, isMe, isRepliedMessage),
                     ),
                   ),
 
@@ -214,9 +290,109 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       ),
     );
   }
-
   // Quick reactions overlay (WhatsApp-style)
-  void _showQuickReactions(BuildContext context, Message message, bool isMe) {
+// Enhanced message content with reply visualization
+  Widget _buildMessageContentWithReply(
+      BuildContext context, Size chatMq, bool isMe, bool isRepliedMessage) {
+    String messageText = widget.message.msg;
+    String? replyContext;
+    String actualMessage = messageText;
+
+    // Parse reply if exists
+    if (isRepliedMessage) {
+      final parts = messageText.split('\n\n');
+      if (parts.length > 1) {
+        replyContext = parts[0].replaceFirst('↪️ ', '');
+        actualMessage = parts.sublist(1).join('\n\n');
+      }
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: chatMq.height * 0.012,
+        horizontal: chatMq.width * 0.04,
+      ),
+      child: Column(
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reply context if exists
+          if (replyContext != null)
+            Container(
+              margin: EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isMe
+                    ? Colors.white.withOpacity(0.2)
+                    : AppColors.secondaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border(
+                  left: BorderSide(
+                    color: isMe
+                        ? Colors.white.withOpacity(0.5)
+                        : AppColors.secondaryColor,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.reply,
+                    size: 14,
+                    color: isMe
+                        ? Colors.white.withOpacity(0.7)
+                        : AppColors.secondaryColor,
+                  ),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      replyContext,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: isMe
+                            ? Colors.white.withOpacity(0.8)
+                            : Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Actual message content
+          if (widget.message.type == Type.text)
+            SelectableText(
+              actualMessage,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                color: isMe ? Colors.white : const Color(0xFF2D3748),
+                height: 1.4,
+              ),
+              textAlign: TextAlign.start,
+            )
+          else
+            _buildMessageBody(context, isMe),
+
+          if (widget.showMessageTime) ...[
+            const SizedBox(height: 6),
+            _buildMessageMetadata(context, isMe),
+          ],
+        ],
+      ),
+    );
+  }
+  // Enhanced quick reactions with proper multi-select toggle
+  // Quick reactions overlay
+  void  _showQuickReactions(BuildContext context, Message message, bool isMe) {
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final position = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
@@ -230,10 +406,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
           children: [
             // Message options on top bar
             Positioned(
-              top: MediaQuery
-                  .of(context)
-                  .padding
-                  .top + 4,
+              top: MediaQuery.of(context).padding.top + 4,
               left: 20,
               right: 20,
               child: _buildTopBarOptions(context, message, isMe),
@@ -243,22 +416,19 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
             Positioned(
               top: position.dy - 100,
               left: isMe ? null : position.dx,
-              right: isMe ? MediaQuery
-                  .of(context)
-                  .size
-                  .width - position.dx - size.width : null,
+              right: isMe ? MediaQuery.of(context).size.width - position.dx - size.width : null,
               child: _buildQuickReactionBar(context, message),
             ),
 
             // Highlighted message
             Positioned(
-              top: position.dy-38,
+              top: position.dy - 38,
               left: position.dx,
               width: size.width,
               height: size.height,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.25),
+                  color: Colors.red.withOpacity(0.20),
                   borderRadius: _getBorderRadius(isMe),
                   border: Border.all(
                     color: Colors.white.withOpacity(0.3),
@@ -271,8 +441,9 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
         );
       },
     );
-  } // Top bar with message options (WhatsApp-style)
-  // Quick reaction bar (appears above message)
+  }
+
+
   Widget _buildQuickReactionBar(BuildContext context, Message message) {
     final reactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
     final chatController = Get.find<ChatViewModel>();
@@ -311,8 +482,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: hasReacted ? Colors.blue.withOpacity(0.1) : Colors
-                    .transparent,
+                color: hasReacted ? Colors.blue.withOpacity(0.1) : Colors.transparent,
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Text(
@@ -329,37 +499,77 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
   }
 
 // Updated edit dialog with better UI
+// Enhanced edit dialog that properly identifies the message to edit
   Future<void> _showEditDialog(BuildContext context, Message message) async {
-    String updatedMsg = message.msg;
-    final controller = TextEditingController(text: message.msg);
+    String originalMsg = message.msg;
+    String editableContent = originalMsg;
+    String? replyContext;
+
+    // Check if this is a replied message
+    if (originalMsg.contains('↪️')) {
+      final parts = originalMsg.split('\n\n');
+      if (parts.length > 1) {
+        replyContext = parts[0];
+        editableContent = parts.sublist(1).join('\n\n');
+      }
+    }
+
+    final controller = TextEditingController(text: editableContent);
+    String updatedMsg = editableContent;
 
     return showDialog(
       context: context,
-      builder: (BuildContext dialogContext) =>
-          AlertDialog(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Edit Message',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
+      builder: (BuildContext dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.edit, color: Colors.blue, size: 20),
             ),
-            content: Container(
+            const SizedBox(width: 12),
+            Text(
+              'Edit Message',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (replyContext != null) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border(
+                    left: BorderSide(
+                      color: AppColors.secondaryColor,
+                      width: 3,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  replyContext,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
@@ -378,45 +588,47 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                 ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.inter(color: Colors.grey[600]),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(dialogContext);
-                  if (updatedMsg
-                      .trim()
-                      .isNotEmpty && updatedMsg != message.msg) {
-                    await chatController.updateMessage(message, updatedMsg);
-                    HapticFeedback.lightImpact();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10),
-                ),
-                child: Text(
-                  'Update',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(color: Colors.grey[600]),
+            ),
           ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              if (updatedMsg.trim().isNotEmpty && updatedMsg != editableContent) {
+                final finalMessage = replyContext != null
+                    ? '$replyContext\n\n$updatedMsg'
+                    : updatedMsg;
+
+                await chatController.updateMessage(message, finalMessage);
+                HapticFeedback.lightImpact();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: Text(
+              'Update',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-  }
-// Delete confirmation dialog
+  }// Delete confirmation dialog
   void _showDeleteConfirmation(BuildContext context, Message message) {
     Get.dialog(
       AlertDialog(
@@ -447,7 +659,11 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       ),
     );
   }
+// Fix 1: Update _buildTopBarOptions in ProfessionalMessageCard
   Widget _buildTopBarOptions(BuildContext context, Message message, bool isMe) {
+    // Check if message can be edited
+    final bool canEdit = _canEditMessage(message, isMe);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -464,6 +680,15 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
+          // Select Multiple
+          _buildTopBarIcon(
+            Icons.checklist,
+                () {
+              Navigator.pop(context);
+              widget.onMessageLongPress?.call(message);
+            },
+          ),
+
           // Reply
           _buildTopBarIcon(
             Icons.reply,
@@ -473,22 +698,22 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
             },
           ),
 
-          // Copy (for text messages)
-          if (message.type == Type.text)
+          // Copy (for text messages only, not for view-once)
+          if (message.type == Type.text && !_isViewOnceMessage(message))
             _buildTopBarIcon(
               Icons.content_copy,
                   () => _copyMessage(context, message),
             ),
 
-          // Save (for images)
-          if (message.type == Type.image)
+          // Save (for regular images only, not view-once)
+          if (message.type == Type.image && !_isViewOnceMessage(message))
             _buildTopBarIcon(
               Icons.download,
                   () => _saveImage(context, message),
             ),
 
-          // Edit (for own text messages)
-          if (isMe && message.type == Type.text)
+          // Edit (only if can edit - excludes view-once messages)
+          if (canEdit)
             _buildTopBarIcon(
               Icons.edit,
                   () {
@@ -502,8 +727,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
             _buildTopBarIcon(
               Icons.delete,
                   () {
-                    // Navigator.pop(context);
-                    _showDeleteConfirmation(context, message);
+                _showDeleteConfirmation(context, message);
               },
               color: Colors.red,
             ),
@@ -512,13 +736,31 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
           _buildTopBarIcon(
             Icons.info_outline,
                 () {
-              // Navigator.pop(context);
               _showMessageInfo(context, message);
             },
           ),
         ],
       ),
     );
+  }
+// Fix 2: Add helper method to check if message can be edited
+  bool _canEditMessage(Message message, bool isMe) {
+    // Only owner can edit
+    if (!isMe) return false;
+
+    // Cannot edit view-once messages (both sent and viewed)
+    if (_isViewOnceMessage(message)) return false;
+
+    // Cannot edit non-text messages
+    if (message.type != Type.text) return false;
+
+    // Can edit regular text messages
+    return true;
+  }
+// Fix 3: Add helper method to identify view-once messages
+  bool _isViewOnceMessage(Message message) {
+    return message.type == Type.viewOnceImage ||
+        message.isViewOnce == true;
   }
 
   Widget _buildTopBarIcon(IconData icon, VoidCallback onTap, {Color? color}) {
@@ -534,13 +776,11 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       ),
     );
   }
-
   // Enhanced reaction bubble that appears outside message
   Widget _buildReactionBubble(BuildContext context, bool isMe) {
     final reactions = widget.message.reactions!;
-
-    // Group reactions by emoji
     final Map<String, List<String>> groupedReactions = {};
+
     reactions.forEach((userId, reaction) {
       if (groupedReactions.containsKey(reaction)) {
         groupedReactions[reaction]!.add(userId);
@@ -599,176 +839,6 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       ),
     );
   }
-
-  // Add this method to your ProfessionalMessageCard class in message_card.dart
-// New method for message content without reactions
-  Widget _buildMessageContentWithoutReactions(BuildContext context, Size chatMq,
-      bool isMe) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: chatMq.height * 0.012,
-        horizontal: chatMq.width * 0.04,
-      ),
-      child: Column(
-        crossAxisAlignment: isMe
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildMessageBody(context, isMe),
-          if (widget.showMessageTime) ...[
-            const SizedBox(height: 6),
-            _buildMessageMetadata(context, isMe),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageContent(BuildContext context, Size chatMq, bool isMe) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: chatMq.height * 0.012,
-        horizontal: chatMq.width * 0.04,
-      ),
-      child: Column(
-        crossAxisAlignment: isMe
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildMessageBody(context, isMe),
-
-          // Add reactions display here
-          if (widget.message.reactions != null &&
-              widget.message.reactions!.isNotEmpty)
-            _buildReactionsDisplay(context, isMe),
-
-          if (widget.showMessageTime) ...[
-            const SizedBox(height: 6),
-            _buildMessageMetadata(context, isMe),
-          ],
-        ],
-      ),
-    );
-  }
-
-// Add this new method to display reactions
-  Widget _buildReactionsDisplay(BuildContext context, bool isMe) {
-    final reactions = widget.message.reactions!;
-
-    // Group reactions by emoji
-    final Map<String, List<String>> groupedReactions = {};
-    reactions.forEach((userId, reaction) {
-      if (groupedReactions.containsKey(reaction)) {
-        groupedReactions[reaction]!.add(userId);
-      } else {
-        groupedReactions[reaction] = [userId];
-      }
-    });
-
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      child: Wrap(
-        spacing: 4,
-        children: groupedReactions.entries.map((entry) {
-          final reaction = entry.key;
-          final userIds = entry.value;
-          final count = userIds.length;
-
-          return GestureDetector(
-            onTap: () => _showReactionUsers(context, reaction, userIds),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.grey.withOpacity(0.3),
-                  width: 0.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    reaction,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  if (count > 1) ...[
-                    const SizedBox(width: 2),
-                    Text(
-                      count.toString(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-// Show who reacted with what
-  void _showReactionUsers(BuildContext context, String reaction,
-      List<String> userIds) {
-    showDialog(
-      context: context,
-      builder: (context) =>
-          AlertDialog(
-            title: Row(
-              children: [
-                Text(reaction),
-                const SizedBox(width: 8),
-                Text(
-                  'Reactions',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: userIds.map((userId) {
-                // You can fetch user names here or show user IDs for now
-                final currentUserId = useCase.getUserId().toString();
-                final userName = userId == currentUserId
-                    ? 'You'
-                    : 'User $userId';
-
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.secondaryColor.withOpacity(0.1),
-                    child: Icon(
-                      Icons.person,
-                      size: 18,
-                      color: AppColors.secondaryColor,
-                    ),
-                  ),
-                  title: Text(userName),
-                  contentPadding: EdgeInsets.zero,
-                );
-              }).toList(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Close',
-                  style: GoogleFonts.inter(color: Colors.blue),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
-
   BorderRadius _getBorderRadius(bool isMe) {
     return BorderRadius.only(
       topLeft: const Radius.circular(18),
@@ -777,6 +847,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(18),
     );
   }
+
 
   Widget _buildMessageBody(BuildContext context, bool isMe) {
     // Handle view-once images
@@ -1056,13 +1127,12 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     );
   }
 
-  List<Widget> _buildActionItems(BuildContext context,
-      Message message,
-      bool isMe,) {
+  // Fix 4: Update _buildActionItems method to exclude edit for view-once
+  List<Widget> _buildActionItems(BuildContext context, Message message, bool isMe) {
     final actions = <Widget>[];
 
-    // Copy/Save action
-    if (message.type == Type.text) {
+    // Copy/Save action (exclude view-once messages)
+    if (message.type == Type.text && !_isViewOnceMessage(message)) {
       actions.add(
         _buildActionItem(
           icon: Icons.content_copy_rounded,
@@ -1070,7 +1140,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
           onTap: () => _copyMessage(context, message),
         ),
       );
-    } else if (message.type == Type.image) {
+    } else if (message.type == Type.image && !_isViewOnceMessage(message)) {
       actions.add(
         _buildActionItem(
           icon: Icons.download_rounded,
@@ -1081,8 +1151,8 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     }
 
     if (isMe) {
-      // Edit action (text only)
-      if (message.type == Type.text) {
+      // Edit action (only for editable messages)
+      if (_canEditMessage(message, isMe)) {
         actions.add(
           _buildActionItem(
             icon: Icons.edit_rounded,
@@ -1092,7 +1162,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
         );
       }
 
-      // Delete action
+      // Delete action (always available for own messages)
       actions.add(
         _buildActionItem(
           icon: Icons.delete_rounded,
@@ -1106,7 +1176,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     // Message info
     actions.add(_buildDivider());
 
-    // Reply action
+    // Reply action (always available)
     actions.add(
       _buildActionItem(
         icon: Icons.reply_rounded,
@@ -1352,67 +1422,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     );
   }
 
-//   Future<void> _showEditDialog(BuildContext context, Message message) async {
-//     String updatedMsg = message.msg;
-//     final controller = TextEditingController(text: message.msg);
-//
-//     return showDialog(
-//       context: context,
-//       builder: (BuildContext dialogContext) => AlertDialog(
-//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-//         title: Row(
-//           children: [
-//             Icon(Icons.edit, color: Colors.blue),
-//             const SizedBox(width: 8),
-//             Text(
-//               'Edit Message',
-//               style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-//             ),
-//           ],
-//         ),
-//         content: TextField(
-//           controller: controller,
-//           maxLines: null,
-//           style: GoogleFonts.inter(),
-//           onChanged: (value) => updatedMsg = value,
-//           decoration: InputDecoration(
-//             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-//             focusedBorder: OutlineInputBorder(
-//               borderRadius: BorderRadius.circular(12),
-//               borderSide: BorderSide(color: Colors.blue),
-//             ),
-//           ),
-//         ),
-//         actions: [
-//           TextButton(
-//             onPressed: () => Navigator.pop(dialogContext),
-//             child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey)),
-//           ),
-//           ElevatedButton(
-//             onPressed: () async {
-//               Navigator.pop(dialogContext);
-//               if (updatedMsg.trim().isNotEmpty && updatedMsg != message.msg) {
-//                 await chatController.updateMessage(message, updatedMsg);
-//               }
-//             },
-//             style: ElevatedButton.styleFrom(
-//               backgroundColor: Colors.blue,
-//               shape: RoundedRectangleBorder(
-//                 borderRadius: BorderRadius.circular(8),
-//               ),
-//             ),
-//             child: Text(
-//               'Update',
-//               style: GoogleFonts.inter(color: Colors.white),
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
 
-// Custom widget for image with shadow
 }
 class ClipRRectWithShadow extends StatelessWidget {
   final Widget child;
