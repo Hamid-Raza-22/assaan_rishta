@@ -11,6 +11,8 @@ import '../../../widgets/export.dart';
 import '../export.dart';
 
 class VendorDetailView extends GetView<VendorDetailController> {
+  const VendorDetailView({super.key});
+
 
 
 // Add this debug method to your VendorDetailView class (around line 10-15)
@@ -38,7 +40,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
 
             // Get the existing controller
             final existingController = Get.find<VendorDetailController>();
-            debugPrint('🔍 Existing controller vendor ID: ${existingController.vendorsItem?.venderID}');
+            debugPrint('🔍 Existing controller vendor ID: ${existingController.vendorsItem.venderID}');
 
             // Check if we have new vendor data in arguments
             final arguments = Get.arguments;
@@ -59,11 +61,11 @@ class VendorDetailView extends GetView<VendorDetailController> {
       },
       builder: (_) {
         debugPrint('🔍 VendorDetailView builder called');
-        debugPrint('🔍 Controller vendor ID: ${controller.vendorsItem?.venderID}');
-        debugPrint('🔍 Controller vendor name: ${controller.vendorsItem?.venderBusinessName}');
+        debugPrint('🔍 Controller vendor ID: ${controller.vendorsItem.venderID}');
+        debugPrint('🔍 Controller vendor name: ${controller.vendorsItem.venderBusinessName}');
 
         // Check if vendor data is available
-        if (controller.vendorsItem?.venderID == null) {
+        if (controller.vendorsItem.venderID == null) {
           // Show loading or error state
           return Scaffold(
             backgroundColor: Colors.white,
@@ -236,7 +238,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: Text(
-                      controller.vendorsItem!.aboutCompany ?? '',
+                      controller.vendorsItem.aboutCompany ?? '',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w400,
@@ -321,9 +323,9 @@ class VendorDetailView extends GetView<VendorDetailController> {
       );
 
       // Generate deep links for vendor
-      final vendorId = controller.vendorsItem?.venderID;
-      final vendorName = controller.vendorsItem?.venderBusinessName;
-      final vendorCategory = controller.vendorsItem?.vendorCategoryName;
+      final vendorId = controller.vendorsItem.venderID;
+      final vendorName = controller.vendorsItem.venderBusinessName;
+      final vendorCategory = controller.vendorsItem.vendorCategoryName;
 
       if (vendorId == null) {
         // Close loading dialog
@@ -425,7 +427,7 @@ Find your perfect match and trusted vendors on Asaan Rishta! 💕
                     fontWeight: FontWeight.w500,
                   ),
                   AppText(
-                    text: controller.vendorsItem?.vendorCityName,
+                    text: controller.vendorsItem.vendorCityName,
                     fontSize: 16,
                     fontWeight: FontWeight.w400,
                   ),
@@ -436,7 +438,7 @@ Find your perfect match and trusted vendors on Asaan Rishta! 💕
                     fontWeight: FontWeight.w500,
                   ),
                   Text(
-                    '${controller.vendorsItem?.venderAddress}',
+                    '${controller.vendorsItem.venderAddress}',
                     overflow: TextOverflow.visible,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
@@ -451,7 +453,7 @@ Find your perfect match and trusted vendors on Asaan Rishta! 💕
                     fontWeight: FontWeight.w500,
                   ),
                   AppText(
-                    text: '${controller.vendorsItem?.venderPhone}',
+                    text: '${controller.vendorsItem.venderPhone}',
                     overflow: TextOverflow.visible,
                     fontSize: 16,
                     fontWeight: FontWeight.w400,

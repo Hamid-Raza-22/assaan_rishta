@@ -141,7 +141,7 @@ class _InAppWebViewSiteState extends State<InAppWebViewSite> {
                   }
                   setState(() {
                     this.progress = progress / 100;
-                    urlController.text = this.url;
+                    urlController.text = url;
                   });
                 },
                 onUpdateVisitedHistory: (controller, url, isReload) {

@@ -17,6 +17,8 @@ import 'package:flutter/cupertino.dart';
 class SignupView extends StatelessWidget {
   final SignupViewModel controller = Get.find<SignupViewModel>();
 
+SignupView({super.key});
+
   @override
   Widget build(BuildContext context) {
 

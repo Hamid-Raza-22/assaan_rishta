@@ -11,7 +11,6 @@ import '../../utils/exports.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import '../../widgets/export.dart';
 import 'export.dart';
-import 'partner_preference/export.dart';
 
 class ProfileView extends GetView<ProfileController> {
   const ProfileView({super.key});

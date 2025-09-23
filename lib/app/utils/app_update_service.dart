@@ -31,7 +31,7 @@ versionCheck(context) async {
     await remoteConfig.setConfigSettings(
       RemoteConfigSettings(
         fetchTimeout: const Duration(minutes: 1),
-        minimumFetchInterval: const Duration(hours: 4),
+        minimumFetchInterval: const Duration(hours: 2),
       ),
     );
 

@@ -1,12 +1,10 @@
 // account_type_view.dart me auto-login check add karo
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/export.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/account_type_viewmodel.dart';
-import '../../widgets/custom_button.dart';
 import '../../widgets/export.dart';
 
 

@@ -12,7 +12,6 @@ import '../utils/exports.dart';
 import '../viewmodels/chat_list_viewmodel.dart';
 import '../viewmodels/chat_viewmodel.dart';
 import '../views/chat/export.dart';
-import 'export.dart';
 
 // Enhanced controller with real-time status updates
 class ChatUserCardController extends GetxController {
@@ -223,12 +222,9 @@ class ChatUserCardController extends GetxController {
       return MessageStatus.read;
     } else if (message.delivered != null && message.delivered!.isNotEmpty) {
       return MessageStatus.delivered;
-    } else if (message.status != null) {
-      // Use explicit status if set
-      return message.status!;
-    } else {
-      return MessageStatus.sent;
-    }
+    } else    // Use explicit status if set
+    return message.status;
+  
   }
 
   // Check if user has deleted their account

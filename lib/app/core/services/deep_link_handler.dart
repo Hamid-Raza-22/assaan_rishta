@@ -192,7 +192,7 @@ class DeepLinkHandler {
         // Check standard controller
         if (Get.isRegistered<VendorDetailController>()) {
           final controller = Get.find<VendorDetailController>();
-          final currentVendorId = controller.vendorsItem?.venderID?.toString();
+          final currentVendorId = controller.vendorsItem.venderID?.toString();
           debugPrint('🔍 Controller vendor ID: $currentVendorId vs target: $vendorId');
 
           if (currentVendorId == vendorId) {
@@ -406,7 +406,7 @@ class DeepLinkHandler {
 
           if (Get.isRegistered<VendorDetailController>()) {
             final controller = Get.find<VendorDetailController>();
-            final currentVendorId = controller.vendorsItem?.venderID?.toString();
+            final currentVendorId = controller.vendorsItem.venderID?.toString();
 
             debugPrint('🔍 Current vendor ID in controller: $currentVendorId');
 

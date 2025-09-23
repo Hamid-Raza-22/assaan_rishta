@@ -3,7 +3,6 @@ import 'package:assaan_rishta/app/viewmodels/signup_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/export.dart';
-import '../../core/routes/app_routes.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/constant_widgets.dart';
 import '../../widgets/app_text.dart';

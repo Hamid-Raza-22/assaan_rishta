@@ -46,11 +46,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   void initState() {
     super.initState();
 
-    String params = "TOKEN=${widget.token}" +
-        "&MERCHANT_ID=${widget.merchant}" +
-        "&MERCHANT_NAME=ASAAN RISHTA" +
-        "&PROCCODE=00" +
-        "&TXNAMT=${widget.amount}" +
+    String params = "TOKEN=${widget.token}" "&MERCHANT_ID=${widget.merchant}" "&MERCHANT_NAME=ASAAN RISHTA" "&PROCCODE=00" "&TXNAMT=${widget.amount}" +
         "&CUSTOMER_MOBILE_NO=${widget.phoneNumber}" +
         "&CUSTOMER_EMAIL_ADDRESS=${widget.email}" +
         "&SIGNATURE=testsign" +
