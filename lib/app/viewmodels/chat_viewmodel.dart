@@ -287,33 +287,33 @@ _clearImageFromCache(String imageUrl) {
     }
   }
   // Mark message as read when user views it
-  Future<void> markMessageAsRead(Message message) async {
-    try {
-      // Don't mark our own messages as read
-      if (message.fromId == _repo.currentUserId) return;
-
-      // Don't re-mark if already read
-      if (message.read.isNotEmpty) return;
-
-      // Update in Firestore
-      await _repo.markMessageAsRead(message.fromId, message.sent);
-
-      // Update local message
-      final index = messages.indexWhere((m) => m.sent == message.sent);
-      if (index != -1) {
-        messages[index].read = DateTime.now().millisecondsSinceEpoch.toString();
-        messages[index].status = MessageStatus.read;
-        messages.refresh();
-
-        // Update cache
-        if (selectedUser.value != null) {
-          cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ Error marking message as read: $e');
-    }
-  }
+  // Future<void> markMessageAsRead(Message message) async {
+  //   try {
+  //     // Don't mark our own messages as read
+  //     if (message.fromId == _repo.currentUserId) return;
+  //
+  //     // Don't re-mark if already read
+  //     if (message.read.isNotEmpty) return;
+  //
+  //     // Update in Firestore
+  //     await _repo.markMessageAsRead(message.fromId, message.sent);
+  //
+  //     // Update local message
+  //     final index = messages.indexWhere((m) => m.sent == message.sent);
+  //     if (index != -1) {
+  //       messages[index].read = DateTime.now().millisecondsSinceEpoch.toString();
+  //       messages[index].status = MessageStatus.read;
+  //       messages.refresh();
+  //
+  //       // Update cache
+  //       if (selectedUser.value != null) {
+  //         cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
+  //       }
+  //     }
+  //   } catch (e) {
+  //     debugPrint('❌ Error marking message as read: $e');
+  //   }
+  // }
 
   // Confirm delivery for a specific message
   // Future<void> _confirmDeliveryForMessage(Message message) async {
@@ -823,9 +823,69 @@ _clearImageFromCache(String imageUrl) {
       await _repo.sendChatImage(currentUID, selectedUser.value!, imageFile);
     }
   }
+// Enhanced mark as read with sync
+  @override
+  Future<void> markMessageAsRead(Message message) async {
+    try {
+      if (message.fromId == _repo.currentUserId) return;
+      if (message.read.isNotEmpty) return;
 
+      // Mark as read in repository
+      await _repo.markMessageAsRead(message.fromId, message.sent);
+
+      // Sync the state
+      await _repo.syncMessageState(message, MessageStatus.read);
+
+      // Update local
+      final index = messages.indexWhere((m) => m.sent == message.sent);
+      if (index != -1) {
+        messages[index].read = DateTime.now().millisecondsSinceEpoch.toString();
+        messages[index].status = MessageStatus.read;
+        messages.refresh();
+
+        if (selectedUser.value != null) {
+          cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
+        }
+      }
+
+      // Notify chat list
+      if (Get.isRegistered<ChatListController>()) {
+        final listController = Get.find<ChatListController>();
+        listController.updateMessageStatus(message.fromId, message.sent, MessageStatus.read);
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error marking as read: $e');
+    }
+  }
+  @override
   Future<void> deleteMessage(Message message) async {
-    await _repo.deleteMessage(message);
+    try {
+      // Use the enhanced delete method
+      await _repo.deleteMessageWithSync(message);
+
+      // Remove from local list
+      messages.removeWhere((m) => m.sent == message.sent);
+      messages.refresh();
+
+      // Update cache
+      if (selectedUser.value != null) {
+        cachedMessagesPerUser[selectedUser.value!.id] = List.from(messages);
+        _persistentMessageCache[selectedUser.value!.id] = List.from(messages);
+      }
+
+      // Force refresh in chat list
+      if (Get.isRegistered<ChatListController>()) {
+        final listController = Get.find<ChatListController>();
+        await listController.refreshSpecificUser(message.fromId == _repo.currentUserId
+            ? message.toId
+            : message.fromId);
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error deleting message: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateMessage(Message message, String newText) async {

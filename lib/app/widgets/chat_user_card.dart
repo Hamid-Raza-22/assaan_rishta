@@ -1,4 +1,4 @@
-// enhanced_chat_user_card.dart - With deleted user detection
+// enhanced_chat_user_card.dart - With real-time message status updates
 
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -14,7 +14,7 @@ import '../viewmodels/chat_viewmodel.dart';
 import '../views/chat/export.dart';
 import 'export.dart';
 
-// Enhanced controller with deletion detection
+// Enhanced controller with real-time status updates
 class ChatUserCardController extends GetxController {
   final String userId;
   final String currentUID;
@@ -33,7 +33,7 @@ class ChatUserCardController extends GetxController {
   final RxBool hasBlockedThem = false.obs;
   final RxBool isBlockStatusLoaded = false.obs;
 
-  // ENHANCED: Deletion detection
+  // Deletion detection
   final RxBool isUserDeleted = false.obs;
   final RxString userDeletionTime = ''.obs;
   final RxBool isDeletionStatusLoaded = false.obs;
@@ -55,9 +55,16 @@ class ChatUserCardController extends GetxController {
     isWebOnline: false,
   ));
 
+  // Enhanced: Message status tracking
+  final Rx<Message?> lastMessage = Rx<Message?>(null);
+  final RxString lastMessageTime = ''.obs;
+  final Rx<MessageStatus?> lastMessageStatus = Rx<MessageStatus?>(null);
+
   StreamSubscription? _userStreamSubscription;
   StreamSubscription? _blockStatusSubscription;
   StreamSubscription? _blockedByOtherSubscription;
+  StreamSubscription? _messageStreamSubscription;
+  StreamSubscription? _statusUpdateSubscription;
 
   @override
   void onInit() {
@@ -76,14 +83,15 @@ class ChatUserCardController extends GetxController {
     _preloadUserImage(user.image);
 
     // Check deletion and block status
-
     _checkBlockStatus();
     _checkDeletionStatus();
-
 
     // Setup real-time listeners
     _setupBlockStatusListeners();
     _setupUserDataStream();
+
+    // NEW: Setup enhanced message listener with status tracking
+    _setupEnhancedMessageListener();
   }
 
   @override
@@ -93,15 +101,137 @@ class ChatUserCardController extends GetxController {
     _userStreamSubscription?.cancel();
     _blockStatusSubscription?.cancel();
     _blockedByOtherSubscription?.cancel();
+    _messageStreamSubscription?.cancel();
+    _statusUpdateSubscription?.cancel();
 
     _userStreamSubscription = null;
     _blockStatusSubscription = null;
     _blockedByOtherSubscription = null;
+    _messageStreamSubscription = null;
+    _statusUpdateSubscription = null;
 
     super.onClose();
   }
 
-  // ENHANCED: Check if user has deleted their account
+  // NEW: Enhanced message listener that tracks status changes
+  void _setupEnhancedMessageListener() {
+    _messageStreamSubscription?.cancel();
+
+    final chatId = getConversationId(currentUID, userId);
+
+    _messageStreamSubscription = FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('sent', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+
+      if (snapshot.docs.isNotEmpty) {
+        final messageData = snapshot.docs.first.data();
+        final message = Message.fromJson(messageData);
+
+        // Check if message should be shown (after deletion)
+        final deletionTime = listController.deletionTimestamps[userId];
+        if (deletionTime != null) {
+          final messageTime = int.parse(message.sent);
+          final deletedAt = int.parse(deletionTime);
+
+          if (messageTime <= deletedAt) {
+            lastMessage.value = null;
+            lastMessageTime.value = '0';
+            lastMessageStatus.value = null;
+            return;
+          }
+        }
+
+        // Update message and its status
+        lastMessage.value = message;
+        lastMessageTime.value = message.sent;
+
+        // Parse and update message status
+        lastMessageStatus.value = _parseMessageStatus(message);
+
+        // Update position in list if needed
+        _updateUserPositionIfNeeded(message.sent);
+
+        // Force UI refresh
+        update(['message_status_$userId', 'last_message_$userId']);
+
+        debugPrint('📊 Updated message status for $userId: ${lastMessageStatus.value}');
+      }
+    });
+
+    // Also listen for status updates on existing messages
+    _setupStatusUpdateListener();
+  }
+
+  // NEW: Listen for status updates on the last message
+  void _setupStatusUpdateListener() {
+    _statusUpdateSubscription?.cancel();
+
+    final chatId = getConversationId(currentUID, userId);
+
+    // Listen to the entire messages collection for status changes
+    _statusUpdateSubscription = FirebaseFirestore.instance
+        .collection('Hamid_chats')
+        .doc(chatId)
+        .collection('messages')
+        .snapshots()
+        .listen((snapshot) {
+
+      // Check if we have a last message to update
+      if (lastMessage.value == null) return;
+
+      // Find our last message in the snapshot
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.modified) {
+          final data = change.doc.data()!;
+
+          // Check if this is our last message
+          if (data['sent'] == lastMessage.value!.sent) {
+            // Update the status
+            final newStatus = _parseMessageStatus(Message.fromJson(data));
+
+            if (newStatus != lastMessageStatus.value) {
+              lastMessageStatus.value = newStatus;
+
+              // Update the message object
+              lastMessage.value = Message.fromJson(data);
+
+              // Force UI update
+              update(['message_status_$userId', 'last_message_$userId']);
+
+              debugPrint('✅ Status updated in card for message ${data['sent']}: $newStatus');
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // NEW: Parse message status from message data
+  MessageStatus _parseMessageStatus(Message message) {
+    // For received messages
+    if (message.fromId != currentUID) {
+      return MessageStatus.delivered; // Received messages show as delivered
+    }
+
+    // For sent messages
+    if (message.read.isNotEmpty) {
+      return MessageStatus.read;
+    } else if (message.delivered != null && message.delivered!.isNotEmpty) {
+      return MessageStatus.delivered;
+    } else if (message.status != null) {
+      // Use explicit status if set
+      return message.status!;
+    } else {
+      return MessageStatus.sent;
+    }
+  }
+
+  // Check if user has deleted their account
   Future<void> _checkDeletionStatus() async {
     try {
       debugPrint('🔍 Checking deletion status for user: $userId');
@@ -164,9 +294,8 @@ class ChatUserCardController extends GetxController {
     }
   }
 
-  // ENHANCED: User data stream with deletion monitoring
   void _setupUserDataStream() {
-    debugPrint('📺 Setting up ENHANCED user data stream for: $userId');
+    debugPrint('📺 Setting up user data stream for: $userId');
 
     _userStreamSubscription?.cancel();
 
@@ -188,7 +317,6 @@ class ChatUserCardController extends GetxController {
           isUserDeleted.value = true;
           userDeletionTime.value = DateTime.now().millisecondsSinceEpoch.toString();
 
-          // Update to show deleted user
           realtimeUserData.value = realtimeUserData.value.copyWith(
             name: 'Deleted User',
             about: 'This account no longer exists',
@@ -204,7 +332,6 @@ class ChatUserCardController extends GetxController {
           final userData = snapshot.data()!;
           final accountDeleted = userData['account_deleted'] == true;
 
-          // Update deletion status
           if (accountDeleted != isUserDeleted.value) {
             isUserDeleted.value = accountDeleted;
             userDeletionTime.value = userData['deleted_at'] as String? ?? '';
@@ -212,9 +339,7 @@ class ChatUserCardController extends GetxController {
             debugPrint('🔄 Deletion status changed for $userId: $accountDeleted');
           }
 
-          // Update user data
           if (accountDeleted) {
-            // Show deleted user info
             realtimeUserData.value = ChatUser.fromJson({
               ...userData,
               'name': 'Deleted User',
@@ -225,7 +350,6 @@ class ChatUserCardController extends GetxController {
               'is_web_online': false,
             });
           } else {
-            // Show normal user info
             final updatedUser = ChatUser.fromJson(userData);
             _preloadUserImage(updatedUser.image);
             realtimeUserData.value = updatedUser;
@@ -244,6 +368,17 @@ class ChatUserCardController extends GetxController {
       },
       cancelOnError: false,
     );
+  }
+
+  void _updateUserPositionIfNeeded(String messageTime) {
+    // Let the ChatListController handle position updates
+    listController.forceUpdateUserPosition(userId);
+  }
+
+  String getConversationId(String userId1, String userId2) {
+    return userId1.compareTo(userId2) <= 0
+        ? '${userId1}_$userId2'
+        : '${userId2}_$userId1';
   }
 
   void _preloadUserImage(String imageUrl) {
@@ -284,22 +419,17 @@ class ChatUserCardController extends GetxController {
         if (!snapshot.exists) return;
 
         final userData = snapshot.data();
-        // final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
         final blockedUsersData = userData?['blockedUsers'];
         Map<String, dynamic> blockedUsers = {};
+
         if (blockedUsersData is Map<String, dynamic>) {
-          debugPrint('📱 [My Block List] blockedUsers is a Map: $blockedUsersData');
           blockedUsers = blockedUsersData;
         } else if (blockedUsersData is List) {
-          debugPrint('📱 [My Block List] blockedUsers is a List, converting: $blockedUsersData');
-          // Handle case where it might be a list of UIDs, convert to map for consistency
           blockedUsers = {for (var item in blockedUsersData) item.toString(): null};
         }
 
         final wasBlocked = hasBlockedThem.value;
         hasBlockedThem.value = blockedUsers.containsKey(userId);
-
-        debugPrint('📱 Block status updated - User $userId blocked by me: ${hasBlockedThem.value}');
 
         if (wasBlocked != hasBlockedThem.value) {
           update(['block_status_$userId']);
@@ -324,21 +454,17 @@ class ChatUserCardController extends GetxController {
         if (!snapshot.exists) return;
 
         final userData = snapshot.data();
-        // final blockedUsers = userData?['blockedUsers'] as Map<String, dynamic>? ?? {};
         final blockedUsersData = userData?['blockedUsers'];
         Map<String, dynamic> blockedUsers = {};
+
         if (blockedUsersData is Map<String, dynamic>) {
-          debugPrint('👤 [Other User Block List] blockedUsers is a Map: $blockedUsersData');
           blockedUsers = blockedUsersData;
         } else if (blockedUsersData is List) {
-          debugPrint('👤 [Other User Block List] blockedUsers is a List, converting: $blockedUsersData');
           blockedUsers = {for (var item in blockedUsersData) item.toString(): null};
         }
 
         final wasBlockedByOther = isBlockedByOther.value;
         isBlockedByOther.value = blockedUsers.containsKey(currentUID);
-
-        debugPrint('👤 Blocked by other status updated - User $userId blocked me: ${isBlockedByOther.value}');
 
         if (wasBlockedByOther != isBlockedByOther.value) {
           update(['block_status_$userId']);
@@ -365,7 +491,7 @@ class ChatUserCardController extends GetxController {
     update(['block_status_$userId']);
   }
 
-  // ENHANCED: Helper getters with deletion check
+  // Helper getters
   bool get isCurrentlyBlocked => hasBlockedThem.value || isBlockedByOther.value;
   bool get isCurrentlyDeleted => isUserDeleted.value;
   bool get canChat => !isCurrentlyBlocked && !isCurrentlyDeleted;
@@ -397,7 +523,7 @@ class ChatUserCardController extends GetxController {
   }
 }
 
-// ENHANCED: ChatUserCard with deletion support
+// Enhanced ChatUserCard widget
 class EnhancedChatUserCard extends StatelessWidget {
   final String currentUID;
   final ChatUser user;
@@ -456,11 +582,10 @@ class EnhancedChatUserCard extends StatelessWidget {
     );
   }
 
-  // ENHANCED: Card content with deletion status
   Widget _buildCardContent(ChatUserCardController controller) {
     return GetBuilder<ChatUserCardController>(
       tag: 'chat_card_${user.id}',
-      id: 'user_data_${user.id}',
+      id: 'last_message_${user.id}',
       builder: (ctrl) {
         return Obx(() {
           final displayUser = ctrl.currentUserData;
@@ -472,15 +597,14 @@ class EnhancedChatUserCard extends StatelessWidget {
           return ListTile(
             leading: _buildAvatar(isBlocked, isDeleted, displayUser),
             title: _buildTitle(isDeleted, displayUser, ctrl),
-            subtitle: _buildSubtitle(ctrl.listController, isBlocked, isDeleted, displayUser, ctrl),
-            trailing: _buildTrailing(ctrl.listController, isBlocked, isDeleted, ctrl),
+            subtitle: _buildSubtitle(ctrl, isBlocked, isDeleted, displayUser),
+            trailing: _buildTrailing(ctrl, isBlocked, isDeleted),
           );
         });
       },
     );
   }
 
-  // ENHANCED: Avatar with deletion indication
   Widget _buildAvatar(bool isBlocked, bool isDeleted, ChatUser displayUser) {
     if (isDeleted) {
       return Stack(
@@ -586,7 +710,6 @@ class EnhancedChatUserCard extends StatelessWidget {
     );
   }
 
-  // ENHANCED: Title with deletion status
   Widget _buildTitle(bool isDeleted, ChatUser displayUser, ChatUserCardController controller) {
     if (isDeleted) {
       return Row(
@@ -633,12 +756,12 @@ class EnhancedChatUserCard extends StatelessWidget {
     );
   }
 
-  // ENHANCED: Subtitle with deletion information
-  Widget _buildSubtitle(ChatListController controller, bool isBlocked, bool isDeleted,
-      ChatUser displayUser, ChatUserCardController cardController) {
+  // ENHANCED: Subtitle with real-time status
+  Widget _buildSubtitle(ChatUserCardController controller, bool isBlocked, bool isDeleted,
+      ChatUser displayUser) {
     if (isDeleted) {
       return Text(
-        'Account deleted ${cardController.displayDeletionTime}',
+        'Account deleted ${controller.displayDeletionTime}',
         style: const TextStyle(fontSize: 14, color: Colors.red, fontStyle: FontStyle.italic),
         overflow: TextOverflow.ellipsis,
       );
@@ -652,56 +775,106 @@ class EnhancedChatUserCard extends StatelessWidget {
       );
     }
 
-    return Obx(() {
-      final lastMessage = controller.getLastMessageReactive(user.id).value;
+    return GetBuilder<ChatUserCardController>(
+      tag: 'chat_card_${user.id}',
+      id: 'message_status_${user.id}',
+      builder: (ctrl) {
+        return Obx(() {
+          final lastMessage = ctrl.lastMessage.value;
 
-      if (lastMessage == null) {
-        return Text(
-          displayUser.about,
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-          overflow: TextOverflow.ellipsis,
-        );
-      }
-
-      final isMe = lastMessage.fromId == currentUID;
-
-      if (lastMessage.type == Type.image) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isMe) _buildTickIcon(lastMessage.read.isNotEmpty),
-            const Icon(Icons.image_rounded, color: Colors.grey, size: 16),
-            const SizedBox(width: 4),
-            const Text('Photo', style: TextStyle(fontSize: 14, color: Colors.grey)),
-          ],
-        );
-      }
-
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isMe) _buildTickIcon(lastMessage.read.isNotEmpty),
-          Flexible(
-            child: Text(
-              lastMessage.msg,
+          if (lastMessage == null) {
+            return Text(
+              displayUser.about,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
-                fontWeight: lastMessage.read.isEmpty && !isMe
-                    ? FontWeight.w600
-                    : FontWeight.normal,
+            );
+          }
+
+          final isMe = lastMessage.fromId == currentUID;
+
+          if (lastMessage.type == Type.image) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isMe) _buildMessageStatusIcon(ctrl.lastMessageStatus.value, isMe),
+                const Icon(Icons.image_rounded, color: Colors.grey, size: 16),
+                const SizedBox(width: 4),
+                const Text('Photo', style: TextStyle(fontSize: 14, color: Colors.grey)),
+              ],
+            );
+          }
+
+          // Handle reply messages
+          String messageText = lastMessage.msg;
+          if (messageText.contains('↪️')) {
+            final parts = messageText.split('\n\n');
+            if (parts.length > 1) {
+              messageText = parts.sublist(1).join('\n\n');
+            }
+          }
+
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isMe) _buildMessageStatusIcon(ctrl.lastMessageStatus.value, isMe),
+              Flexible(
+                child: Text(
+                  messageText,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                    fontWeight: lastMessage.read.isEmpty && !isMe
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
-      );
-    });
+            ],
+          );
+        });
+      },
+    );
   }
 
-  // ENHANCED: Trailing with deletion status
-  Widget _buildTrailing(ChatListController controller, bool isBlocked, bool isDeleted,
-      ChatUserCardController cardController) {
+  // NEW: Build message status icon (matching the one in message_card.dart)
+  Widget _buildMessageStatusIcon(MessageStatus? status, bool isMe) {
+    if (!isMe || status == null) return const SizedBox.shrink();
+
+    IconData icon;
+    Color color;
+    double size = 14;
+
+    switch (status) {
+      case MessageStatus.pending:
+        icon = Icons.access_time;
+        color = Colors.grey;
+        break;
+      case MessageStatus.sent:
+        icon = Icons.done;
+        color = Colors.grey;
+        break;
+      case MessageStatus.delivered:
+        icon = Icons.done_all;
+        color = Colors.grey;
+        break;
+      case MessageStatus.read:
+        icon = Icons.done_all;
+        color = const Color(0xFF4FC3F7);
+        break;
+      case MessageStatus.failed:
+        icon = Icons.error_outline;
+        color = Colors.red;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Icon(icon, color: color, size: size),
+    );
+  }
+
+  Widget _buildTrailing(ChatUserCardController controller, bool isBlocked, bool isDeleted) {
     if (isDeleted) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -733,7 +906,7 @@ class EnhancedChatUserCard extends StatelessWidget {
     }
 
     return Obx(() {
-      final lastMessage = controller.getLastMessageReactive(user.id).value;
+      final lastMessage = controller.lastMessage.value;
       if (lastMessage == null) return const SizedBox.shrink();
 
       final isUnread = lastMessage.read.isEmpty && lastMessage.fromId != currentUID;
@@ -764,17 +937,6 @@ class EnhancedChatUserCard extends StatelessWidget {
         ],
       );
     });
-  }
-
-  Widget _buildTickIcon(bool isRead) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Icon(
-        Icons.done_all_rounded,
-        color: isRead ? Colors.blue : Colors.grey,
-        size: 16,
-      ),
-    );
   }
 
   Widget _buildDismissBackground() {
@@ -843,12 +1005,6 @@ class EnhancedChatUserCard extends StatelessWidget {
   }
 
   void _navigateToChat(BuildContext context, ChatUserCardController controller) async {
-    // Don't allow navigation to deleted users
-    // if (controller.isCurrentlyDeleted) {
-    //   _showDeletedUserDialog(context, controller);
-    //   return;
-    // }
-
     if (!Get.isRegistered<ChatViewModel>()) {
       Get.put(ChatViewModel());
       debugPrint('💬 ChatViewModel was not registered, now created.');
@@ -906,7 +1062,6 @@ class EnhancedChatUserCard extends StatelessWidget {
     }
   }
 
-  // ENHANCED: Show dialog when trying to interact with deleted user
   void _showDeletedUserDialog(BuildContext context, ChatUserCardController controller) {
     showDialog(
       context: context,

@@ -899,4 +899,136 @@ class ChatRepository {
 
   Future<bool> isMyFriendBlocked(String userId) =>
       FirebaseService.isMyFriendBlocked(userId);
+
+
+// Add this enhanced method to ChatRepository class
+  Future<void> syncMessageState(Message message, MessageStatus newStatus) async {
+    try {
+      final conversationId = getConversationId(message.toId, message.fromId);
+      final updateData = <String, dynamic>{
+        'status': newStatus.name,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+
+      // Add appropriate timestamps based on status
+      if (newStatus == MessageStatus.delivered) {
+        updateData['delivered'] = DateTime.now().millisecondsSinceEpoch.toString();
+      } else if (newStatus == MessageStatus.read) {
+        final now = DateTime.now().millisecondsSinceEpoch.toString();
+        updateData['delivered'] = now;
+        updateData['read'] = now;
+      }
+
+      // Update message in Firestore
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(message.sent)
+          .update(updateData);
+
+      // Update last message status in my_users for both users
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Check if this is the last message
+      final lastMessageQuery = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .orderBy('sent', descending: true)
+          .limit(1)
+          .get();
+
+      if (lastMessageQuery.docs.isNotEmpty &&
+          lastMessageQuery.docs.first.id == message.sent) {
+
+        // Update for sender
+        batch.update(
+          FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(message.fromId)
+              .collection('my_users')
+              .doc(message.toId),
+          {
+            'last_message_status': newStatus.name,
+            'last_update': DateTime.now().millisecondsSinceEpoch.toString(),
+          },
+        );
+
+        // Update for receiver
+        batch.update(
+          FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(message.toId)
+              .collection('my_users')
+              .doc(message.fromId),
+          {
+            'last_message_status': newStatus.name,
+            'last_update': DateTime.now().millisecondsSinceEpoch.toString(),
+          },
+        );
+
+        await batch.commit();
+      }
+
+      debugPrint('✅ Message state synced: ${message.sent} -> ${newStatus.name}');
+    } catch (e) {
+      debugPrint('❌ Error syncing message state: $e');
+    }
+  }
+
+// Enhanced delete message with sync
+  Future<void> deleteMessageWithSync(Message message) async {
+    try {
+      final conversationId = getConversationId(message.toId, message.fromId);
+
+      // Delete from Firestore
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(message.sent)
+          .delete();
+
+      // Check if we need to update last message
+      final remainingMessages = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .orderBy('sent', descending: true)
+          .limit(1)
+          .get();
+
+      if (remainingMessages.docs.isNotEmpty) {
+        // Update last message time for both users
+        final lastMessageTime = remainingMessages.docs.first.id;
+        final batch = FirebaseFirestore.instance.batch();
+
+        batch.update(
+          FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(message.fromId)
+              .collection('my_users')
+              .doc(message.toId),
+          {'last_message_time': lastMessageTime},
+        );
+
+        batch.update(
+          FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(message.toId)
+              .collection('my_users')
+              .doc(message.fromId),
+          {'last_message_time': lastMessageTime},
+        );
+
+        await batch.commit();
+      }
+
+      debugPrint('✅ Message deleted and synced');
+    } catch (e) {
+      debugPrint('❌ Error deleting message: $e');
+      rethrow;
+    }
+  }
 }

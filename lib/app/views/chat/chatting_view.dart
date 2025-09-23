@@ -30,6 +30,13 @@ import '../../widgets/typing_indicator.dart';
 
 class ChattingViewController extends GetxController with WidgetsBindingObserver {
   final ChatUser user;
+  String getSelectionCountText() {
+    final count = selectedMessages.length;
+    if (count == 0) return 'No messages selected';
+    if (count == 1) return '1 message selected';
+    return '$count messages selected';
+  }
+
   final currentUserProfile = Rx<String?>(null);
   final bool? initialBlockedStatus;
   final bool? initialBlockedByOtherStatus;
@@ -206,11 +213,15 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   Future<void> deleteSelectedMessages() async {
     if (selectedMessages.isEmpty) return;
 
-    // Show confirmation dialog
+    // Store the actual count before any operations
+    final int messageCount = selectedMessages.length;
+    final List<Message> messagesToDelete = List.from(selectedMessages);
+
+    // Show confirmation dialog with actual count
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete ${selectedMessages.length} messages?'),
+        title: Text('Delete $messageCount message${messageCount > 1 ? 's' : ''}?'),
         content: const Text('This action cannot be undone.'),
         actions: [
           TextButton(
@@ -230,65 +241,123 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
     if (confirmed) {
       showLoading.value = true;
+      int successCount = 0;
+      int failCount = 0;
+
       try {
-        for (final message in selectedMessages) {
-          await chatController.deleteMessage(message);
+        for (final message in messagesToDelete) {
+          try {
+            await chatController.deleteMessage(message);
+            successCount++;
+          } catch (e) {
+            failCount++;
+            debugPrint('Failed to delete message: ${message.sent}');
+          }
         }
+
+        // Exit selection mode after deletion
         exitSelectionMode();
-        AppUtils.successData(
-          title: "Deleted",
-          message: '${selectedMessages.length} messages deleted',
-        );
+
+        // Show accurate result
+        if (failCount == 0) {
+          AppUtils.successData(
+            title: "Deleted",
+            message: '$successCount message${successCount > 1 ? 's' : ''} deleted successfully',
+          );
+        } else {
+          AppUtils.failedData(
+            title: "Partial Success",
+            message: '$successCount deleted, $failCount failed',
+          );
+        }
       } catch (e) {
         AppUtils.failedData(
           title: "Error",
-          message: 'Failed to delete some messages',
+          message: 'Failed to delete messages',
         );
       } finally {
         showLoading.value = false;
       }
     }
   }
-
   Future<void> copySelectedMessages() async {
     if (selectedMessages.isEmpty) return;
 
-    // Sort messages by time
-    final sortedMessages = List<Message>.from(selectedMessages)
-      ..sort((a, b) => a.sent.compareTo(b.sent));
+    // Store the actual count before operations
+    final int messageCount = selectedMessages.length;
 
-    // Build text
-    final buffer = StringBuffer();
-    for (final message in sortedMessages) {
-      if (message.type == Type.text) {
-        final senderName = message.fromId == currentUID ? 'You' : user.name;
-        final time = MyDateUtill.getFormatedTime(
-          context: Get.context!,
-          time: message.sent,
-        );
-        buffer.writeln('[$time] $senderName: ${message.msg}');
+    try {
+      // Sort messages by time
+      final sortedMessages = List<Message>.from(selectedMessages)
+        ..sort((a, b) => a.sent.compareTo(b.sent));
+
+      // Build text with counter for text messages only
+      final buffer = StringBuffer();
+      int copiedCount = 0;
+
+      for (final message in sortedMessages) {
+        if (message.type == Type.text) {
+          final senderName = message.fromId == currentUID ? 'You' : user.name;
+          final time = MyDateUtill.getFormatedTime(
+            context: Get.context!,
+            time: message.sent,
+          );
+
+          // Handle reply messages properly
+          String messageText = message.msg;
+          if (messageText.contains('↪️')) {
+            final parts = messageText.split('\n\n');
+            if (parts.length > 1) {
+              messageText = parts.sublist(1).join('\n\n');
+            }
+          }
+
+          buffer.writeln('[$time] $senderName: $messageText');
+          copiedCount++;
+        }
       }
-    }
 
-    if (buffer.isNotEmpty) {
-      await Clipboard.setData(ClipboardData(text: buffer.toString()));
-      exitSelectionMode();
-      AppUtils.successData(
-        title: "Copied",
-        message: '${selectedMessages.length} messages copied',
+      if (buffer.isNotEmpty) {
+        await Clipboard.setData(ClipboardData(text: buffer.toString()));
+        exitSelectionMode();
+
+        AppUtils.successData(
+          title: "Copied",
+          message: '$copiedCount message${copiedCount > 1 ? 's' : ''} copied to clipboard',
+        );
+      } else {
+        AppUtils.failedData(
+          title: "Info",
+          message: 'No text messages to copy',
+        );
+        exitSelectionMode();
+      }
+    } catch (e) {
+      AppUtils.failedData(
+        title: "Error",
+        message: 'Failed to copy messages',
       );
     }
   }
-
   Future<void> forwardSelectedMessages() async {
     if (selectedMessages.isEmpty) return;
 
-    // Navigate to forward screen with selected messages
+    // Store the actual count
+    final int messageCount = selectedMessages.length;
+    final List<Message> messagesToForward = List.from(selectedMessages);
+
+    // Exit selection mode first
     exitSelectionMode();
-    // Get.to(() => ForwardMessagesScreen(messages: selectedMessages.toList()));
+
+    // Navigate to forward screen with proper count
+    // Get.to(() => ForwardMessagesScreen(
+    //   messages: messagesToForward,
+    //   count: messageCount,
+    // ));
+
     AppUtils.successData(
       title: "Forward",
-      message: 'Forward feature coming soon',
+      message: '$messageCount message${messageCount > 1 ? 's' : ''} selected for forwarding',
     );
   }
 
@@ -1319,6 +1388,9 @@ class _ChattingViewState extends State<ChattingView> {
   }
 
   // Selection mode app bar
+// Helper method to get proper message count text
+
+// Update the selection mode app bar to use the helper
   Widget _buildSelectionModeAppBar(ChattingViewController controller) {
     return Row(
       children: [
@@ -1329,7 +1401,7 @@ class _ChattingViewState extends State<ChattingView> {
         const SizedBox(width: 16),
         Expanded(
           child: Obx(() => Text(
-            '${controller.selectedMessages.length} selected',
+            controller.getSelectionCountText(), // Use helper method
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -1339,15 +1411,22 @@ class _ChattingViewState extends State<ChattingView> {
         ),
         // Select all button
         IconButton(
-          icon: const Icon(Icons.select_all, color: Colors.black),
+          icon: Icon(
+            controller.selectedMessages.length == controller.cachedMessages.length
+                ? Icons.check_box
+                : Icons.check_box_outline_blank,
+            color: Colors.black,
+          ),
           onPressed: controller.selectedMessages.length == controller.cachedMessages.length
               ? controller.deselectAllMessages
               : controller.selectAllMessages,
+          tooltip: controller.selectedMessages.length == controller.cachedMessages.length
+              ? 'Deselect all'
+              : 'Select all',
         ),
       ],
     );
   }
-
   // Selection mode actions bar
   Widget _buildSelectionModeActions(ChattingViewController controller) {
     return Container(
@@ -1764,6 +1843,8 @@ class _ChattingViewState extends State<ChattingView> {
 
   // Replace your existing _buildChatInput method in chatting_view.dart with this:
 // Enhanced chat input widget
+// In chatting_view.dart - Replace the _buildChatInputWithReply method
+
   Widget _buildChatInputWithReply(ChattingViewController controller) {
     final Size chatMq = MediaQuery.of(context).size;
 
@@ -1774,81 +1855,90 @@ class _ChattingViewState extends State<ChattingView> {
         horizontal: chatMq.width * .025,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min, // Important: Keep column minimal
         children: [
-          // Reply preview
+          // Reply preview - Constrained height
           Obx(() {
             if (controller.replyingTo.value == null) return const SizedBox.shrink();
 
             return Container(
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.secondaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border(
-                  left: BorderSide(
-                    color: AppColors.secondaryColor,
-                    width: 3,
-                  ),
-                ),
+              constraints: BoxConstraints(
+                maxHeight: chatMq.height * 0.15, // Max 15% of screen height
+                minHeight: 50, // Minimum height
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.reply,
-                    color: AppColors.secondaryColor,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Replying to',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.secondaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          controller.replyPreview.value,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: controller._clearReply,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.grey[600],
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border(
+                      left: BorderSide(
+                        color: AppColors.secondaryColor,
+                        width: 3,
                       ),
                     ),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.reply,
+                        color: AppColors.secondaryColor,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Replying to',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppColors.secondaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              controller.replyPreview.value,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey[700],
+                              ),
+                              maxLines: 2, // Limit to 2 lines
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: controller._clearReply,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           }),
 
-          // Input row
+          // Input row remains the same
           Row(
             children: [
               // Attachment button
               GestureDetector(
                 onTap: controller.showImageOptions,
-                // onTap: controller.showImageOptions,
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -1857,7 +1947,6 @@ class _ChattingViewState extends State<ChattingView> {
                   ),
                   child: const Icon(
                     Icons.camera_alt,
-                    // Icons.attach_file_rounded,
                     color: AppColors.secondaryColor,
                     size: 24,
                   ),
@@ -1920,7 +2009,7 @@ class _ChattingViewState extends State<ChattingView> {
 
               // Send button
               GestureDetector(
-                onTap: controller._sendMessageWithReply, // Use new method
+                onTap: controller._sendMessageWithReply,
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -1939,8 +2028,7 @@ class _ChattingViewState extends State<ChattingView> {
         ],
       ),
     );
-  }
-  Widget _buildChatInput(ChattingViewController controller) {
+  }  Widget _buildChatInput(ChattingViewController controller) {
     final Size chatMq = MediaQuery.of(context).size;
 
     return Container(

@@ -12,7 +12,79 @@ import '../core/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import '../viewmodels/chat_viewmodel.dart';
+// Controller for managing swipe state
+class MessageCardSwipeController extends GetxController {
+  final RxDouble swipeOffset = 0.0.obs;
+  final RxBool isSwipeActive = false.obs;
 
+  final double maxSwipeDistance = 80.0;
+  final double swipeThreshold = 60.0;
+
+  void startSwipe() {
+    isSwipeActive.value = true;
+  }
+
+  void updateSwipe(double delta, bool isMe) {
+    if (!isSwipeActive.value) return;
+
+    double newOffset = swipeOffset.value + delta;
+
+    if (isMe) {
+      // For sent messages, swipe right to left
+      if (delta < 0) {
+        newOffset = newOffset.clamp(-maxSwipeDistance, 0);
+        // Add resistance after threshold
+        if (newOffset < -swipeThreshold) {
+          delta *= 0.3;
+        }
+      } else {
+        newOffset = 0;
+      }
+    } else {
+      // For received messages, swipe left to right
+      if (delta > 0) {
+        newOffset = newOffset.clamp(0, maxSwipeDistance);
+        // Add resistance after threshold
+        if (newOffset > swipeThreshold) {
+          delta *= 0.3;
+        }
+      } else {
+        newOffset = 0;
+      }
+    }
+
+    swipeOffset.value = newOffset;
+  }
+
+  bool endSwipe(bool isMe) {
+    if (!isSwipeActive.value) return false;
+
+    bool shouldTriggerReply = false;
+
+    if (isMe && swipeOffset.value < -swipeThreshold) {
+      shouldTriggerReply = true;
+    } else if (!isMe && swipeOffset.value > swipeThreshold) {
+      shouldTriggerReply = true;
+    }
+
+    // Reset with animation
+    swipeOffset.value = 0;
+    isSwipeActive.value = false;
+
+    return shouldTriggerReply;
+  }
+
+  void reset() {
+    swipeOffset.value = 0;
+    isSwipeActive.value = false;
+  }
+
+  @override
+  void onClose() {
+    reset();
+    super.onClose();
+  }
+}
 class ProfessionalMessageCard extends StatefulWidget {
   final Message message;
   final bool pause;
@@ -52,9 +124,10 @@ class ProfessionalMessageCard extends StatefulWidget {
 
 class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     with SingleTickerProviderStateMixin {
-  bool isHovered = false;
+
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  late MessageCardSwipeController _swipeController;
 
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
@@ -62,6 +135,11 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
   @override
   void initState() {
     super.initState();
+
+    // Create unique controller for this message card
+    final tag = 'swipe_${widget.message.sent}';
+    _swipeController = Get.put(MessageCardSwipeController(), tag: tag);
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 150),
       vsync: this,
@@ -74,20 +152,22 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
   @override
   void dispose() {
     _animationController.dispose();
+    // Clean up the controller
+    final tag = 'swipe_${widget.message.sent}';
+    if (Get.isRegistered<MessageCardSwipeController>(tag: tag)) {
+      Get.delete<MessageCardSwipeController>(tag: tag);
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatMq = MediaQuery
-        .of(context)
-        .size;
+    final chatMq = MediaQuery.of(context).size;
     final theme = Theme.of(context);
-    final currentUserId =
-        widget.currentUserId ?? useCase.getUserId().toString();
+    final currentUserId = widget.currentUserId ?? useCase.getUserId().toString();
     final isMe = currentUserId == widget.message.fromId;
 
-    // Mark regular message as read if conditions are met
+    // Mark message as read if needed
     if (widget.message.read.isEmpty &&
         !widget.pause &&
         !isMe &&
@@ -97,42 +177,77 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       });
     }
 
-    // Wrap with Dismissible for swipe-to-reply
-    return Dismissible(
-      key: Key('message_${widget.message.sent}'),
-      direction: isMe ? DismissDirection.endToStart : DismissDirection.startToEnd,
-      confirmDismiss: (direction) async {
-        // Trigger reply
-        widget.onReply?.call(widget.message);
-        HapticFeedback.mediumImpact();
-        return false; // Don't actually dismiss
+    return GestureDetector(
+      onHorizontalDragStart: (_) {
+        _swipeController.startSwipe();
       },
-      background: Container(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: AnimatedContainer(
-          duration: Duration(milliseconds: 200),
-          padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.secondaryColor.withOpacity(0.2),
-            shape: BoxShape.circle,
+      onHorizontalDragUpdate: (details) {
+        _swipeController.updateSwipe(details.delta.dx, isMe);
+      },
+      onHorizontalDragEnd: (_) {
+        final shouldReply = _swipeController.endSwipe(isMe);
+        if (shouldReply) {
+          HapticFeedback.mediumImpact();
+          widget.onReply?.call(widget.message);
+        }
+      },
+      child: Obx(() {
+        final offset = _swipeController.swipeOffset.value;
+        final isActive = _swipeController.isSwipeActive.value;
+
+        return AnimatedContainer(
+          duration: isActive ? Duration.zero : const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          transform: Matrix4.translationValues(offset, 0, 0),
+          child: Stack(
+            children: [
+              // Reply icon indicator
+              if (offset.abs() > 20)
+                Positioned(
+                  left: isMe ? null : 16,
+                  right: isMe ? 16 : null,
+                  top: 0,
+                  bottom: 0,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 150),
+                    opacity: offset.abs() > _swipeController.swipeThreshold ? 1.0 : 0.5,
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 150),
+                      scale: offset.abs() > _swipeController.swipeThreshold ? 1.2 : 1.0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: offset.abs() > _swipeController.swipeThreshold
+                              ? AppColors.secondaryColor.withOpacity(0.2)
+                              : Colors.grey.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        // child: Icon(
+                        //   Icons.reply,
+                        //   color: offset.abs() > _swipeController.swipeThreshold
+                        //       ? AppColors.secondaryColor
+                        //       : Colors.grey,
+                        //   size: 24,
+                        // ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Message content
+              AnimatedBuilder(
+                animation: _scaleAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: _buildMessageContainer(context, chatMq, theme, isMe),
+                  );
+                },
+              ),
+            ],
           ),
-          child: Icon(
-            Icons.reply,
-            color: AppColors.secondaryColor,
-            size: 24,
-          ),
-        ),
-      ),
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: _buildMessageContainer(context, chatMq, theme, isMe),
-          );
-        },
-      ),
+        );
+      }),
     );
   }
 
@@ -142,17 +257,15 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       ThemeData theme,
       bool isMe,
       ) {
-    final isViewedOnce =
-        widget.message.isViewOnce == true && widget.message.isViewed == true;
+    final isViewedOnce = widget.message.isViewOnce == true && widget.message.isViewed == true;
     final isRepliedMessage = widget.message.msg.contains('↪️');
 
     return AnimatedContainer(
-      duration: Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 200),
       margin: EdgeInsets.symmetric(
         horizontal: chatMq.width * 0.02,
         vertical: chatMq.height * 0.005,
       ),
-      // Selection highlighting without checkbox
       decoration: widget.isSelected && widget.isSelectionMode
           ? BoxDecoration(
         color: AppColors.secondaryColor.withOpacity(0.1),
@@ -164,12 +277,10 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       )
           : null,
       padding: widget.isSelected && widget.isSelectionMode
-          ? EdgeInsets.all(4)
+          ? const EdgeInsets.all(4)
           : null,
       child: Row(
-        mainAxisAlignment: isMe
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe && widget.showUserAvatar) ...[
@@ -185,17 +296,14 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Main message bubble
                   GestureDetector(
                     onTap: () {
-                      // Handle selection mode tap
                       if (widget.isSelectionMode) {
                         widget.onSelectionToggle?.call(widget.message);
                         HapticFeedback.selectionClick();
                         return;
                       }
 
-                      // Handle view once image
                       if (widget.message.type == Type.viewOnceImage &&
                           widget.message.isViewed != true &&
                           !isMe) {
@@ -254,7 +362,6 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        // Add border for replied messages
                         border: isRepliedMessage
                             ? Border.all(
                           color: isMe
@@ -269,7 +376,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                     ),
                   ),
 
-                  // Reactions positioned outside the bubble
+                  // Reactions
                   if (widget.message.reactions != null &&
                       widget.message.reactions!.isNotEmpty)
                     Positioned(
@@ -423,7 +530,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
             // Highlighted message
             Positioned(
               top: position.dy - 38,
-              left: position.dx,
+              left: position.dx - (isMe ? 10 : -10),
               width: size.width,
               height: size.height,
               child: Container(
