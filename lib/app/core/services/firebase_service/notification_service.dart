@@ -1074,7 +1074,11 @@ class NotificationServices {
           .get();
 
       if (!receiverDoc.exists || receiverDoc.data()?['push_token'] == null) {
-        debugPrint('⚠️ Receiver has no valid push token');
+        debugPrint('⚠️ Receiver $receiverId does not exist or has no push token. Aborting notification.');
+        return;
+      }
+      if (receiverDoc.data()?['push_token'] != fcmToken) {
+        debugPrint('⚠️ FCM token mismatch for receiver $receiverId. Aborting notification.');
         return;
       }
 
@@ -1124,6 +1128,15 @@ class NotificationServices {
         Logger().d('response ${res.body}');
         Logger().d('message send failed');
         debugPrint('❌ Failed to send notification: ${res.body}');
+
+        // Handle UNREGISTERED token error
+        if (res.body.contains('UNREGISTERED')) {
+          debugPrint('🗑️ Detected unregistered FCM token for user $receiverId. Removing it.');
+          await FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(receiverId)
+              .update({'push_token': FieldValue.delete()});
+        }
       }
     } catch (e) {
       debugPrint('❌ Error sending notification: $e');

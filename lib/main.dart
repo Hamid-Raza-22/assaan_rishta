@@ -48,6 +48,18 @@ Future<void> main() async {
   runApp(const AsanRishtaApp());
 }
 
+// @pragma('vm:entry-point') Dart compiler ko batata hai ke is function ko "tree-shaking"
+// ke dauran code se na hataya jaye. Yeh zaroori hai kyunki yeh function native side se
+// (Android/iOS) call hota hai jab app background mein ho ya band ho aur koi
+// Firebase notification aaye. Iske baghair, release mode mein background notifications
+// fail ho sakte hain kyunki compiler is function ko "unused" samajh kar hata dega.
+//
+// English:
+// This annotation informs the Dart compiler not to remove this function during "tree-shaking".
+// It's essential because this function is called from the native side (Android/iOS) when
+// the app is in the background or terminated and a Firebase notification arrives. Without
+// this, background notifications might fail in release mode as the compiler would
+// otherwise remove this "unused" function.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(

@@ -114,7 +114,289 @@ class ChatListController extends GetxController {
       debugPrint('❌ Error loading deletion records: $e');
     }
   }
+// Add these methods to your ChatListController class in chat_list_viewmodel.dart
 
+// ============================================
+// MESSAGE STATE SYNCHRONIZATION METHODS
+// ============================================
+
+// Method to refresh a specific user's data and last message
+  Future<void> refreshSpecificUser(String userId) async {
+    try {
+      debugPrint('🔄 Refreshing user: $userId');
+
+      final index = chatUsers.indexWhere((user) => user.id == userId);
+      if (index == -1) {
+        debugPrint('⚠️ User not found in chat list: $userId');
+        return;
+      }
+
+      final user = chatUsers[index];
+
+      // Get the latest message for this user
+      final chatId = getConversationId(currentUserId, userId);
+      final lastMessageSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(chatId)
+          .collection('messages')
+          .orderBy('sent', descending: true)
+          .limit(1)
+          .get();
+
+      if (lastMessageSnapshot.docs.isNotEmpty) {
+        final message = Message.fromJson(lastMessageSnapshot.docs.first.data());
+
+        // Check if message should be shown (after deletion)
+        final deletionTime = deletionTimestamps[userId];
+        if (deletionTime != null) {
+          final messageTime = int.parse(message.sent);
+          final deletedAt = int.parse(deletionTime);
+
+          if (messageTime <= deletedAt) {
+            // Message is older than deletion, don't show
+            _lastMessages[userId]?.value = null;
+            _lastMessageTimes[userId]?.value = '0';
+            return;
+          }
+        }
+
+        // Update the last message
+        _lastMessages[userId] ??= Rx<Message?>(null);
+        _lastMessages[userId]!.value = message;
+
+        _lastMessageTimes[userId] ??= RxString('0');
+        _lastMessageTimes[userId]!.value = message.sent;
+
+        // Update user position if needed
+        _updateUserPositionIfNeeded(userId, message.sent);
+
+        // Force UI refresh
+        chatUsers.refresh();
+
+        debugPrint('✅ User refreshed with latest message');
+      } else {
+        // No messages, clear last message
+        _lastMessages[userId]?.value = null;
+        _lastMessageTimes[userId]?.value = '0';
+        chatUsers.refresh();
+      }
+    } catch (e) {
+      debugPrint('❌ Error refreshing user: $e');
+    }
+  }
+
+// Method to update message status in the chat list
+  void updateMessageStatus(String userId, String messageId, MessageStatus status) {
+    try {
+      debugPrint('📊 Updating message status: $messageId -> ${status.name}');
+
+      // Check if we have this user's last message
+      if (!_lastMessages.containsKey(userId)) {
+        debugPrint('⚠️ No last message found for user: $userId');
+        return;
+      }
+
+      final lastMessage = _lastMessages[userId]?.value;
+      if (lastMessage == null) {
+        debugPrint('⚠️ Last message is null for user: $userId');
+        return;
+      }
+
+      // Only update if this is the last message
+      if (lastMessage.sent == messageId) {
+        // Update the message status
+        lastMessage.status = status;
+
+        // Update timestamps based on status
+        if (status == MessageStatus.delivered) {
+          lastMessage.delivered = DateTime.now().millisecondsSinceEpoch.toString();
+        } else if (status == MessageStatus.read) {
+          final now = DateTime.now().millisecondsSinceEpoch.toString();
+          lastMessage.delivered = now;
+          lastMessage.read = now;
+        }
+
+        // Trigger reactive update
+        _lastMessages[userId]!.value = null; // Clear first
+        _lastMessages[userId]!.value = lastMessage; // Then reassign
+
+        // Force UI refresh
+        chatUsers.refresh();
+
+        debugPrint('✅ Message status updated in chat list');
+      } else {
+        debugPrint('ℹ️ Message is not the last message, skipping update');
+      }
+    } catch (e) {
+      debugPrint('❌ Error updating message status: $e');
+    }
+  }
+
+// Method to refresh user's messages after deletion
+  Future<void> refreshUserMessages(String userId) async {
+    try {
+      debugPrint('🔄 Refreshing messages for user: $userId');
+
+      // Cancel existing listener
+      _messageListeners[userId]?.cancel();
+      _messageListeners.remove(userId);
+
+      // Find the user
+      final user = chatUsers.firstWhereOrNull((u) => u.id == userId);
+      if (user == null) {
+        debugPrint('⚠️ User not found: $userId');
+        return;
+      }
+
+      // Re-establish message listener
+      _listenToUserMessages(user);
+
+      // Force immediate refresh
+      await refreshSpecificUser(userId);
+
+      debugPrint('✅ User messages refreshed');
+    } catch (e) {
+      debugPrint('❌ Error refreshing user messages: $e');
+    }
+  }
+
+// Method to handle message deletion notification
+  void onMessageDeleted(String userId, String messageId) {
+    try {
+      debugPrint('🗑️ Message deleted notification: $messageId');
+
+      // Check if this was the last message
+      final lastMessage = _lastMessages[userId]?.value;
+      if (lastMessage != null && lastMessage.sent == messageId) {
+        // Refresh to get the new last message
+        refreshSpecificUser(userId);
+      }
+    } catch (e) {
+      debugPrint('❌ Error handling message deletion: $e');
+    }
+  }
+
+// Method to force update a specific user's position in the list
+  void forceUpdateUserPosition(String userId) {
+    try {
+      final messageTime = _lastMessageTimes[userId]?.value ?? '0';
+      _updateUserPositionIfNeeded(userId, messageTime);
+      chatUsers.refresh();
+    } catch (e) {
+      debugPrint('❌ Error updating user position: $e');
+    }
+  }
+
+// Method to check if a user has unread messages
+  bool hasUnreadMessages(String userId) {
+    final lastMessage = _lastMessages[userId]?.value;
+    if (lastMessage == null) return false;
+
+    // Check if the message is from the other user and not read
+    return lastMessage.fromId == userId &&
+        lastMessage.read.isEmpty &&
+        lastMessage.toId == currentUserId;
+  }
+
+// Method to get unread count for a specific user
+  int getUnreadCount(String userId) {
+    // This would need to be implemented with a proper query
+    // For now, return 1 if there's an unread message, 0 otherwise
+    return hasUnreadMessages(userId) ? 1 : 0;
+  }
+
+// Method to mark all messages from a user as delivered
+  Future<void> markUserMessagesAsDelivered(String userId) async {
+    try {
+      final chatId = getConversationId(currentUserId, userId);
+
+      // Get undelivered messages
+      final undelivered = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('toId', isEqualTo: currentUserId)
+          .where('fromId', isEqualTo: userId)
+          .where('delivered', isEqualTo: '')
+          .limit(50)
+          .get();
+
+      if (undelivered.docs.isEmpty) return;
+
+      final batch = FirebaseFirestore.instance.batch();
+      final deliveryTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      for (var doc in undelivered.docs) {
+        batch.update(doc.reference, {
+          'delivered': deliveryTime,
+          'status': MessageStatus.delivered.name,
+        });
+      }
+
+      await batch.commit();
+
+      // Update local state if this affects the last message
+      final lastMessage = _lastMessages[userId]?.value;
+      if (lastMessage != null && (lastMessage.delivered ?? '').isEmpty) {
+        lastMessage.delivered = deliveryTime;
+        lastMessage.status = MessageStatus.delivered;
+        _lastMessages[userId]!.value = null; // Clear
+        _lastMessages[userId]!.value = lastMessage; // Reassign
+        chatUsers.refresh();
+      }
+
+      debugPrint('✅ Marked messages as delivered for user: $userId');
+    } catch (e) {
+      debugPrint('❌ Error marking messages as delivered: $e');
+    }
+  }
+
+// Method to sync all message states
+  Future<void> syncAllMessageStates() async {
+    try {
+      debugPrint('🔄 Syncing all message states...');
+
+      for (var user in chatUsers) {
+        await markUserMessagesAsDelivered(user.id);
+      }
+
+      debugPrint('✅ All message states synced');
+    } catch (e) {
+      debugPrint('❌ Error syncing message states: $e');
+    }
+  }
+
+// Method to handle real-time status updates
+  void handleRealtimeStatusUpdate(String userId, String messageId, MessageStatus status) {
+    // Update in UI immediately
+    updateMessageStatus(userId, messageId, status);
+
+    // If this is a read status, update any previous unread indicators
+    if (status == MessageStatus.read) {
+      // Could trigger any UI updates for read receipts here
+      debugPrint('✅ Message marked as read: $messageId');
+    }
+  }
+
+// Enhanced cleanup method
+  void cleanupUserData(String userId) {
+    try {
+      // Cancel message listener
+      _messageListeners[userId]?.cancel();
+      _messageListeners.remove(userId);
+
+      // Clear reactive data
+      _lastMessages.remove(userId);
+      _lastMessageTimes.remove(userId);
+
+      // Remove from chat users
+      chatUsers.removeWhere((u) => u.id == userId);
+
+      debugPrint('✅ Cleaned up data for user: $userId');
+    } catch (e) {
+      debugPrint('❌ Error cleaning up user data: $e');
+    }
+  }
   // Updated delete method with GetX
   // Updated deleteChat method in ChatListController
   Future<void> deleteChat(ChatUser user) async {
