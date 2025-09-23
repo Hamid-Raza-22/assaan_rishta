@@ -1,5 +1,4 @@
 // Updated user_details_view.dart
-import 'dart:typed_data';
 import 'package:flutter/services.dart'; // For Clipboard
 // Optional: import 'package:share_plus/share_plus.dart'; // If you fix the plugin
 import 'package:flutter/material.dart';
@@ -298,7 +297,7 @@ Don't have the app? Download now:
       ),
       fontSize: 18,
       onTap: () {
-        if (controller.totalConnects.value >= 0) {
+        if (controller.totalConnects.value > 0) {
           controller.sendMessageToOtherUser(context);
         } else {
           showDialog(

@@ -2,14 +2,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:assaan_rishta/app/views/account_type/account_type_view.dart';
-import 'package:assaan_rishta/app/views/login/login_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../core/models/chat_model/message.dart';
 import '../core/services/firebase_service/export.dart';
-import '../data/repositories/chat_repository.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import '../views/chat/chat_user_listing_view.dart';

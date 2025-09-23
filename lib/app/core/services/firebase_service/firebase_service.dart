@@ -459,7 +459,7 @@ class FirebaseService {
           .get();
 
       if (deletionDoc.exists) {
-        debugPrint('🔄 Auto-restoring chat from ${senderId}');
+        debugPrint('🔄 Auto-restoring chat from $senderId');
 
         final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -1223,7 +1223,9 @@ class FirebaseService {
 
 // Custom QuerySnapshot implementation for filtered results
 class FilteredQuerySnapshot implements QuerySnapshot<Map<String, dynamic>> {
+  @override
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+  @override
   final SnapshotMetadata metadata;
 
   FilteredQuerySnapshot({required this.docs, required this.metadata});

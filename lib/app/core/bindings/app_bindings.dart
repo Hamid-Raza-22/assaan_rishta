@@ -1,7 +1,6 @@
 // app_bindings.dart - Complete fix
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/export.dart';
 import '../../viewmodels/account_type_viewmodel.dart';

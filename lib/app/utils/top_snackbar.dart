@@ -7,10 +7,10 @@ class TopSnackbar extends StatefulWidget {
   final Duration duration;
 
   const TopSnackbar({
-    Key? key,
+    super.key,
     required this.message,
     this.duration = const Duration(seconds: 5),
-  }) : super(key: key);
+  });
 
   static void show(BuildContext context, String message) {
     final overlay = Overlay.of(context);

@@ -10,8 +10,6 @@ import '../../viewmodels/filter_viewmodel.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/export.dart';
 import '../../core/routes/app_routes.dart';
-import '../user_details/user_details_view.dart';
-import 'export.dart';
 
 class FilterView extends GetView<FilterController> {
   const FilterView({super.key});

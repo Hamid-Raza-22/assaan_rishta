@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import '../core/export.dart';
-import '../data/models/user_model.dart' hide SignUpModel;
 
 import '../domain/export.dart';
 import '../utils/exports.dart';
@@ -82,15 +81,16 @@ class SignupViewModel extends GetxController {
     _initDropDownAPIs();
 
     // Add listeners for form validation
-    [
+    for (var controller in [
       firstNameController,
       lastNameController,
       emailController,
       phoneController,
       dobTEC,
       passwordController
-    ]
-        .forEach((controller) => controller.addListener(validateForm));
+    ]) {
+      controller.addListener(validateForm);
+    }
   }
 
   // Call this method to clear form data for a new signup

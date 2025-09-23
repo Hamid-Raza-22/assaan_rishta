@@ -4,7 +4,6 @@
 import 'dart:async';
 
 import 'package:confetti/confetti.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,7 +11,6 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 // Import your AmountView directly
 import '../../../fast_pay/views/amount_view.dart';
-import '../../../core/export.dart';
 import '../../../domain/export.dart';
 import '../../../utils/exports.dart';
 import 'package:flutter/services.dart';

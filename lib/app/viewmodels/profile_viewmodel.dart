@@ -3,15 +3,12 @@
 import 'dart:convert';
 import 'package:assaan_rishta/app/widgets/app_text.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/export.dart';
-import '../core/services/firebase_service/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import 'auth_service.dart';

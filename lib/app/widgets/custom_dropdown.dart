@@ -24,7 +24,7 @@ class DropdownField extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: DropdownButtonFormField<String>(
-        value: value.isEmpty ? null : value,
+        initialValue: value.isEmpty ? null : value,
         decoration: const InputDecoration(border: InputBorder.none),
         hint: Text(hint, style: TextStyle(color: Colors.grey[500])),
         icon: const Icon(Icons.arrow_drop_down),

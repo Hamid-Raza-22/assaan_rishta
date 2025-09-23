@@ -14,7 +14,6 @@ import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
-import '../../../domain/export.dart';
 import '../../../viewmodels/auth_service.dart';
 import '../../../viewmodels/chat_list_viewmodel.dart';
 import '../../../viewmodels/chat_viewmodel.dart';
@@ -698,21 +697,21 @@ class NotificationServices {
     debugPrint('🔄 Navigation state reset');
   }
 
-  bool _shouldPreventNavigation(String userId) {
-    final now = DateTime.now();
-
-    if (_isNavigating) {
-      return true;
-    }
-
-    if (_lastNavigatedUserId == userId &&
-        _lastNavigationTime != null &&
-        now.difference(_lastNavigationTime!).inSeconds < 2) {
-      return true;
-    }
-
-    return false;
-  }
+  // bool _shouldPreventNavigation(String userId) {
+  //   final now = DateTime.now();
+  //
+  //   if (_isNavigating) {
+  //     return true;
+  //   }
+  //
+  //   if (_lastNavigatedUserId == userId &&
+  //       _lastNavigationTime != null &&
+  //       now.difference(_lastNavigationTime!).inSeconds < 2) {
+  //     return true;
+  //   }
+  //
+  //   return false;
+  // }
 
   // IMPROVED: Navigation with terminated state handling
   Future<void> _navigateToChatSafely(ChatUser chatUser) async {

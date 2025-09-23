@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
-import '../../core/export.dart';
 import '../../utils/exports.dart';
 import '../../widgets/export.dart';
 import 'export.dart';

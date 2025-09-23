@@ -380,7 +380,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
     // Create preview text
     final previewText = cleanMessage.length > 40
-        ? cleanMessage.substring(0, 40) + '...'
+        ? '${cleanMessage.substring(0, 40)}...'
         : cleanMessage;
 
     replyPreview.value = '$senderName: $previewText';
@@ -603,7 +603,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
               cachedMessages[index] = message;
               cachedMessages.refresh();
 
-              debugPrint('📊 Status updated for message ${messageId}: ${newStatus.name}');
+              debugPrint('📊 Status updated for message $messageId: ${newStatus.name}');
             }
           }
         }
@@ -750,27 +750,25 @@ Future<void> showImageOptions() async {
       }
     }
 
-    if (image != null) {
-      uploading.value = true;
-      try {
-        if (isViewOnce) {
-          // Send as view-once image
-          await chatController.sendViewOnceImage(
-            useCase.getUserId().toString(),
-            File(image.path),
-          );
-        } else {
-          // Send as normal image
-          await chatController.sendImage(
-            useCase.getUserId().toString(),
-            File(image.path),
-          );
-        }
-      } finally {
-        uploading.value = false;
+    uploading.value = true;
+    try {
+      if (isViewOnce) {
+        // Send as view-once image
+        await chatController.sendViewOnceImage(
+          useCase.getUserId().toString(),
+          File(image.path),
+        );
+      } else {
+        // Send as normal image
+        await chatController.sendImage(
+          useCase.getUserId().toString(),
+          File(image.path),
+        );
       }
+    } finally {
+      uploading.value = false;
     }
-  }
+    }
 
   Future<bool> _showViewOnceConfirmationDialog(File imageFile) async {
     return await Get.dialog<bool>(
@@ -2069,7 +2067,7 @@ class _ChattingViewState extends State<ChattingView> {
                   SizedBox(width: chatMq.width * .02),
                   Expanded(
                     child: TextField(
-                      key: ValueKey('chat_input_${controllerTag}'),
+                      key: ValueKey('chat_input_$controllerTag'),
                       controller: controller.textController,
                       textCapitalization: TextCapitalization.sentences,
                       keyboardType: TextInputType.multiline,

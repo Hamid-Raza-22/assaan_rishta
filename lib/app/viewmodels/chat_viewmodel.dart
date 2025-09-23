@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/export.dart';
@@ -995,7 +994,9 @@ _clearImageFromCache(String imageUrl) {
 
   @override
   void onClose() {
-    _activeStreams.values.forEach((subscription) => subscription.cancel());
+    for (var subscription in _activeStreams.values) {
+      subscription.cancel();
+    }
     _activeStreams.clear();
     _typingStatusSubscription?.cancel();
     cleanupTypingStatus();

@@ -10,8 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/routes/app_routes.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/storage_services/export.dart';
-import '../domain/export.dart';
-import '../utils/exports.dart';
 import '../views/bottom_nav/export.dart';
 import 'chat_viewmodel.dart';
 

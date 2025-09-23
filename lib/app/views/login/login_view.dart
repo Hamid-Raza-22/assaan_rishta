@@ -5,7 +5,6 @@ import 'package:assaan_rishta/app/views/login/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/export.dart';
-import '../../utils/app_colors.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/login_viewmodel.dart';
 import '../../widgets/app_text.dart';

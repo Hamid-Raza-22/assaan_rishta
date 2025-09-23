@@ -218,8 +218,8 @@ class ImageHelper extends StatelessWidget {
   /// box border surounded image
   final BoxBorder? boxBorder;
 
-  ImageHelper(
-      {required this.image,
+  const ImageHelper(
+      {super.key, required this.image,
       required this.imageType,
       this.imageShape = ImageShape.none,
       this.color,

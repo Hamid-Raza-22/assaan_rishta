@@ -3,8 +3,6 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../core/export.dart';
-import '../../../core/models/req_model/profile_filter.dart';
-import '../../../core/models/res_model/login_model.dart';
 import '../../../core/services/network_services/result_type.dart';
 
 
