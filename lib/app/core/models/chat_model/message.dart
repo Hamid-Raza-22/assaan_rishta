@@ -148,7 +148,5 @@ Widget buildMessageStatusIcon(Message message, bool isMe) {
     case MessageStatus.failed:
       return const Icon(Icons.error_outline, color: Colors.red, size: 14);
 
-    default:
-      return const Icon(Icons.done, color: Colors.white70, size: 14);
-  }
+    }
 }

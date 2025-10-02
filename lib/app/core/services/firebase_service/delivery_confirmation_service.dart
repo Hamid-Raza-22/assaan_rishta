@@ -1,13 +1,11 @@
 // Fixed delivery_confirmation_service.dart
 
 
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 class DeliveryConfirmationService {
-  static final FirebaseFunctions _functions = FirebaseFunctions.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Fixed cloud function call - ensure all parameters are sent as strings

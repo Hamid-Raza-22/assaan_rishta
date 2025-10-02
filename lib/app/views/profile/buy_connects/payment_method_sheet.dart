@@ -89,67 +89,6 @@ void showPurchaseBottomSheet({
   );
 }
 // Helper method for account items (add this to your class)
-Widget _buildAccountItem(String title, String number, Color color, IconData icon) {
-  return Container(
-    padding: EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Colors.grey.shade200),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.shade100,
-          blurRadius: 4,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                number,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          onPressed: () {
-
-            copyToClipboard(number, title);
-
-          },
-          icon: Icon(Icons.copy, color: Colors.grey, size: 18),
-        ),
-      ],
-    ),
-  );
-}
 // Copy function
 void copyToClipboard(String text, String accountName) async {
   await Clipboard.setData(ClipboardData(text: text));

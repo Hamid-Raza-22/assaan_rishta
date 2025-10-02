@@ -2,6 +2,7 @@ import 'package:assaan_rishta/app/views/signup/widgets/custom_button.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/custom_text_field.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/gender_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_datetime_picker_bdaya/flutter_datetime_picker_bdaya.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,10 +15,13 @@ import '../../widgets/custom_checkbox.dart';
 import 'basic_info_view.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:url_launcher/url_launcher.dart';
 class SignupView extends StatelessWidget {
   final SignupViewModel controller = Get.find<SignupViewModel>();
 
 SignupView({super.key});
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +100,6 @@ SignupView({super.key});
               ),
               SizedBox(height: 10),
               IntlPhoneField(
-
                 controller: controller.phoneController,
                 style: GoogleFonts.poppins(
                   color: AppColors.blackColor,
@@ -134,27 +137,73 @@ SignupView({super.key});
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey[300]!),
                   ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
                 ),
                 cursorColor: AppColors.primaryColor,
                 initialCountryCode: 'PK',
-                disableLengthCheck: true,
+                disableLengthCheck: true, // Important: We handle validation ourselves
                 validator: controller.validatePhone,
-                onCountryChanged: (countryCode) {
-                  controller.countryCode.value =
-                  "+${countryCode.dialCode}";
+                onCountryChanged: (country) {
+                  // Update country code and ISO when country changes
+                  controller.countryCode.value = "+${country.dialCode}";
+                  controller.countryCode.value = country.code;
+
+                  // Get validation rule for the new country
+                  final rule = controller.phoneValidationRules[country.code];
+                  final maxLength = rule?.maxLength ?? 15;
+
+                  // Clear phone field when country changes for better UX
+                  controller.phoneController.clear();
+
+                  // Re-validate the form
+                  controller.validateForm();
+
+                  // Optional: Show a snackbar with phone requirements
+                  // if (rule != null) {
+                  //   Get.snackbar(
+                  //     'Phone Format',
+                  //     rule.minLength == rule.maxLength
+                  //         ? '${rule.countryName} requires ${rule.minLength} digits'
+                  //         : '${rule.countryName} requires ${rule.minLength}-${rule.maxLength} digits',
+                  //     snackPosition: SnackPosition.BOTTOM,
+                  //     duration: const Duration(seconds: 3),
+                  //     backgroundColor: AppColors.primaryColor.withOpacity(0.9),
+                  //     colorText: Colors.white,
+                  //     margin: const EdgeInsets.all(10),
+                  //     borderRadius: 8,
+                  //   );
+                  // }
                 },
                 onChanged: (phone) {
-                  if (phone.number.length > 10) {
-                    controller.phoneController.text = phone.number.substring(0, 10);
+                  // Get validation rule for current country
+                  final rule = controller.phoneValidationRules[controller.countryCode.value];
+                  final maxLength = rule?.maxLength ?? 15;
+
+                  // Limit input based on country's maximum length
+                  if (phone.number.length > maxLength) {
+                    // Trim the input to max length
+                    controller.phoneController.text = phone.number.substring(0, maxLength);
                     controller.phoneController.selection = TextSelection.fromPosition(
                       TextPosition(offset: controller.phoneController.text.length),
                     );
+
+                    // Show feedback when max length reached
+                    HapticFeedback.lightImpact(); // Optional: Add haptic feedback
+                  } else {
+                    controller.phoneController.text = phone.number;
                   }
+
+                  // Validate form on every change
                   controller.validateForm();
-                   controller.phoneController.text = phone.number;
                 },
-              ),
-              // CustomTextField(
+              ),              // CustomTextField(
               //   controller: controller.phoneController,
               //   hintText: '+92 000000000',
               //   prefixIcon: Icons.phone_outlined,
@@ -219,7 +268,8 @@ SignupView({super.key});
                   text: "Next",
                   isLoading: controller.isLoading.value,
                   onPressed: () {
-
+                    // sendOtpOnWhatsApp("+923486255887", "123456");
+                    //
                       if (controller.formKey.currentState!.validate()) {
                         if (controller.isFormValid.value) {
                           // Store the values in observable variables before navigation
@@ -230,8 +280,7 @@ SignupView({super.key});
 
 
                         // Get.toNamed(AppRoutes.BASIC_INFO);
-                        Get.to(
-                                () => const BasicInfoView());
+                        Get.to(() => const BasicInfoView());
                       }
                     }
                   },

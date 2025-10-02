@@ -540,50 +540,6 @@ class DeepLinkHandler {
   }
 
   // Navigate with proper stack for terminated mode
-  static void _navigateToProfileWithStack(String profileId) {
-    debugPrint('🚀 Creating navigation stack for profile: $profileId');
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 200), () {
-        final currentRoute = Get.currentRoute;
-
-        debugPrint('🔍 Current route when creating stack: $currentRoute');
-
-        // Check if we're still on splash, auth screens, or initial routes
-        if (currentRoute == AppRoutes.SPLASH ||
-            currentRoute == AppRoutes.ACCOUNT_TYPE ||
-            currentRoute == AppRoutes.LOGIN ||
-            currentRoute == '/' ||
-            currentRoute.isEmpty) {
-
-          debugPrint('📱 App just started or on auth screen, creating proper navigation stack...');
-
-          // First navigate to home/bottom nav (this replaces splash/auth screens)
-          Get.offAllNamed(AppRoutes.BOTTOM_NAV);
-
-          // Then push the profile view on top after a delay
-          Future.delayed(const Duration(milliseconds: 500), () {
-            Get.toNamed(
-              AppRoutes.USER_DETAILS_VIEW,
-              arguments: profileId,
-            );
-            debugPrint('✅ Navigation stack created: BottomNav -> UserDetails($profileId)');
-          });
-        } else if (currentRoute == AppRoutes.BOTTOM_NAV ||
-            currentRoute.contains('/bottom-nav')) {
-          // Already on bottom nav, just navigate to profile
-          debugPrint('📱 Already on BottomNav, navigating to profile...');
-          Get.toNamed(
-            AppRoutes.USER_DETAILS_VIEW,
-            arguments: profileId,
-          );
-        } else {
-          // App is already running on some other screen, use normal navigation
-          _navigateToProfile(profileId);
-        }
-      });
-    });
-  }
 
   static void _navigateToProfile(String profileId) {
     debugPrint('🚀 Navigating to profile: $profileId');
