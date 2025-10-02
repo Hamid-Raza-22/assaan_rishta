@@ -1125,7 +1125,7 @@ class FirebaseService {
   // Block/Unblock methods remain the same
   static Future<void> blockUser(String userIdToBlock) async {
     try {
-      final currentUserId = useCase.getUserId().toString();
+      final _ = useCase.getUserId().toString();
 
       await firestore
           .collection('Hamid_users')

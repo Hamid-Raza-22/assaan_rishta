@@ -20,9 +20,29 @@ import 'app/utils/app_colors.dart';
 import 'app/viewmodels/chat_list_viewmodel.dart';
 import 'app/viewmodels/chat_viewmodel.dart';
 import 'firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<bool> isFirstInstall() async {
+  final prefs = await SharedPreferences.getInstance();
+  bool isFirstTime = prefs.getBool('first_install') ?? true;
+
+  // Don't set the flag here - set it after clearing data
+  return isFirstTime;
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  bool firstTime = await isFirstInstall();
+
+  if (firstTime) {
+    // Clear all data on first install
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    // NOW set the flag after clearing everything else
+    await prefs.setBool('first_install', false);
+  }
+
   HttpOverrides.global = MyHttpOverrides();
 
   await Firebase.initializeApp(
