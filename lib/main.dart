@@ -5,6 +5,8 @@ import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+// import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 import 'package:get/get.dart';
 
 import 'app/core/di/export.dart';
@@ -68,18 +70,6 @@ Future<void> main() async {
   runApp(const AsanRishtaApp());
 }
 
-// @pragma('vm:entry-point') Dart compiler ko batata hai ke is function ko "tree-shaking"
-// ke dauran code se na hataya jaye. Yeh zaroori hai kyunki yeh function native side se
-// (Android/iOS) call hota hai jab app background mein ho ya band ho aur koi
-// Firebase notification aaye. Iske baghair, release mode mein background notifications
-// fail ho sakte hain kyunki compiler is function ko "unused" samajh kar hata dega.
-//
-// English:
-// This annotation informs the Dart compiler not to remove this function during "tree-shaking".
-// It's essential because this function is called from the native side (Android/iOS) when
-// the app is in the background or terminated and a Firebase notification arrives. Without
-// this, background notifications might fail in release mode as the compiler would
-// otherwise remove this "unused" function.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
@@ -179,7 +169,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 
-// FIXED: Main App with proper notification initialization
 class AsanRishtaApp extends StatefulWidget {
   const AsanRishtaApp({super.key});
 
@@ -188,18 +177,50 @@ class AsanRishtaApp extends StatefulWidget {
 }
 
 class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserver {
-  // final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // Initialize notifications after first frame when context is available
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   _initializeNotifications();
-    // });
+    // _checkSecurity();
   }
+
+  // Future<void> _checkSecurity() async {
+  //   bool isJailbroken;
+  //   bool isDeveloperMode;
+  //
+  //   try {
+  //     isJailbroken = await FlutterJailbreakDetection.jailbroken;
+  //     isDeveloperMode = await FlutterJailbreakDetection.developerMode;
+  //   } on PlatformException {
+  //     isJailbroken = true;
+  //     isDeveloperMode = true;
+  //   }
+  //
+  //   if (!mounted) return;
+  //
+  //   if (isJailbroken || isDeveloperMode) {
+  //     WidgetsBinding.instance.addPostFrameCallback((_) {
+  //       showDialog(
+  //         context: context,
+  //         barrierDismissible: false,
+  //         builder: (BuildContext context) {
+  //           return AlertDialog(
+  //             title: const Text('Security Alert'),
+  //             content: const Text('For your safety, this app cannot be run on a rooted device or with developer mode enabled.'),
+  //             actions: <Widget>[
+  //               TextButton(
+  //                 child: const Text('OK'),
+  //                 onPressed: () {
+  //                   SystemNavigator.pop();
+  //                 },
+  //               ),
+  //             ],
+  //           );
+  //         },
+  //       );
+  //     });
+  //   }
+  // }
 
   @override
   void dispose() {
@@ -207,7 +228,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     DeepLinkHandler.dispose();
     super.dispose();
   }
-// FIXED: Proper app lifecycle handling for message delivery
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     debugPrint('🔄 App lifecycle state: $state');
@@ -224,7 +245,6 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
         break;
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-      // App is transitioning or hidden
         break;
     }
   }
@@ -233,29 +253,22 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     debugPrint('📱 App resumed from background');
 
     try {
-      // Update Firebase app state
       FirebaseService.setAppState(isInForeground: true);
 
-      // Update user online status
       if (FirebaseService.me != null) {
         await FirebaseService.updateActiveStatus(true);
       }
 
-      // If we're in a chat, mark undelivered messages
       if (Get.isRegistered<ChatViewModel>()) {
         final chatViewModel = Get.find<ChatViewModel>();
         if (chatViewModel.selectedUser.value != null) {
           final selectedUserId = chatViewModel.selectedUser.value!.id;
-
-          // Mark any undelivered messages as delivered
           final chatRepository = ChatRepository();
           await chatRepository.markMessagesAsDelivered(selectedUserId);
-
           debugPrint('✅ Marked undelivered messages as delivered for: $selectedUserId');
         }
       }
 
-      // Reset any stuck navigation states
       if (Get.isRegistered<ChatListController>()) {
         final controller = Get.find<ChatListController>();
         controller.resetAllStates();
@@ -265,40 +278,18 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
       debugPrint('❌ Error handling app resume: $e');
     }
   }
- void _handleAppInActive() async {
-    debugPrint('📱 App resumed from background');
+
+  void _handleAppInActive() async {
+    debugPrint('📱 App is inactive');
 
     try {
-      // Update Firebase app state
       FirebaseService.setAppState(isInForeground: false);
 
-      // Update user online status
       if (FirebaseService.me != null) {
         await FirebaseService.updateActiveStatus(false);
       }
-
-      // If we're in a chat, mark undelivered messages
-      if (Get.isRegistered<ChatViewModel>()) {
-        final chatViewModel = Get.find<ChatViewModel>();
-        if (chatViewModel.selectedUser.value != null) {
-          final selectedUserId = chatViewModel.selectedUser.value!.id;
-
-          // Mark any undelivered messages as delivered
-          final chatRepository = ChatRepository();
-          await chatRepository.markMessagesAsDelivered(selectedUserId);
-
-          debugPrint('✅ Marked undelivered messages as delivered for: $selectedUserId');
-        }
-      }
-
-      // Reset any stuck navigation states
-      if (Get.isRegistered<ChatListController>()) {
-        final controller = Get.find<ChatListController>();
-        controller.resetAllStates();
-      }
-
     } catch (e) {
-      debugPrint('❌ Error handling app resume: $e');
+      debugPrint('❌ Error handling app inactive state: $e');
     }
   }
 
@@ -306,10 +297,8 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     debugPrint('📱 App went to background');
 
     try {
-      // Update Firebase app state
       FirebaseService.setAppState(isInForeground: false);
 
-      // Update user status to offline after a delay
       Timer(const Duration(seconds: 30), () async {
         if (FirebaseService.me != null) {
           await FirebaseService.updateActiveStatus(false);
@@ -321,12 +310,10 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Asaan Rishta',
-      // navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primaryColor,
@@ -339,8 +326,6 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
       initialRoute: AppRoutes.SPLASH,
       getPages: AppPages.routes,
       debugShowCheckedModeBanner: false,
-     // navigatorKey: StackedService.navigatorKey,
-      //onGenerateRoute: StackedRouter().onGenerateRoute,
     );
   }
 }
