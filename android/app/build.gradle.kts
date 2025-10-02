@@ -82,7 +82,14 @@ dependencies {
     // Core Android and Kotlin dependencies
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10")
-
+    // For in-app updates
+    implementation("com.google.android.play:app-update:2.1.0")
+// For in-app reviews
+    implementation("com.google.android.play:review:2.0.2")
+// For asset delivery (if using)
+    implementation("com.google.android.play:asset-delivery:2.2.2")
+// For feature delivery (if using deferred components)
+    implementation("com.google.android.play:feature-delivery:2.1.0")
     // AndroidX dependencies for better compatibility
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
