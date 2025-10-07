@@ -18,6 +18,9 @@ class UserDetailsController extends GetxController {
 
   ChatViewModel? chatController;
   var profileDetails = ProfileDetails().obs;
+  // Cached video preview data
+  final Rx<Uint8List?> videoThumbnailData = Rx<Uint8List?>(null);
+  final RxBool isVideoThumbLoading = false.obs;
 
   // Make receiverId reactive and handle it properly
   var receiverId = ''.obs;
@@ -192,6 +195,8 @@ class UserDetailsController extends GetxController {
           profileDetails.value = success;
           isLoading.value = false;
           update(); // Force UI update
+          // Prefetch video preview assets ASAP
+          _prefetchVideoPreview();
         },
       );
     } catch (e) {
@@ -209,6 +214,38 @@ class UserDetailsController extends GetxController {
           duration: const Duration(seconds: 2),
         );
       }
+    }
+  }
+
+  void _prefetchVideoPreview() {
+    try {
+      final String? videoUrl = profileDetails.value.tiktokLink;
+      if (videoUrl == null || videoUrl.isEmpty) {
+        videoThumbnailData.value = null;
+        isVideoThumbLoading.value = false;
+        update(['video_thumb']);
+        return;
+      }
+
+      isVideoThumbLoading.value = true;
+      update(['video_thumb']);
+
+      // Kick off thumbnail fetch
+      getVideoThumbnailData(videoUrl).then((bytes) async {
+        videoThumbnailData.value = bytes;
+        isVideoThumbLoading.value = false;
+        update(['video_thumb']);
+
+        // Warm up the video controller in background after thumbnail
+        // Do not auto-play; keep it ready for quick start
+        try {
+          await Future.delayed(const Duration(milliseconds: 150));
+          await initializeVideoPlayer(videoUrl);
+        } catch (_) {}
+      });
+    } catch (e) {
+      isVideoThumbLoading.value = false;
+      update(['video_thumb']);
     }
   }
 

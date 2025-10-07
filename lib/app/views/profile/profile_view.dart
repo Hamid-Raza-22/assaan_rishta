@@ -333,6 +333,7 @@ class ProfileView extends GetView<ProfileController> {
               // );
             },
           ),
+
           ClickableListTile(
             text: 'Privacy Policy',
             icon: Icons.privacy_tip_outlined,
@@ -343,6 +344,21 @@ class ProfileView extends GetView<ProfileController> {
               //       url: "https://asaanrishta.com/privacy",
               //       title: "Privacy Policy",
               //     ));
+            },
+          ),
+          ClickableListTile(
+            text: 'User Guide',
+            iconPath: AppAssets.icTermsOfServices,
+            imageType: ImageType.asset,
+            onTap: () {
+              Get.toNamed(AppRoutes.ABOUT_US_VIEW);
+
+              // Get.to(
+              //   () => const AboutUsView(),
+              //   binding: AppBindings(),
+              //   transition: Transition.circularReveal,
+              //   duration: const Duration(milliseconds: 500),
+              // );
             },
           ),
           ClickableListTile(

@@ -46,14 +46,14 @@ class DeepLinkHandler {
   }
 
   static void _processInitialLink(String link) {
-    if (link.contains('user-details-view')) {
+    if (link.contains('rishta')) {
       final profileId = _extractProfileId(link);
       if (profileId != null) {
         _pendingDeepLinkProfileId = profileId;
         _pendingDeepLinkType = 'user';
         debugPrint('📌 Stored pending user profile ID: $profileId');
       }
-    } else if (link.contains('vendor-details-view')) {
+    } else if (link.contains('vendors')) {
       final vendorId = _extractVendorId(link);
       if (vendorId != null) {
         _pendingDeepLinkVendorId = vendorId;
@@ -83,14 +83,29 @@ class DeepLinkHandler {
       String? profileId;
 
       if (uri.scheme == 'https' && uri.host == 'asaanrishta.com') {
-        if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'user-details-view') {
-          profileId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+        if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'rishta') {
+          // Support: /rishta/{id} and /rishta/{slug}/{id}
+          if (uri.pathSegments.length > 2) {
+            profileId = uri.pathSegments[2];
+          } else if (uri.pathSegments.length > 1) {
+            profileId = uri.pathSegments[1];
+          }
         }
       } else if (uri.scheme == 'asaanrishta') {
-        if (uri.host == 'user-details-view') {
-          profileId = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : null;
-        } else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'user-details-view') {
-          profileId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+        if (uri.host == 'rishta') {
+          // Support: asaanrishta://rishta/{id} and asaanrishta://rishta/{slug}/{id}
+          if (uri.pathSegments.length > 1) {
+            profileId = uri.pathSegments[1];
+          } else if (uri.pathSegments.isNotEmpty) {
+            profileId = uri.pathSegments[0];
+          }
+        } else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'rishta') {
+          // Support: asaanrishta:/rishta/{id} and asaanrishta:/rishta/{slug}/{id}
+          if (uri.pathSegments.length > 2) {
+            profileId = uri.pathSegments[2];
+          } else if (uri.pathSegments.length > 1) {
+            profileId = uri.pathSegments[1];
+          }
         }
       }
 
@@ -107,14 +122,23 @@ class DeepLinkHandler {
       String? vendorId;
 
       if (uri.scheme == 'https' && uri.host == 'asaanrishta.com') {
-        if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'vendor-details-view') {
-          vendorId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+        if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'vendors') {
+          // Support: /vendors/{id} and /vendors/{category}/{name}/{id}
+          if (uri.pathSegments.length >= 2) {
+            vendorId = uri.pathSegments.last; // take the last segment as ID
+          }
         }
       } else if (uri.scheme == 'asaanrishta') {
-        if (uri.host == 'vendor-details-view') {
-          vendorId = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : null;
-        } else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'vendor-details-view') {
-          vendorId = uri.pathSegments.length > 1 ? uri.pathSegments[1] : null;
+        if (uri.host == 'vendors') {
+          // Support: asaanrishta://vendors/{id} and asaanrishta://vendors/{category}/{name}/{id}
+          if (uri.pathSegments.isNotEmpty) {
+            vendorId = uri.pathSegments.last;
+          }
+        } else if (uri.pathSegments.isNotEmpty && uri.pathSegments[0] == 'vendors') {
+          // Support: asaanrishta:/vendors/{id} and asaanrishta:/vendors/{category}/{name}/{id}
+          if (uri.pathSegments.length >= 2) {
+            vendorId = uri.pathSegments.last;
+          }
         }
       }
 
@@ -135,7 +159,7 @@ class DeepLinkHandler {
     debugPrint('📱 Processing deep link: $link');
 
     try {
-      if (link.contains('vendor-details-view')) {
+      if (link.contains('vendors')) {
         final vendorId = _extractVendorId(link);
         if (vendorId != null && vendorId.isNotEmpty) {
           debugPrint('✅ Vendor ID extracted: $vendorId');
@@ -152,7 +176,7 @@ class DeepLinkHandler {
           debugPrint('⚠️ No valid vendor ID found in link');
           _isHandlingDeepLink = false;
         }
-      } else if (link.contains('user-details-view')) {
+      } else if (link.contains('rishta')) {
         final profileId = _extractProfileId(link);
         if (profileId != null && profileId.isNotEmpty) {
           debugPrint('✅ Profile ID extracted: $profileId');
@@ -183,7 +207,7 @@ class DeepLinkHandler {
       debugPrint('🔍 Current route for vendor check: $currentRoute');
 
       // Check if we're on any vendor details route
-      if (currentRoute.contains('/vendor-details-view') ||
+      if (currentRoute.contains('/vendors') ||
           currentRoute.contains('/vender-details-view') ||
           currentRoute == AppRoutes.VENDER_DETAILS_VIEW) {
 
@@ -215,7 +239,7 @@ class DeepLinkHandler {
     try {
       final currentRoute = Get.currentRoute;
 
-      if (currentRoute.contains('/user-details-view')) {
+      if (currentRoute.contains('/rishta') || currentRoute == AppRoutes.USER_DETAILS_VIEW) {
         if (Get.isRegistered<UserDetailsController>()) {
           final controller = Get.find<UserDetailsController>();
           final currentProfileId = controller.receiverId.value;
@@ -394,10 +418,10 @@ class DeepLinkHandler {
         debugPrint('🔍 Target vendor ID: $vendorId');
 
         // IMPROVED: More comprehensive check for vendor details routes
-        final isOnVendorRoute = currentRoute.contains('/vendor-details-view') ||
+        final isOnVendorRoute = currentRoute.contains('/vendors') ||
             currentRoute.contains('/vender-details-view') ||
             currentRoute == AppRoutes.VENDER_DETAILS_VIEW ||
-            currentRoute.startsWith('/vendor-details-view/') ||
+            currentRoute.startsWith('/vendors/') ||
             currentRoute.startsWith('/vender-details-view/$vendorId');
 
         // Check if already on vendor details view
@@ -576,9 +600,9 @@ class DeepLinkHandler {
             return;
           }
 
-          // Check if already on user-details-view
-          if (currentRoute.contains('/user-details-view')||currentRoute.startsWith('/user-details-view/')) {
-            debugPrint('🔍 Already on user-details-view, checking controller...');
+          // Check if already on rishta
+          if (currentRoute.contains('/rishta')||currentRoute.startsWith('/rishta/')||currentRoute == AppRoutes.USER_DETAILS_VIEW) {
+            debugPrint('🔍 Already on rishta, checking controller...');
 
             if (Get.isRegistered<UserDetailsController>()) {
               final controller = Get.find<UserDetailsController>();

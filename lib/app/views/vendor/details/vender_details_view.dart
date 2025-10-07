@@ -324,8 +324,20 @@ class VendorDetailView extends GetView<VendorDetailController> {
 
       // Generate deep links for vendor
       final vendorId = controller.vendorsItem.venderID;
-      final vendorName = controller.vendorsItem.venderBusinessName;
-      final vendorCategory = controller.vendorsItem.vendorCategoryName;
+      String slugify(String input) {
+        final normalized = input
+            .toLowerCase()
+            .replaceAll(RegExp(r"[^a-z0-9\s-]"), '')
+            .trim()
+            .replaceAll(RegExp(r"\s+"), '-');
+        return normalized.replaceAll(RegExp(r"-+"), '-');
+      }
+      final vendorName = controller.vendorsItem.venderBusinessName != null
+          ? slugify(controller.vendorsItem.venderBusinessName!)
+          : null;
+      final vendorCategory = controller.vendorsItem.vendorCategoryName != null
+          ? slugify(controller.vendorsItem.vendorCategoryName!)
+          : null;
 
       if (vendorId == null) {
         // Close loading dialog
@@ -344,8 +356,8 @@ class VendorDetailView extends GetView<VendorDetailController> {
       }
 
       // Create both HTTPS and custom scheme links
-      final httpsLink = 'https://asaanrishta.com/vendor-details-view/$vendorId';
-      final customLink = 'asaanrishta://vendor-details-view/$vendorId';
+      final httpsLink = 'https://asaanrishta.com/vendors/$vendorCategory/$vendorName/$vendorId';
+      final customLink = 'asaanrishta://vendors/$vendorCategory/$vendorName/$vendorId';
 
       // Create share message
       final shareMessage = '''

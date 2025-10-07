@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../core/export.dart';
 import '../../domain/export.dart';
@@ -111,6 +112,10 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     // Set up text field listener for typing
     textController.addListener(_onTextChanged);
     _fetchCurrentUserProfile();
+    // Pre-cache avatars early
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precacheAvatars();
+    });
     // Start listening to typing status
     _listenToTypingStatus();
     // FIXED: Set current chat user ID
@@ -125,6 +130,26 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     _isActiveController = true;
     _markMessagesAsDeliveredOnEntry();
     _initializeChat();
+  }
+  void _precacheAvatars() {
+    try {
+      final ctx = Get.context;
+      if (ctx == null) return;
+      final otherUrl = user.image;
+      if (_isValidNetworkUrl(otherUrl)) {
+        precacheImage(CachedNetworkImageProvider(otherUrl), ctx);
+      }
+      final meUrl = currentUserImageUrl.value;
+      if (_isValidNetworkUrl(meUrl)) {
+        precacheImage(CachedNetworkImageProvider(meUrl), ctx);
+      }
+    } catch (_) {}
+  }
+
+  bool _isValidNetworkUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    final uri = Uri.tryParse(url);
+    return uri != null && (uri.isScheme('http') || uri.isScheme('https')) && (uri.host.isNotEmpty);
   }
   void _listenToKeyboardVisibility() {
     final bottomInset = MediaQuery.of(Get.context!).viewInsets.bottom;
@@ -959,6 +984,8 @@ Future<void> showImageOptions() async {
           cachedUserData.value = ChatUser.fromJson(data.first.data());
           // Update block status when user data changes
           _updateBlockStatus();
+          // Pre-cache on update
+          _precacheAvatars();
         }
       });
     } catch (e) {
@@ -1489,25 +1516,49 @@ class _ChattingViewState extends State<ChattingView> {
           if (!isBlockedByThem && !isDelete && !hasBlockedThem)
             ClipRRect(
               borderRadius: BorderRadius.circular(chatMq.height * .3),
-              child: CachedNetworkImage(
-                fit: BoxFit.cover,
-                height: chatMq.height * .05,
-                width: chatMq.height * .05,
-                imageUrl: controller.userImageUrl,
-                errorWidget: (c, url, e) => Container(
-                  height: chatMq.height * .05,
-                  width: chatMq.height * .05,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(chatMq.height * .3),
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.person,
-                    color: Colors.grey,
-                    size: 30,
-                  ),
-                ),
-              ),
+              child: controller._isValidNetworkUrl(controller.userImageUrl)
+                  ? CachedNetworkImage(
+                      fit: BoxFit.cover,
+                      height: chatMq.height * .05,
+                      width: chatMq.height * .05,
+                      imageUrl: controller.userImageUrl,
+                      fadeInDuration: const Duration(milliseconds: 0),
+                      fadeOutDuration: const Duration(milliseconds: 0),
+                      placeholder: (c, url) => Container(
+                        height: chatMq.height * .05,
+                        width: chatMq.height * .05,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(chatMq.height * .3),
+                        ),
+                      ),
+                      errorWidget: (c, url, e) => Container(
+                        height: chatMq.height * .05,
+                        width: chatMq.height * .05,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(chatMq.height * .3),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.person,
+                          color: Colors.grey,
+                          size: 30,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      height: chatMq.height * .05,
+                      width: chatMq.height * .05,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(chatMq.height * .3),
+                      ),
+                      child: const Icon(
+                        CupertinoIcons.person,
+                        color: Colors.grey,
+                        size: 30,
+                      ),
+                    ),
             ),
           if (isBlockedByThem || isDelete || hasBlockedThem)
             Container(
@@ -1698,7 +1749,7 @@ class _ChattingViewState extends State<ChattingView> {
       final isSelectionMode = controller.isSelectionMode.value;
 
       if (isLoading && messages.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        return _buildChatShimmer(context);
       }
 
       if (messages.isNotEmpty) {
@@ -1772,6 +1823,99 @@ class _ChattingViewState extends State<ChattingView> {
 
       return _buildEmptyState(controller);
     });
+  }
+  Widget _buildChatShimmer(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final h = MediaQuery.sizeOf(context).height;
+    return SizedBox.expand(
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        enabled: true,
+        child: ListView.builder(
+          reverse: true,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          itemCount: 16,
+          itemBuilder: (ctx, i) {
+            final isMe = i % 2 == 0;
+            final bubbleWidth = w * (isMe ? 0.58 : 0.68);
+            final showTimestamp = i % 5 == 0;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showTimestamp)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6.0),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Container(
+                        width: 90,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment:
+                        isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    children: [
+                      if (!isMe)
+                        Container(
+                          width: 34,
+                          height: h * .034,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      Container(
+                        constraints: BoxConstraints(maxWidth: bubbleWidth),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: Radius.circular(isMe ? 16 : 4),
+                            bottomRight: Radius.circular(isMe ? 4 : 16),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: bubbleWidth * (0.6 + (i % 3) * 0.1),
+                              height: 10,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 6),
+                            if (i % 3 != 0)
+                              Container(
+                                width: bubbleWidth * (0.4 + (i % 2) * 0.2),
+                                height: 10,
+                                color: Colors.white,
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (isMe)
+                        const SizedBox(width: 8),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
   }
   Widget _buildEmptyState(ChattingViewController controller) {
     return Center(
