@@ -53,7 +53,7 @@
                 <data
                     android:scheme="https"
                     android:host="asaanrishta.com"
-                    android:pathPrefix="/user-details-view" />
+                    android:pathPrefix="/rishta" />
             </intent-filter>
 
             <!-- Deep Link Intent Filter 2: Custom scheme for User Profile -->
@@ -64,7 +64,7 @@
 
                 <data
                     android:scheme="asaanrishta"
-                    android:host="user-details-view" />
+                    android:host="rishta" />
             </intent-filter>
 
             <!-- VENDOR DEEP LINKS -->
@@ -77,7 +77,7 @@
                 <data
                     android:scheme="https"
                     android:host="asaanrishta.com"
-                    android:pathPrefix="/vendor-details-view" />
+                    android:pathPrefix="/vendors" />
             </intent-filter>
 
             <!-- Deep Link Intent Filter 4: Custom scheme for Vendor -->
@@ -88,7 +88,7 @@
 
                 <data
                     android:scheme="asaanrishta"
-                    android:host="vendor-details-view" />
+                    android:host="vendors" />
             </intent-filter>
 
             <!-- Alternative custom scheme format for backward compatibility -->

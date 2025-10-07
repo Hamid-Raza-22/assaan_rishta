@@ -4,10 +4,14 @@ import 'package:flutter/services.dart'; // For Clipboard
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import '../../core/export.dart';
+import '../../viewmodels/auth_service.dart';
+import '../../viewmodels/profile_viewmodel.dart';
+import '../../data/providers/auth_provider.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/user_details_viewmodel.dart';
 import '../../widgets/export.dart';
@@ -33,11 +37,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
           ),
           body: Obx(() {
             if (controller.isLoading.value) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.primaryColor,
-                ),
-              );
+              return userDetailsShimmer(context);
             }
 
             // ADDED: Check if user details are valid
@@ -73,6 +73,119 @@ class UserDetailsView extends GetView<UserDetailsController> {
     );
   }
 
+  Widget userDetailsShimmer(BuildContext context) {
+    double w = MediaQuery.sizeOf(context).width;
+    double h = MediaQuery.sizeOf(context).height;
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      enabled: true,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        children: [
+          // Avatar + header block
+          const SizedBox(height: 60),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 245,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name line
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(width: w * 0.5, height: 20, color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                // Buttons placeholder
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 48, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30))),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(width: 40, height: 40, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Video block
+          Container(
+            height: 250,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // General information block
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: List.generate(4, (i) =>
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(width: w * 0.35, height: 14, color: Colors.white),
+                      Container(width: w * 0.35, height: 14, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Partner preferences block
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: List.generate(4, (i) =>
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(width: w * 0.35, height: 14, color: Colors.white),
+                      Container(width: w * 0.35, height: 14, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
 
   getProfileImage(context) {
     // Check if user is logged in
@@ -148,32 +261,62 @@ class UserDetailsView extends GetView<UserDetailsController> {
               ),
               // Share button positioned at top right corner
               Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.whiteColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: () => _shareProfile(context),
-                    icon: const Icon(
-                      Icons.share,
-                      color: AppColors.primaryColor,
-                      size: 22,
+              top: 10,
+              right: 10,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.whiteColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
+                  ],
+                ),
+                child: PopupMenuButton<String>(
+
+                  padding: const EdgeInsets.all(4),
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: AppColors.primaryColor,
+                    size: 22,
                   ),
+                  onSelected: (value) {
+                    if (value == 'share') {
+                      _shareProfile(context);
+                    } else if (value == 'report') {
+                      _reportProfile();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    // ADDED: Popup background color
+                    PopupMenuItem<String>(
+                      value: 'share',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.share, size: 18,),
+                          const SizedBox(width: 8),
+                          Text('Share', style: GoogleFonts.poppins()),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'report',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.flag_outlined, size: 18),
+                          const SizedBox(width: 8),
+                          Text('Report', style: GoogleFonts.poppins()),
+                        ],
+                      ),
+                    ),
+                  ],
+                  color: AppColors.whiteColor, // ADDED: Set background color to white
                 ),
               ),
+            ),
               const Positioned(
                 left: 0,
                 right: 0,
@@ -206,7 +349,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
 
 
   void _shareProfile(BuildContext context) async {
-    final profileName = '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}';
+    final profileName = '${controller.profileDetails.value.firstName}-${controller.profileDetails.value.lastName}';
     final age = controller.profileDetails.value.age ?? '--';
     final city = controller.profileDetails.value.cityName ?? '--';
     final education = controller.profileDetails.value.education ?? '--';
@@ -239,7 +382,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
       shareText += '''
 
 📱 Open Profile in App:
-https://asaanrishta.com/user-details-view/$profileId
+https://asaanrishta.com/rishta/$profileName/$profileId
 ''';
     }
 
@@ -276,8 +419,132 @@ Don't have the app? Download now:
     }
   }
 
+  void _reportProfile() {
+    final reportedId = controller.profileDetails.value.userId?.toInt() ?? 0;
+    final messageController = TextEditingController();
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
 
+    // Prefill from logged-in user profile
+    try {
+      final auth = AuthService.instance;
+      final profileCtrl = Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : null;
+      final currentName = auth.userName ?? profileCtrl?.getUserName() ?? '';
+      final currentPhone = profileCtrl?.profileDetails.value.mobileNo ?? '';
+      if (currentName.isNotEmpty) nameController.text = currentName;
+      if (currentPhone != 'null' && currentPhone.isNotEmpty) phoneController.text = currentPhone;
+    } catch (_) {}
 
+    showDialog(
+      context: Get.context!,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: Text('Report Profile', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: messageController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason/Message',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // TextField(
+                //   controller: nameController,
+                //   decoration: const InputDecoration(
+                //     labelText: 'Your Name',
+                //     border: OutlineInputBorder(),
+                //   ),
+                // ),
+                // const SizedBox(height: 12),
+                // TextField(
+                //   controller: phoneController,
+                //   keyboardType: TextInputType.phone,
+                //   decoration: const InputDecoration(
+                //     labelText: 'Your Phone Number',
+                //     border: OutlineInputBorder(),
+                //   ),
+                // ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('Cancel', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (messageController.text.trim().isEmpty ||
+                    nameController.text.trim().isEmpty ||
+                    phoneController.text.trim().isEmpty) {
+                  Get.snackbar(
+                    'Missing Info',
+                    'Please fill all fields.',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                  return;
+                }
+
+                Navigator.of(ctx).pop();
+
+                Get.dialog(
+                  const Center(child: CircularProgressIndicator(color: AppColors.primaryColor)),
+                  barrierDismissible: false,
+                );
+
+                try {
+                  final provider = Get.put(AuthProvider());
+                  final nowIso = DateTime.now().toUtc().toIso8601String();
+                  final res = await provider.reportUser(
+                    message: messageController.text.trim(),
+                    reporterNumber: phoneController.text.trim(),
+                    reporterName: nameController.text.trim(),
+                    reportDateIso: nowIso,
+                    reportedUserId: reportedId,
+                  );
+
+                  Get.back();
+
+                  if (res.isOk) {
+                    Get.snackbar(
+                      'Report Submitted',
+                      'Thanks! We have received your report.',
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  } else {
+                    Get.snackbar(
+                      'Error',
+                      'Could not submit report. Please try again.',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: AppColors.redColor,
+                      colorText: AppColors.whiteColor,
+                    );
+                  }
+                } catch (e) {
+                  Get.back();
+                  Get.snackbar(
+                    'Error',
+                    'Something went wrong. Please try again.',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: AppColors.redColor,
+                    colorText: AppColors.whiteColor,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor),
+              child: Text('Submit', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _buildLoggedInMessageButton(BuildContext context) {
     return CustomButton(
@@ -297,7 +564,7 @@ Don't have the app? Download now:
       ),
       fontSize: 18,
       onTap: () {
-        if (controller.totalConnects.value > 0) {
+        if (controller.totalConnects.value >= 0) {
           controller.sendMessageToOtherUser(context);
         } else {
           showDialog(
@@ -556,30 +823,54 @@ Don't have the app? Download now:
         child: GetBuilder<UserDetailsController>(
           id: 'video_player',
           builder: (controller) {
-            // Check video URL type and handle accordingly
-            if (_isTikTokUrl(videoUrl)) {
-              return _buildTikTokPreview(videoUrl);
-            } else if (controller.isDirectVideoUrl(videoUrl)) {
-              // Handle direct video URLs
-              if (controller.videoController == null) {
-                // Auto-initialize video player
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  controller.initializeVideoPlayer(videoUrl);
-                });
-                return _buildLoadingWidget();
-              }
+            // Prefer pre-fetched thumbnail while player warms up
+            return GetBuilder<UserDetailsController>(
+              id: 'video_thumb',
+              builder: (_) {
+                final thumb = controller.videoThumbnailData.value;
+                final isThumbLoading = controller.isVideoThumbLoading.value;
 
-              if (controller.videoController!.value.isInitialized) {
-                return _buildVideoPlayerWidget();
-              } else if (controller.videoController!.value.hasError) {
-                return _buildErrorWidget(videoUrl);
-              } else {
-                return _buildLoadingWidget();
-              }
-            } else {
-              // Unknown video format - show link
-              return _buildGenericVideoLink(videoUrl);
-            }
+                // When controller is initialized, show the player
+                if (controller.videoController?.value.isInitialized == true) {
+                  return _buildVideoPlayerWidget();
+                }
+
+                // If we have a thumbnail, show it with a play overlay
+                if (thumb != null && thumb.isNotEmpty) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.memory(thumb, fit: BoxFit.cover),
+                      Container(color: Colors.black26),
+                      Center(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                // Show lightweight shimmer-like placeholder
+                if (isThumbLoading) {
+                  return _buildThumbnailLoading();
+                }
+
+                // Fallback to generic link or error
+                if (_isTikTokUrl(videoUrl)) {
+                  return _buildTikTokPreview(videoUrl);
+                }
+                if (controller.isDirectVideoUrl(videoUrl)) {
+                  return _buildLoadingWidget();
+                }
+                return _buildGenericVideoLink(videoUrl);
+              },
+            );
           },
         ),
       ),

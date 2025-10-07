@@ -5,7 +5,6 @@ import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 // import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 import 'package:get/get.dart';
 
@@ -13,6 +12,7 @@ import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
 import 'app/core/services/deep_link_handler.dart';
+
 import 'app/core/services/firebase_service/delivery_confirmation_service.dart';
 import 'app/core/services/firebase_service/export.dart';
 import 'app/data/repositories/chat_repository.dart';
