@@ -30,6 +30,7 @@ abstract class AppRoutes {
   static const String CHANGE_PASSWORD_VIEW = '/change_password-view';
   static const String CONTACT_US_VIEW = '/contact-us-view';
   static const String ABOUT_US_VIEW = '/about-us-view';
+  static const String USER_GUIDE_VIEW = '/user-guide-view';
   static const String IN_APP_WEB_VIEW_SITE = '/in_app_web_view_site';
   static const String IN_APP_WEB_VIEW_SITE_TERMS_AND_CONDITIONS = '/in_app_web_view_site_terms_and_conditions';
 

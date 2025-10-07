@@ -12,6 +12,7 @@ import '../../views/forgot_password/export.dart';
 import '../../views/home/home_view.dart';
 import '../../views/login/login_view.dart';
 import '../../views/profile/export.dart';
+import '../../views/profile/user_guide/user_guide.dart';
 import '../../views/signup/address_preferences_view.dart';
 import '../../views/signup/basic_info_view.dart';
 import '../../views/signup/signup_view.dart';
@@ -133,6 +134,12 @@ class AppPages {
     GetPage(
       name: AppRoutes.ABOUT_US_VIEW,
       page: () => const AboutUsView(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.USER_GUIDE_VIEW,
+      page: () => const UserGuideScreen(),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),

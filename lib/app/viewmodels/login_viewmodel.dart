@@ -90,17 +90,23 @@ class LoginViewModel extends GetxController {
                 title: "Invalid Credentials",
                 message: "Your Email or Password is Incorrect",
               );
+              isLoading.value = false;
+
             } else {
               AppUtils.failedData(
                 title: "Account Status",
                 message: "Your Account is not Approved Yet",
               );
+              isLoading.value = false;
+
             }
           } else {
             AppUtils.failedData(
               title: "Server Error",
               message: "There is some error in server please try a later",
             );
+            isLoading.value = false;
+
           }
           update();
         },
@@ -109,7 +115,6 @@ class LoginViewModel extends GetxController {
         },
       );
     } finally {
-      isLoading.value = false;
     }
   }
   // login_viewmodel.dart me getCurrentUserProfiles method fix karo
@@ -127,7 +132,7 @@ class LoginViewModel extends GetxController {
       },
           (success) async {
         try {
-          isLoading.value = false;
+
           final pref = await SharedPreferences.getInstance();
 
           // SAFE USER ID HANDLING
@@ -176,7 +181,7 @@ class LoginViewModel extends GetxController {
 
           update();
           Get.offAllNamed(AppRoutes.BOTTOM_NAV);
-
+          isLoading.value = false;
         } catch (e) {
           debugPrint('💥 Error in getCurrentUserProfiles: $e');
           isLoading.value = false;
