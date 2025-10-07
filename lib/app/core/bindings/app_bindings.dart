@@ -17,6 +17,7 @@ import '../../views/bottom_nav/export.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/profile/export.dart';
 import '../../views/profile/partner_preference/partner_preference_controller.dart';
+import '../../views/profile/user_guide/user_guide_controller.dart';
 import '../../views/splash/export.dart';
 import '../../views/vendor/export.dart';
 
@@ -104,6 +105,11 @@ class AppBindings extends Bindings {
 
       Get.lazyPut(() => BuyConnectsController(), fenix: true);
       debugPrint('✅ BuyConnectsController registered');
+
+      Get.lazyPut(() => UserGuideController(), fenix: true);
+      debugPrint('✅ UserGuideController registered');
+
+
 
       debugPrint('🎉 All dependencies registered successfully');
     } catch (e) {

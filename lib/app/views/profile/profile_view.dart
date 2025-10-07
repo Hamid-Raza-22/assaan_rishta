@@ -340,10 +340,6 @@ class ProfileView extends GetView<ProfileController> {
             onTap: () {
               Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE);
 
-              // Get.to(() => const InAppWebViewSite(
-              //       url: "https://asaanrishta.com/privacy",
-              //       title: "Privacy Policy",
-              //     ));
             },
           ),
           ClickableListTile(
@@ -351,14 +347,7 @@ class ProfileView extends GetView<ProfileController> {
             iconPath: AppAssets.icTermsOfServices,
             imageType: ImageType.asset,
             onTap: () {
-              Get.toNamed(AppRoutes.ABOUT_US_VIEW);
-
-              // Get.to(
-              //   () => const AboutUsView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
+              Get.toNamed(AppRoutes.USER_GUIDE_VIEW);
             },
           ),
           ClickableListTile(
