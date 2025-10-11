@@ -3,6 +3,8 @@ import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 
 import '../../../core/export.dart';
 import '../../../domain/export.dart';
@@ -260,8 +262,20 @@ class PartnerPreferenceController extends GetxController {
           title: "Partner Preference",
           message: "Partner Preference information updated.",
         );
+        // Mark Firestore flag so subsequent logins skip this view
+        try {
+          final uid = useCases.getUserId();
+          FirebaseFirestore.instance
+              .collection('Hamid_users')
+              .doc(uid.toString())
+              .set({'is_preference_updated': true}, SetOptions(merge: true));
+        } catch (_) {}
+
         getPartnerPreference();
         update();
+
+        // Navigate to home after successful update
+        Get.offAllNamed(AppRoutes.BOTTOM_NAV);
       },
     );
   }

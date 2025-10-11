@@ -244,6 +244,31 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
     }
   }
 
+  Future<Either<AppError, String>> getUserNumber(email) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getUserNumberUrl(
+          email: email,
+        ),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: "Network Exception",
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
   @override
   Future<Either<AppError, String>> buyConnects({
     required int connect,

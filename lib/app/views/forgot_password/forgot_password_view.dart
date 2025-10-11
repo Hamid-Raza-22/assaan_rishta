@@ -1,4 +1,4 @@
-import 'package:assaan_rishta/app/core/routes/app_routes.dart';
+// forgot_password_view.dart - FIXED VERSION
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,6 +18,7 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
       initState: (_) {
         Get.put(ForgotPasswordController());
       },
+
       builder: (_) {
         return Scaffold(
           backgroundColor: AppColors.whiteColor,
@@ -46,12 +47,16 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                           fontWeight: FontWeight.w500,
                         ),
                         const SizedBox(height: 05),
-                        AppText(
-                          text: "Please Change Your Password",
-                          color: AppColors.fontLightColor.withValues(alpha: 0.4),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                        ),
+                        Obx(() {
+                          return AppText(
+                            text: "Please Enter your Mobile Number to receive OTP: ${controller
+                                .maskedNumber.value}",
+                            color: AppColors.fontLightColor.withValues(
+                                alpha: 0.4),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          );
+                        }),
                         const SizedBox(height: 40),
                         IntlPhoneField(
                           controller: controller.phoneTEC,
@@ -103,25 +108,31 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                             return null;
                           },
                           onCountryChanged: (countryCode) {
-                            controller.countryCode.value = "+${countryCode.dialCode}";
+                            controller.countryCode.value =
+                            "+${countryCode.dialCode}";
                           },
-                          onChanged: (value) {
-                            controller.phoneTEC.text = value.number;
-                          },
+                          // REMOVED the onChanged callback that was overwriting the phone number
                         ),
                         const SizedBox(height: 16),
-                        CustomButton(
-                          text: "Next",
-                          isGradient: true,
-                          fontColor: AppColors.whiteColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 18,
-                          onTap: () {
-                            if (controller.formKey.currentState!.validate()) {
-                              Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW);
-                            }
-                          },
-                        ),
+                        Obx(() =>
+                            CustomButton(
+                              text: controller.isSendingCode.value
+                                  ? "Sending..."
+                                  : "Next",
+                              isGradient: true,
+                              fontColor: AppColors.whiteColor,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 18,
+                              onTap: controller.isSendingCode.value
+                                  ? null
+                                  : () {
+                                if (controller.formKey.currentState!
+                                    .validate()) {
+                                  controller.startPhoneVerification(
+                                      context: context);
+                                }
+                              },
+                            )),
                       ],
                     ),
                   ],

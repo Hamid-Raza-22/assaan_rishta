@@ -98,6 +98,17 @@ class SystemConfigUseCase {
       },
     );
   }
+  Future<Either<AppError, String>> getUserNumber(email) async {
+    final response = await systemConfigRepo.getUserNumber(email);
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
 
   Future<Either<AppError, String>> buyConnects({
     required int connect,

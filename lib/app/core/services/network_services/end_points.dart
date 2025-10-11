@@ -45,6 +45,9 @@ class EndPoints {
   String updatePasswordUrl() {
     return '${baseUrl}user/update_pasword';
   }
+  String resetPasswordUrl() {
+    return '${baseUrl}user/reset_pasword';
+  }
 
   String getAllCastsUrl() {
     return '${baseUrl}Users/getcast';
@@ -140,6 +143,9 @@ class EndPoints {
 
   contactUsUrl() {
     return '${baseUrl}user/contactus';
+  }
+  getUserNumberUrl({required String email}) {
+    return '${baseUrl}User/getUserNumber/%7Bemail%7D?email=$email';
   }
 
   ///pay fast

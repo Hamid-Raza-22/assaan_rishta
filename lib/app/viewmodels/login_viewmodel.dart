@@ -1,4 +1,5 @@
 import 'package:assaan_rishta/app/viewmodels/chat_viewmodel.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,7 @@ import 'auth_service.dart';
 
 class LoginViewModel extends GetxController {
   final userManagementUseCase = Get.find<UserManagementUseCase>();
+  final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   final chatController = Get.find<ChatViewModel>();
 
   final emailController = TextEditingController();
@@ -180,7 +182,26 @@ class LoginViewModel extends GetxController {
           );
 
           update();
-          Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+          // Decide initial destination based on partner preference flag in Firestore
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('Hamid_users')
+                .doc(safeUserId.toString())
+                .get();
+
+            final data = doc.data();
+            final bool isPreferenceUpdated =
+                data != null && (data['is_preference_updated'] == true);
+
+            if (isPreferenceUpdated) {
+              Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+            } else {
+              Get.offAllNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
+            }
+          } catch (e) {
+            // On error fallback to home
+            Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+          }
           isLoading.value = false;
         } catch (e) {
           debugPrint('💥 Error in getCurrentUserProfiles: $e');

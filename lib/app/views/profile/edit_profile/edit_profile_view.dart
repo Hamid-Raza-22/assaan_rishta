@@ -23,17 +23,18 @@ class EditProfileView extends GetView<EditProfileController> {
       },
       builder: (_) {
         return Scaffold(
+          resizeToAvoidBottomInset: false,
           backgroundColor: Colors.white,
           appBar: _appBar(),
           body: SafeArea(
             child: controller.isLoading.isFalse
-                ? ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                    children: [
-                      const SizedBox(height: 10),
-                      getGeneralInfo(context),
-                      const SizedBox(height: 10),
-                    ],
+                ? SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 20.0),
+                      child: Column(
+                        children: [getGeneralInfo(context)],
+                      ),
+                    ),
                   )
                 : profileShimmer(context),
           ),
@@ -92,6 +93,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: "Gender",
                 child: CustomDropdown<String>(
                   hintText: '${controller.profileDetails.value.gender}',
+                   
                   items: const ["Male", "Female"],
                   onChanged: (value) {
                     controller.gender.value = value!;
@@ -109,6 +111,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Caste',
                 child: CustomDropdown<String>.search(
                   hintText: controller.profileDetails.value.cast??"",
+                   
                   items: controller.castNameList,
                   onChanged: (value) {
                     controller.caste = value!;
@@ -137,6 +140,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Religion',
                 child: CustomDropdown<String>(
                   hintText: '${controller.profileDetails.value.religion}',
+                   
                   items: controller.religionList,
                   onChanged: (value) {
                     controller.religion = value!;
@@ -154,6 +158,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Marriage Status',
                 child: CustomDropdown<String>(
                   hintText: controller.profileDetails.value.maritalStatus??"",
+                   
                   items: controller.maritalStatusList,
                   onChanged: (value) {
                     controller.maritalStatus = value!;
@@ -176,6 +181,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Education',
                 child: CustomDropdown<String>.search(
                   hintText: controller.profileDetails.value.education??"",
+                   
                   items: controller.degreesList,
                   onChanged: (value) {
                     controller.education = value!;
@@ -193,6 +199,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: "Height",
                 child: CustomDropdown<String>(
                   hintText: controller.profileDetails.value.height??"",
+                   
                   items: controller.heightList,
                   onChanged: (value) {
                     controller.height = value!;
@@ -214,6 +221,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Occupation',
                 child: CustomDropdown<String>.search(
                   hintText: controller.profileDetails.value.occupation??"",
+                   
                   items: controller.occupationList,
                   onChanged: (value) {
                     controller.occupation = value!;
@@ -247,6 +255,7 @@ class EditProfileView extends GetView<EditProfileController> {
                   title: 'Country',
                   child: CustomDropdown<AllCountries>.search(
                     hintText: controller.profileDetails.value.userCountryName??"",
+                     
                     items: controller.countryList,
                     onChanged: (value) {
                       controller.country = '${value?.name}';
@@ -272,6 +281,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'State',
                 child: CustomDropdown<AllStates>.search(
                   hintText: controller.profileDetails.value.userStateName??"",
+                   
                   items: controller.stateList,
                   controller: controller.stateController,
                   onChanged: (value) {
@@ -302,6 +312,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: "City",
                 child: CustomDropdown<AllCities>.search(
                   hintText: controller.profileDetails.value.cityName??"",
+                   
                   controller: controller.cityController,
                   items: controller.cityList,
                   onChanged: (value) {
@@ -388,6 +399,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Created For',
                 child: CustomDropdown<String>(
                   hintText: controller.createdFor.value,
+                   
                   items: const ["Self", "Son", "Daughter", "Brother", "Sister"],
                   onChanged: (value) {
                     controller.createdFor.value = value!;
@@ -411,6 +423,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Like to Marry',
                 child: CustomDropdown<String>(
                   hintText: controller.likeToMarry.value,
+                   
                   items: const [
                     "Soon",
                     "Within 6 months",
@@ -434,6 +447,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Life Style',
                 child: CustomDropdown<String>(
                   hintText: controller.lifeStyle.value,
+                   
                   items: const [
                     "Rural lifestyle",
                     "Simple living",
@@ -461,6 +475,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Culture',
                 child: CustomDropdown<String>(
                   hintText: controller.culture.value,
+                   
                   items: const [
                     "Punjabi",
                     "Sindhi",
@@ -485,6 +500,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Personal Transport',
                 child: CustomDropdown<String>(
                   hintText: controller.transport.value,
+                   
                   items: const ["Bike", "Car", "None"],
                   onChanged: (value) {
                     controller.transport.value = value!;
@@ -508,6 +524,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Languages',
                 child: CustomDropdown<String>.multiSelect(
                   hintText: controller.selectedLanguages,
+                   
                   items: languagesList,
                   onListChanged: (value) {
                     controller.languages = value.obs;
@@ -606,6 +623,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Born in Country',
                 child: CustomDropdown<AllCountries>(
                   hintText: controller.bornCountryName.value,
+                   
                   items: controller.countryList,
                   onChanged: (value) {
                     if (value != null) {
@@ -632,6 +650,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Born in State',
                 child: CustomDropdown<AllStates>(
                   hintText: controller.bornStateName.value,
+                   
                   items: controller.stateList,
                   onChanged: (value) {
                     if (value != null) {
@@ -653,6 +672,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Born in City',
                 child: CustomDropdown<AllCities>(
                   hintText: controller.bornInCityName.value,
+                   
                   items: controller.cityList,
                   onChanged: (value) {
                     if (value != null) {
@@ -679,6 +699,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Nationality',
                 child: CustomDropdown<String>(
                   hintText: controller.nationality.value,
+                   
                   items: const [
                     "Pakistan",
                     "America",
@@ -705,6 +726,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Residential Type',
                 child: CustomDropdown<String>(
                   hintText: controller.residentialType.value,
+                   
                   items: const [
                     "Citizen",
                     "Permanent Resident",
@@ -742,6 +764,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Relocate',
                 child: CustomDropdown<String>(
                   hintText: controller.relocate.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     if (value != null) {
@@ -772,6 +795,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Cell Phone Protection',
                 child: CustomDropdown<String>(
                   hintText: controller.cellPhoneProtectionStatus.value,
+                   
                   items: const [
                     "Visible to Everyone",
                     "Visible to Registered Users",
@@ -832,6 +856,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Monthly Income',
                 child: CustomDropdown<String>(
                   hintText: controller.monthlyIncome.value,
+                   
                   items: const [
                     "Below 10k",
                     "10k-20k",
@@ -864,6 +889,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Family Status',
                 child: CustomDropdown<String>(
                   hintText: controller.familyStatus.value,
+                   
                   items: const [
                     "Poor",
                     "Middle Class",
@@ -925,6 +951,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Complexion',
                 child: CustomDropdown<String>(
                   hintText: controller.complexion.value,
+                   
                   items: const [
                     "Very Fair",
                     "Fair",
@@ -951,6 +978,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Eye Color',
                 child: CustomDropdown<String>(
                   hintText: controller.eyeColor.value,
+                   
                   items: const [
                     "Brown",
                     "Hazel Eyes",
@@ -982,6 +1010,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Hair Color',
                 child: CustomDropdown<String>(
                   hintText: controller.hairColor.value,
+                   
                   items: const ["Red", "Brown", "Black", "White"],
                   onChanged: (value) {
                     if (value != null) {
@@ -1002,6 +1031,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Weight',
                 child: CustomDropdown<String>(
                   hintText: '${controller.weight.value}kg',
+                   
                   items: weightList,
                   onChanged: (value) {
                     if (value != null) {
@@ -1028,6 +1058,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Built',
                 child: CustomDropdown<String>(
                   hintText: controller.built.value,
+                   
                   items: const ["Average", "Athletic", "Slim", "Heavy"],
                   onChanged: (value) {
                     if (value != null) {
@@ -1084,6 +1115,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Living',
                 child: CustomDropdown<String>(
                   hintText: controller.liveWith.value,
+                   
                   items: const ["With Family", "Without Family"],
                   onChanged: (value) {
                     controller.liveWith.value = value!;
@@ -1102,6 +1134,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Parent\'s Country',
                 child: CustomDropdown<AllCountries>(
                   hintText: controller.parentCountryName.value,
+                   
                   items: controller.countryList,
                   onChanged: (value) {
                     if (value != null) {
@@ -1128,6 +1161,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Parent\'s State',
                 child: CustomDropdown<AllStates>(
                   hintText: controller.parentStateName.value,
+                   
                   items: controller.stateList,
                   onChanged: (value) {
                     if (value != null) {
@@ -1149,6 +1183,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Parent\'s City',
                 child: CustomDropdown<AllCities>(
                   hintText: controller.parentCityName.value,
+                   
                   items: controller.cityList,
                   onChanged: (value) {
                     if (value != null) {
@@ -1175,6 +1210,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Father Alive',
                 child: CustomDropdown<String>(
                   hintText: controller.fatherAlive.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.fatherAlive.value = value!;
@@ -1196,6 +1232,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Father\'s Occupation',
                 child: CustomDropdown<String>(
                   hintText: controller.fatherOccupation.value,
+                   
                   items: controller.occupationList,
                   onChanged: (value) {
                     controller.fatherOccupation.value = value!;
@@ -1219,6 +1256,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Mother Alive',
                 child: CustomDropdown<String>(
                   hintText: controller.motherAlive.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.motherAlive.value = value!;
@@ -1368,6 +1406,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Namaz',
                 child: CustomDropdown<String>(
                   hintText: controller.namaz.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.namaz.value = value!;
@@ -1390,6 +1429,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Namaz Time',
                       child: CustomDropdown<String>(
                         hintText: controller.namazTimes.value.toString(),
+                         
                         items: const ["0", "1", "2", "3", "4", "5"],
                         onChanged: (value) {
                           controller.namazTimes.value = value!;
@@ -1414,6 +1454,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Fasting',
                 child: CustomDropdown<String>(
                   hintText: controller.fasting.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.fasting.value = value!;
@@ -1432,6 +1473,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Zakat',
                 child: CustomDropdown<String>(
                   hintText: controller.zakat.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.zakat.value = value!;
@@ -1455,6 +1497,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Drink',
                 child: CustomDropdown<String>(
                   hintText: controller.isDrink.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.isDrink.value = value!;
@@ -1477,6 +1520,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Drink Routine',
                       child: CustomDropdown<String>(
                         hintText: controller.drink.value,
+                         
                         items: const ["Occasional", "Regular"],
                         onChanged: (value) {
                           controller.drink.value = value!;
@@ -1501,6 +1545,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Smoke',
                 child: CustomDropdown<String>(
                   hintText: controller.isSmoke.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.isSmoke.value = value!;
@@ -1523,6 +1568,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Smoke Routine',
                       child: CustomDropdown<String>(
                         hintText: controller.smoke.value,
+                         
                         items: const ["Occasional", "Regular"],
                         onChanged: (value) {
                           controller.smoke.value = value!;
@@ -1547,6 +1593,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Interests',
                 child: CustomDropdown<String>(
                   hintText: controller.interest.value,
+                   
                   items: const [
                     'Adventure',
                     "Sports",
@@ -1571,6 +1618,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Hobbies',
                 child: CustomDropdown<String>(
                   hintText: controller.hobbies.value,
+                   
                   items: const [
                     "Acting",
                     "Astronomy",
@@ -1600,6 +1648,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Diet',
                 child: CustomDropdown<String>(
                   hintText: controller.diet.value,
+                   
                   items: const [
                     "Vegetarian",
                     "Non Vegetarian",
@@ -1660,6 +1709,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Blood Group',
                 child: CustomDropdown<String>(
                   hintText: controller.bloodGroup.value,
+                   
                   items: const [
                     "O +ve",
                     "O -ve",
@@ -1689,6 +1739,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Handicapped',
                 child: CustomDropdown<String>(
                   hintText: controller.handicapped.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.handicapped.value = value!;
@@ -1711,6 +1762,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Disability',
                       child: CustomDropdown<String>(
                         hintText: controller.disability.value,
+                         
                         items: const [
                           "Mobility and Physical Impairments",
                           "Spinal Cord Disability",
@@ -1741,6 +1793,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Eye Problem',
                 child: CustomDropdown<String>(
                   hintText: controller.eyeProblem.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.eyeProblem.value = value!;
@@ -1763,6 +1816,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Eye Defect',
                       child: CustomDropdown<String>(
                         hintText: controller.eyeProblemDefect.value,
+                         
                         items: const ["Short Sightedness", "Long Sightedness"],
                         onChanged: (value) {
                           controller.eyeProblemDefect.value = value!;
@@ -1787,6 +1841,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Health Problem',
                 child: CustomDropdown<String>(
                   hintText: controller.healthProblem.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.healthProblem.value = value!;
@@ -1809,6 +1864,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Health Defect',
                       child: CustomDropdown<String>(
                         hintText: controller.healthDefect.value,
+                         
                         items: const [
                           "Asthma",
                           "Heart disease",
@@ -1840,6 +1896,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Taking Medicines',
                 child: CustomDropdown<String>(
                   hintText: controller.takingMedicines.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.takingMedicines.value = value!;
@@ -1862,6 +1919,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Which Medicines',
                       child: CustomDropdown<String>(
                         hintText: controller.whichMedicines.value,
+                         
                         items: const [
                           "Aspirin",
                           "Ibuprofen",
@@ -1898,6 +1956,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Do Exercise',
                 child: CustomDropdown<String>(
                   hintText: controller.doExercise.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.doExercise.value = value!;
@@ -1920,6 +1979,7 @@ class EditProfileView extends GetView<EditProfileController> {
                       title: 'Which Exercise',
                       child: CustomDropdown<String>(
                         hintText: controller.exercises.value,
+                         
                         items: const ["Weight lifting", "Cardio"],
                         onChanged: (value) {
                           controller.exercises.value = value!;
@@ -1944,6 +2004,7 @@ class EditProfileView extends GetView<EditProfileController> {
                 title: 'Visit Gym',
                 child: CustomDropdown<String>(
                   hintText: controller.visitGym.value,
+                   
                   items: const ["Yes", "No"],
                   onChanged: (value) {
                     controller.visitGym.value = value!;
@@ -1997,6 +2058,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'Ethnic Origin',
               child: CustomDropdown<String>(
                 hintText: controller.ethnicOrigin.value,
+                 
                 items: const [
                   "Punjabi",
                   "Sindhi",
@@ -2042,6 +2104,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'Pakistani Driving License',
               child: CustomDropdown<String>(
                 hintText: controller.pakiDrivingLicense.value,
+                 
                 items: const ["Yes", "No"],
                 onChanged: (value) {
                   controller.pakiDrivingLicense.value = value!;
@@ -2087,6 +2150,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'Pakistani Passport',
               child: CustomDropdown<String>(
                 hintText: controller.pakiPassport.value,
+                 
                 items: const ["Yes", "No"],
                 onChanged: (value) {
                   controller.pakiPassport.value = value!;
@@ -2132,6 +2196,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'Pakistani Tax',
               child: CustomDropdown<String>(
                 hintText: controller.pakiTax.value,
+                 
                 items: const ["Yes", "No"],
                 onChanged: (value) {
                   controller.pakiTax.value = value!;
@@ -2176,6 +2241,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'Dual Nationality',
               child: CustomDropdown<String>(
                 hintText: controller.dualNationality.value,
+                 
                 items: const ["Yes", "No"],
                 onChanged: (value) {
                   controller.dualNationality.value = value!;
@@ -2221,6 +2287,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'International Driving License',
               child: CustomDropdown<String>(
                 hintText: controller.internationalDrivingLicense.value,
+                 
                 items: const ["Yes", "No"],
                 onChanged: (value) {
                   controller.internationalDrivingLicense.value = value!;
@@ -2267,6 +2334,7 @@ class EditProfileView extends GetView<EditProfileController> {
               title: 'International Passport',
               child: CustomDropdown<String>(
                 hintText: controller.internationalPassport.value,
+                 
                 items: const ["Yes", "No"],
                 onChanged: (value) {
                   controller.internationalPassport.value = value!;

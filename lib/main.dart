@@ -67,7 +67,14 @@ Future<void> main() async {
   // DON'T initialize notifications here - wait for context in app
   // Initialize deep links
   await DeepLinkHandler.initDeepLinks();
-  runApp(const AsanRishtaApp());
+  // Decide initial route based on onboarding completion
+  final prefs = await SharedPreferences.getInstance();
+  final bool hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+  final String initialRoute = (firstTime || !hasSeenOnboarding)
+      ? AppRoutes.ONBOARDING
+      : AppRoutes.SPLASH;
+
+  runApp(AsanRishtaApp(initialRoute: initialRoute));
 }
 
 @pragma('vm:entry-point')
@@ -170,7 +177,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class AsanRishtaApp extends StatefulWidget {
-  const AsanRishtaApp({super.key});
+  final String initialRoute;
+
+  const AsanRishtaApp({super.key, required this.initialRoute});
 
   @override
   State<AsanRishtaApp> createState() => _AsanRishtaAppState();
@@ -323,7 +332,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
         useMaterial3: true,
       ),
       initialBinding: AppBindings(),
-      initialRoute: AppRoutes.SPLASH,
+      initialRoute: widget.initialRoute,
       getPages: AppPages.routes,
       debugShowCheckedModeBanner: false,
     );
