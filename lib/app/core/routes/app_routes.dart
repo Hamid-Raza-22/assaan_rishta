@@ -6,11 +6,13 @@ abstract class AppRoutes {
   static const String OTHER_INFO = '/other-info';
   static const String LOGIN = '/login';
   static const String SPLASH = '/splash';
+  static const String ONBOARDING = '/onboarding';
   static const String HOME = '/home';
   static const String BOTTOM_NAV = '/bottom-nav';
   static const String BOTTOM_NAV2 = '/bottom-nav';
   static const String FORGOT_PASSWORD_VIEW = '/forgot-password-view';
   static const String ENTER_PASSWORD_VIEW = '/enter-password-view';
+  static const String OTP_VIEW = '/otp-view';
 
   static const String PROFILE = '/profile';
   static const String PROFILE_DETAIL_VIEW = '/profile-detail-view';

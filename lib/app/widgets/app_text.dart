@@ -25,7 +25,7 @@ class AppText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '$text',
-      overflow: overflow ?? TextOverflow.ellipsis,
+      overflow: overflow,
       textAlign: textAlign,
       maxLines: maxLines,
       style: GoogleFonts.poppins(

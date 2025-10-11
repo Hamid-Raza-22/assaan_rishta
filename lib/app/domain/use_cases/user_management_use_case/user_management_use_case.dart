@@ -195,6 +195,23 @@ class UserManagementUseCase {
       },
     );
   }
+  Future<Either<AppError, String>> resetPassword({
+    required String password,required String email,
+  }) async {
+    final response = await userManagementRepo.resetPassword(
+      password: password,
+      email: email,
+    );
+
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
 
   Future<Either<AppError, AllProfileList>> getAllProfiles({
     required int pageNo,

@@ -404,6 +404,37 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+  Future<Either<AppError, String>> resetPassword({
+    required String password,required String email,
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.resetPasswordUrl(),
+        body: {
+          "password": password,
+          "email": email,
+          "user_type": "user",
+        },
+        headers: {
+          "Content-Type": "application/json",
+        },
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
 
   @override
   Future<Either<AppError, AllProfileList>> getAllProfiles({

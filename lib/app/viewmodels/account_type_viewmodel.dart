@@ -12,6 +12,12 @@ class AccountTypeViewModel extends GetxController {
   void navigateToLogin() {
     Get.toNamed(AppRoutes.LOGIN);
   }
+  void navigateToContactUs() {
+    Get.toNamed(AppRoutes.CONTACT_US_VIEW);
+  }
+  void navigateToUserGuide() {
+    Get.toNamed(AppRoutes.USER_GUIDE_VIEW);
+  }
   void continueAsGuest() {
     // Navigate back to home as guest user
     Get.offAllNamed(AppRoutes.BOTTOM_NAV);

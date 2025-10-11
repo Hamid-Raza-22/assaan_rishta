@@ -54,6 +54,10 @@ mixin UserManagementRepo {
     required String password,
   });
 
+ Future<Either<AppError, String>> resetPassword({
+    required String password,required String email,
+  });
+
   Future<Either<AppError, AllProfileList>> getAllProfiles({
     required int pageNo,
     required String pageLimit,

@@ -2,6 +2,7 @@
 
 import 'package:assaan_rishta/app/views/profile/partner_preference/partner_preference_view.dart';
 import 'package:assaan_rishta/app/views/splash/splash_view.dart';
+import 'package:assaan_rishta/app/views/on_boarding_screens/onboarding_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
@@ -28,6 +29,12 @@ class AppPages {
 
   static final routes = [
     GetPage(
+      name: AppRoutes.ONBOARDING,
+      page: () => const OnboardingView(),
+      transition: Transition.rightToLeft,
+      transitionDuration: Duration(milliseconds: 300),
+    ),
+    GetPage(
       name: AppRoutes.SPLASH,
       page: () => const SplashView(),
       transition: Transition.leftToRight,
@@ -49,6 +56,12 @@ class AppPages {
       name: AppRoutes.FORGOT_PASSWORD_VIEW,
       page: () => ForgotPasswordView(),
       transition: Transition.upToDown,
+      transitionDuration: Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: AppRoutes.OTP_VIEW,
+      page: () => OtpView(),
+      transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 300),
     ),
     GetPage(

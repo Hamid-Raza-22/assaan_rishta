@@ -22,6 +22,8 @@ mixin SystemConfigRepo {
 
   Future<Either<AppError, String>> getConnects();
 
+  Future<Either<AppError, String>> getUserNumber(email);
+
   Future<Either<AppError, String>> buyConnects({
     required int connect,
     required String connectDesc,

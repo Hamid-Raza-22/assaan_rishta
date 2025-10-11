@@ -4,6 +4,7 @@ import 'package:assaan_rishta/app/views/login/widgets/custom_checkbox.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/export.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/login_viewmodel.dart';
@@ -100,10 +101,35 @@ class LoginView extends GetView<LoginViewModel> {
                     ],
                   )),
                   GestureDetector(
-                    onTap: () {
-                      Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW);
-                      // Get.snackbar('Forgot Password',
-                      //     'Forgot password functionality will be implemented');
+                    onTap: () async {
+                      if (controller.emailController.text.isEmpty) {
+                        Get.snackbar(
+                          'Error',
+                          'Please enter your email address',
+                          snackPosition: SnackPosition.BOTTOM,
+                          colorText: Colors.white,
+                          backgroundColor: Colors.red,
+                        );
+                      } else {
+                        final response = await controller.systemConfigUseCases
+                            .getUserNumber(controller.emailController.text);
+                        if (response.isRight()) {
+                          final result = response.getOrElse(() => '');
+                          debugPrint('Response Body: $result');
+                          SharedPreferences prefs = await SharedPreferences.getInstance();
+                          prefs.setString('userNumber', result);
+                          Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW,
+                              arguments: controller.emailController.text);
+                        } else {
+                          Get.snackbar(
+                            'No Found',
+                            "Email is not Registered",
+                            snackPosition: SnackPosition.BOTTOM,
+                            colorText: Colors.white,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                      }
                     },
                     child: Text(
                       'Forgot Password',

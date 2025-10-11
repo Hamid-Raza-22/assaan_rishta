@@ -384,9 +384,13 @@ class ChatUserCardController extends GetxController {
 
     try {
       CachedNetworkImage.evictFromCache(imageUrl).then((_) {
+        final ctx = Get.context;
+        if (ctx == null) {
+          return;
+        }
         precacheImage(
           CachedNetworkImageProvider(imageUrl),
-          Get.context!,
+          ctx,
         ).catchError((e) {
           debugPrint('🖼️ Error preloading image: $e');
         });
@@ -572,16 +576,17 @@ class EnhancedChatUserCard extends StatelessWidget {
         child: InkWell(
           onTap: () => _navigateToChat(context, controller),
           onLongPress: () => _showOptions(context, controller),
-          child: _buildCardContent(controller),
+          child: _buildCardContent(context, controller),
         ),
       ),
     );
   }
 
-  Widget _buildCardContent(ChatUserCardController controller) {
+  Widget _buildCardContent(BuildContext context, ChatUserCardController controller) {
     return GetBuilder<ChatUserCardController>(
       tag: 'chat_card_${user.id}',
       id: 'last_message_${user.id}',
+      init: controller,
       builder: (ctrl) {
         return Obx(() {
           final displayUser = ctrl.currentUserData;
@@ -594,7 +599,7 @@ class EnhancedChatUserCard extends StatelessWidget {
             leading: _buildAvatar(isBlocked, isDeleted, displayUser),
             title: _buildTitle(isDeleted, displayUser, ctrl),
             subtitle: _buildSubtitle(ctrl, isBlocked, isDeleted, displayUser),
-            trailing: _buildTrailing(ctrl, isBlocked, isDeleted),
+            trailing: _buildTrailing(context, ctrl, isBlocked, isDeleted),
           );
         });
       },
@@ -774,6 +779,7 @@ class EnhancedChatUserCard extends StatelessWidget {
     return GetBuilder<ChatUserCardController>(
       tag: 'chat_card_${user.id}',
       id: 'message_status_${user.id}',
+      init: controller,
       builder: (ctrl) {
         return Obx(() {
           final lastMessage = ctrl.lastMessage.value;
@@ -870,7 +876,7 @@ class EnhancedChatUserCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTrailing(ChatUserCardController controller, bool isBlocked, bool isDeleted) {
+  Widget _buildTrailing(BuildContext context, ChatUserCardController controller, bool isBlocked, bool isDeleted) {
     if (isDeleted) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -912,7 +918,7 @@ class EnhancedChatUserCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            MyDateUtill.getLastMessageTime(Get.context!, lastMessage.sent),
+            MyDateUtill.getLastMessageTime(context, lastMessage.sent),
             style: TextStyle(
               fontSize: 12,
               color: isUnread ? Colors.green : Colors.grey,

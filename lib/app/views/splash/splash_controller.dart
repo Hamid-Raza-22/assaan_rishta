@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/core/services/deep_link_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
 import '../../core/base/export.dart';
@@ -25,8 +26,27 @@ class SplashController extends BaseController {
     bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
 
     if (isLoggedIn) {
-      // Navigate to bottom nav first
-      Get.offNamed(AppRoutes.BOTTOM_NAV);
+      // If logged in, check Firestore flag whether partner preference is updated
+      try {
+        final uid = useCase.getUserId();
+        final doc = await FirebaseFirestore.instance
+            .collection('Hamid_users')
+            .doc(uid.toString())
+            .get();
+
+        final data = doc.data();
+        final bool isPreferenceUpdated =
+            data != null && (data['is_preference_updated'] == true);
+
+        if (isPreferenceUpdated) {
+          Get.offNamed(AppRoutes.BOTTOM_NAV);
+        } else {
+          Get.offNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
+        }
+      } catch (e) {
+        // Fallback to home on any error
+        Get.offNamed(AppRoutes.BOTTOM_NAV);
+      }
 
       // Process any pending deep links after navigation
       // This ensures proper navigation stack
