@@ -404,6 +404,7 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+  @override
   Future<Either<AppError, String>> resetPassword({
     required String password,required String email,
   }) async {
