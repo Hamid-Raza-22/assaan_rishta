@@ -445,6 +445,31 @@ class BuyConnectsController extends GetxController {
                           'Account Number'
                       ),
                     ),
+                    Divider(height: 16, thickness: 0.5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'JAZZCASH - ASAAN RISHTA',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+
+                    // Account Number Row
+                    _buildCompactDetailRow(
+                      label: 'Account',
+                      value: '03064727345',
+                      onCopy: () => _copyToClipboard(
+                          '03064727345',
+                          'Account Number'
+                      ),
+                    ),
                   ],
                 ),
               ),

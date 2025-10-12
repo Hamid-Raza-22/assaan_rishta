@@ -21,6 +21,8 @@ class LoginViewModel extends GetxController {
   final passwordController = TextEditingController();
 
   var isLoading = false.obs;
+  final RxBool forgotPassword = false.obs;
+
   var isPasswordVisible = false.obs;
   var rememberMe = false.obs;
   // var agreeToTerms = false.obs;

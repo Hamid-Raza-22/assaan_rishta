@@ -99,47 +99,60 @@ class LoginView extends GetView<LoginViewModel> {
                       SizedBox(width: 8),
                       Text('Remember me', style: TextStyle(fontSize: 14)),
                     ],
-                  )),
-                  GestureDetector(
-                    onTap: () async {
+                  )), Obx(() => GestureDetector(
+                    onTap: controller.forgotPassword.value ? null : () async {
                       if (controller.emailController.text.isEmpty) {
-                        Get.snackbar(
-                          'Error',
-                          'Please enter your email address',
-                          snackPosition: SnackPosition.BOTTOM,
-                          colorText: Colors.white,
-                          backgroundColor: Colors.red,
-                        );
-                      } else {
-                        final response = await controller.systemConfigUseCases
-                            .getUserNumber(controller.emailController.text);
-                        if (response.isRight()) {
-                          final result = response.getOrElse(() => '');
-                          debugPrint('Response Body: $result');
-                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                          prefs.setString('userNumber', result);
-                          Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW,
-                              arguments: controller.emailController.text);
-                        } else {
                           Get.snackbar(
-                            'No Found',
-                            "Email is not Registered",
+                            'Error',
+                            'Please enter your email address',
                             snackPosition: SnackPosition.BOTTOM,
                             colorText: Colors.white,
                             backgroundColor: Colors.red,
                           );
-                        }
+                          return;
+                      }
+                      controller.forgotPassword.value = true;
+                      try {
+                          final response = await controller.systemConfigUseCases
+                              .getUserNumber(controller.emailController.text);
+                          if (response.isRight()) {
+                            final result = response.getOrElse(() => '');
+                            debugPrint('Response Body: $result');
+                            SharedPreferences prefs = await SharedPreferences.getInstance();
+                            prefs.setString('userNumber', result);
+                            prefs.setString('Email', controller.emailController.text);
+                            Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW,
+                                arguments: controller.emailController.text);
+                          } else {
+                            Get.snackbar(
+                              'Not Found',
+                              "Email is not Registered",
+                              snackPosition: SnackPosition.BOTTOM,
+                              colorText: Colors.white,
+                              backgroundColor: Colors.red,
+                            );
+                          }
+                      } finally {
+                        controller.forgotPassword.value = false;
                       }
                     },
-                    child: Text(
-                      'Forgot Password',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                    child: controller.forgotPassword.value
+                        ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.0,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
                       ),
+                    )
+                        : const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500),
                     ),
-                  )
+                  )),
                 ],
               ),
               SizedBox(height: 40),
