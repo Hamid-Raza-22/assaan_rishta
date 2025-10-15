@@ -114,8 +114,8 @@ class LoginViewModel extends GetxController {
           }
           update();
         },
-            (success) {
-          getCurrentUserProfiles(context);
+            (success) async {
+          await getCurrentUserProfiles(context);
         },
       );
     } finally {
@@ -182,6 +182,8 @@ class LoginViewModel extends GetxController {
             title: "Login",
             message: "Login successfully",
           );
+
+
 
           update();
           // Decide initial destination based on partner preference flag in Firestore
