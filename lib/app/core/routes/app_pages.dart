@@ -12,6 +12,7 @@ import '../../views/chat/export.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/home/home_view.dart';
 import '../../views/login/login_view.dart';
+import '../../views/profile/connects_history/connects_history_view.dart';
 import '../../views/profile/export.dart';
 import '../../views/profile/user_guide/user_guide.dart';
 import '../../views/signup/address_preferences_view.dart';
@@ -129,6 +130,12 @@ class AppPages {
     GetPage(
       name: AppRoutes.TRANSACTION_HISTORY_VIEW,
       page: () => const TransactionHistoryView(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.CONNECTS_HISTORY_VIEW,
+      page: () => const ConnectsHistoryView(),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),

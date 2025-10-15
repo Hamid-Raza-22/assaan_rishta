@@ -46,7 +46,7 @@ class EndPoints {
     return '${baseUrl}user/update_pasword';
   }
   String resetPasswordUrl() {
-    return '${baseUrl}user/reset_pasword';
+    return '${baseUrl}user/reset_password';
   }
 
   String getAllCastsUrl() {
@@ -135,6 +135,9 @@ class EndPoints {
 
   transactionHistoryUrl(uid) {
     return '${baseUrl}transaction/GetTransactionsByUserId/$uid';
+  }
+connectsHistoryUrl(uid) {
+    return '${baseUrl}User/getConnectionHistory/$uid';
   }
 
   profilesByFilterUrl() {

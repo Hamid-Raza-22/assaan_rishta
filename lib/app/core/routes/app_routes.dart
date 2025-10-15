@@ -29,6 +29,7 @@ abstract class AppRoutes {
   static const String VENDER_DETAILS_VIEW = '/vendors';//vendor-details-view
   static const String BUY_CONNECTS_VIEW = '/buy-connects-view';
   static const String TRANSACTION_HISTORY_VIEW = '/transaction-history-view';
+  static const String CONNECTS_HISTORY_VIEW = '/connects-history-view';
   static const String CHANGE_PASSWORD_VIEW = '/change_password-view';
   static const String CONTACT_US_VIEW = '/contact-us-view';
   static const String ABOUT_US_VIEW = '/about-us-view';

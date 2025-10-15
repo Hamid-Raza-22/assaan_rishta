@@ -98,12 +98,12 @@ class UserGuideController extends GetxController {
       "thumbnail": "https://via.placeholder.com/150",
       "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560609992655506710"
     },
-    {
-      "title": "Buy & Manage Your Connects",
-      "description": "Learn how to purchase and manage Connects",
-      "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://youtube.com/watch?v=connects_example"
-    },
+    // {
+    //   "title": "Buy & Manage Your Connects",
+    //   "description": "Learn how to purchase and manage Connects",
+    //   "thumbnail": "https://via.placeholder.com/150",
+    //   "url": "https://youtube.com/watch?v=connects_example"
+    // },
     {
       "title": "Payment with Google Pay",
       "description": "Complete guide for Google Pay payment method",
@@ -156,12 +156,12 @@ class UserGuideController extends GetxController {
     },
 
     // Safety
-    {
-      "title": "Privacy & Safety Tips",
-      "description": "Important safety guidelines for a secure experience",
-      "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://youtube.com/watch?v=example3"
-    },
+    // {
+    //   "title": "Privacy & Safety Tips",
+    //   "description": "Important safety guidelines for a secure experience",
+    //   "thumbnail": "https://via.placeholder.com/150",
+    //   "url": "https://youtube.com/watch?v=example3"
+    // },
 
     // Additional Features
     {
@@ -190,52 +190,37 @@ class UserGuideController extends GetxController {
     },
   ];
 
-  // FAQ Data
+  // FAQ Data - Now with optional URL field
   final Map<String, List<Map<String, String>>> faqData = {
     "Generic Questions": [
       {
-        "q": "How can I use Asaan Rishta?",
-        "a": "You can browse profiles, send interests, and connect with verified users directly through the app."
-      },
-      {
-        "q": "Is registration free?",
-        "a": "Yes, registration is free. However, premium plans unlock extra features such as chat and advanced search."
-      },
-      {
-        "q": "How do I create my account?",
-        "a": "Open the app, tap on 'Create Account', and fill in your basic details such as name, age, and profession."
-      },
-      {
-        "q": "How can I create a connection?",
-        "a": "You can send an interest request or accept one. Once both users agree, a connection is created."
-      },
-      {
-        "q": "Is there an expiry date for the package?",
-        "a": "Yes, each subscription package has a specific validity period mentioned before you buy."
-      },
-      {
-        "q": "What if I don't get a reply from the other side?",
-        "a": "Please be patient. Not everyone is active daily. You can also try reaching out to other matches."
+        "q": "How can I use Asaan Rishta??",
+        "a": "You can browse profiles, send interests, and connect with verified users directly through the app.",
+        "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560649875545722134"
       },
     ],
     "Security Questions": [
       {
-        "q": "How can I report or block users?",
-        "a": "Open the user's profile, tap the three-dot menu, and choose 'Report' or 'Block'."
+        "q": "if someone is being rude or using inappropriate language while chatting, how should I handle this situation? Should I block the user or report their profile?",
+        "a": "Open the user's profile, tap the three-dot menu, and choose 'Report' or 'Block'.",
+        "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560651583831215382"
       },
       {
         "q": "Should I share my personal information?",
-        "a": "Never share sensitive details like your address or banking info. Use in-app chat for safety."
+        "a": "Never share sensitive details like your address or banking info. Use in-app chat for safety.",
+        "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560655400593329430"
       },
       {
         "q": "How can I manage users I'm not interested in?",
-        "a": "You can either hide their profile or block them from viewing your account."
+        "a": "You can either hide their profile or block them from viewing your account.",
+        "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560652967112674582"
       },
     ],
     "Refund Policy": [
       {
         "q": "Can I get my money back?",
-        "a": "Refunds are generally not offered, but you can contact support for exceptional cases."
+        "a": "Refunds are generally not offered, but you can contact support for exceptional cases.",
+        "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560662986826763542"
       },
     ],
   };
