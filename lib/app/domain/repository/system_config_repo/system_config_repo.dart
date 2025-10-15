@@ -37,6 +37,17 @@ mixin SystemConfigRepo {
   Future<Either<AppError, String>> createTransaction({
     required String connectsPackagesId,
     required String transactionId,
+
+  });
+  Future<Either<AppError, String>> createGoogleTransaction({
+    required String connectsPackagesId,
+    required String transactionId,
+    required String currencyCode,
+    required double amount,
+    required double discountedAmount,
+    required double actualAmount,
+    required String paymentSource,
+
   });
 
   Future<Either<AppError, List<TransactionHistory>>> transactionHistory();

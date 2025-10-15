@@ -331,6 +331,49 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
       );
     }
   }
+  @override
+  Future<Either<AppError, String>> createGoogleTransaction({
+    required String connectsPackagesId,
+    required String transactionId,
+    required String currencyCode,
+    required double amount,
+    required double discountedAmount,
+    required double actualAmount,
+    required String paymentSource,
+
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.createGoogleTransactionUrl(),
+        headers: {"Content-Type": "application/json"},
+        body: {
+          "user_id": _storageRepo.getInt(StorageKeys.userId).toString(),
+          "connectsPackagesId": connectsPackagesId,
+          "transaction_Id": transactionId,
+          "Currency_code": currencyCode,
+          "Amount": amount,
+          "discountedAmount": discountedAmount,
+          "actualAmount": actualAmount,
+          "Payment_Source": paymentSource,
+          "createdDate": DateTime.now().toString(),
+        },
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
 
   @override
   Future<Either<AppError, String>> createTransaction({

@@ -163,6 +163,36 @@ class SystemConfigUseCase {
       },
     );
   }
+  Future<Either<AppError, String>> createGoogleTransaction({
+    required String connectsPackagesId,
+    required String transactionId,
+    required String currencyCode,
+    required double amount,
+    required double discountedAmount,
+    required double actualAmount,
+    required String paymentSource,
+
+  }) async {
+    final response = await systemConfigRepo.createGoogleTransaction(
+      connectsPackagesId: connectsPackagesId,
+      transactionId: transactionId,
+      currencyCode: currencyCode,
+      amount: amount,
+      discountedAmount: discountedAmount,
+      actualAmount: actualAmount,
+      paymentSource: paymentSource,
+
+    );
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
+
 
 
   Future<Either<AppError, List<TransactionHistory>>> transactionHistory() async {
