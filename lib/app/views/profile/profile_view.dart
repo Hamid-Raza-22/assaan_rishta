@@ -289,6 +289,20 @@ class ProfileView extends GetView<ProfileController> {
               //     arguments: controller.getUserName(),
               //   );
             },
+          ),        ClickableListTile(
+            text: 'Connects History',
+            icon: Icons.history,
+            onTap: () {
+              Get.toNamed(AppRoutes.CONNECTS_HISTORY_VIEW, arguments: controller.getUserName());
+
+              //   Get.to(
+              //     () => const TransactionHistoryView(),
+              //     binding: AppBindings(),
+              //     transition: Transition.circularReveal,
+              //     duration: const Duration(milliseconds: 500),
+              //     arguments: controller.getUserName(),
+              //   );
+            },
           ),
           ClickableListTile(
             text: 'Change Password',

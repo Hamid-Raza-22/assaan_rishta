@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart' as cloud;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart'as auth;
 import 'package:url_launcher/url_launcher.dart';
@@ -16,7 +17,8 @@ import '../../core/services/storage_services/export.dart';
 
 class ForgotPasswordController extends BaseController{
   final useCases = Get.find<UserManagementUseCase>();
-
+// Class ke variables mein add karein:
+  final RxBool isPasting = false.obs;
   final formKey = GlobalKey<FormState>();
   final enterPasswordFormKey = GlobalKey<FormState>();
   final phoneTEC=TextEditingController();
@@ -38,6 +40,66 @@ class ForgotPasswordController extends BaseController{
   void onInit() {
     super.onInit();
     _loadPhoneNumber();
+  }
+// Ye naya method add karein:
+  Future<void> pasteAndVerifyOtp({required BuildContext context}) async {
+    isPasting.value = true;
+    update();
+
+    try {
+      // Clipboard se text read karein
+      ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+
+      if (data == null || data.text == null || data.text!.isEmpty) {
+        AppUtils.failedData(
+          title: 'Clipboard Empty',
+          message: 'No OTP found in clipboard',
+        );
+        isPasting.value = false;
+        update();
+        return;
+      }
+
+      // Text se sirf numbers extract karein
+      String pastedText = data.text!.replaceAll(RegExp(r'[^0-9]'), '');
+
+      debugPrint('📋 Pasted text: ${data.text}');
+      debugPrint('🔢 Extracted OTP: $pastedText');
+
+      // Check if it's 6 digits
+      if (pastedText.length != 6) {
+        AppUtils.failedData(
+          title: 'Invalid OTP',
+          message: 'Please copy a valid 6-digit OTP',
+        );
+        isPasting.value = false;
+        update();
+        return;
+      }
+
+      // OTP field mein paste karein
+      otpTEC.text = pastedText;
+
+      // Thoda delay for better UX
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      isPasting.value = false;
+      update();
+
+      // Automatically verify
+      if (otpFormKey.currentState!.validate()) {
+        await verifyOtpAndProceed(context: context);
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error pasting OTP: $e');
+      AppUtils.failedData(
+        title: 'Error',
+        message: 'Failed to paste OTP',
+      );
+      isPasting.value = false;
+      update();
+    }
   }
 
   Future<void> _loadPhoneNumber() async {
@@ -169,7 +231,6 @@ class ForgotPasswordController extends BaseController{
     confirmPasswordTEC.dispose();
     super.dispose();
   }
-
   // OTP
   final otpFormKey = GlobalKey<FormState>();
   final RxBool isSendingCode = false.obs;
@@ -206,18 +267,14 @@ class ForgotPasswordController extends BaseController{
 
     return countryCodeMatches && phoneNumberMatches;
   }
-
   void startPhoneVerification({required BuildContext context}) async {
-    // Get the phone number directly from the controller
     final String phoneNumber = phoneTEC.text.trim();
 
-    // Check if phone number is empty
     if (phoneNumber.isEmpty) {
       AppUtils.failedData(title: 'Error', message: 'Please enter a phone number');
       return;
     }
 
-    // Validate if entered number and country code match saved data
     if (!validatePhoneNumber()) {
       AppUtils.failedData(
           title: 'Invalid Number',
@@ -226,9 +283,7 @@ class ForgotPasswordController extends BaseController{
       return;
     }
 
-    // If validation passes, use the saved phone number from SharedPreferences for OTP
-    final String fullPhone = savedPhoneNumber.value; // Use the complete saved number
-
+    final String fullPhone = savedPhoneNumber.value;
     debugPrint('📤 Sending OTP to saved number: $fullPhone');
 
     isSendingCode.value = true;
@@ -240,6 +295,8 @@ class ForgotPasswordController extends BaseController{
         timeout: const Duration(seconds: 60),
         verificationCompleted: (auth.PhoneAuthCredential credential) async {
           debugPrint('✅ Auto verification completed');
+          isSendingCode.value = false; // Stop loading on auto-complete
+          update();
         },
         verificationFailed: (auth.FirebaseAuthException e) {
           debugPrint('❌ Verification failed: ${e.message}');
@@ -254,39 +311,54 @@ class ForgotPasswordController extends BaseController{
           }
 
           AppUtils.failedData(title: 'OTP Failed', message: errorMessage);
+
+          isSendingCode.value = false; // Stop loading on failure
+          update();
         },
         codeSent: (String verificationId, int? resendToken) {
           debugPrint('✅ Code sent successfully. Verification ID: $verificationId');
           _verificationId = verificationId;
 
           otpTEC.clear();
-          debugPrint('Sending OTP to: ${Get.arguments}');
+
+          // ✅ Yahan par hi "Sending..." band hoga
+          isSendingCode.value = false;
+          update();
 
           Get.toNamed(AppRoutes.OTP_VIEW, arguments: Get.arguments);
-          AppUtils.successData(title: 'Success', message: 'OTP sent to ${savedCountryCode.value} ${maskedNumber.value}');
+          AppUtils.successData(
+              title: 'Success',
+              message: 'OTP sent to ${savedCountryCode.value} ${maskedNumber.value}'
+          );
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           _verificationId = verificationId;
           debugPrint('⏰ Auto retrieval timeout');
+          // Timeout par bhi band kar dein (optional)
+          isSendingCode.value = false;
+          update();
         },
       );
     } catch (e) {
       AppUtils.failedData(title: 'Error', message: e.toString());
       debugPrint('❌ Error in phone verification: $e');
-    } finally {
-      isSendingCode.value = false;
+
+      isSendingCode.value = false; // Exception par band karein
       update();
     }
+    // ❌ Finally block remove kar diya - ab specific callbacks mein handle ho raha hai
   }
 
   void resendCode() {
     otpTEC.clear();
 
-    // Validate phone number again before resending
     if (phoneTEC.text.trim().isNotEmpty && validatePhoneNumber()) {
       startPhoneVerification(context: Get.context!);
     } else {
-      AppUtils.failedData(title: 'Error', message: 'Please enter your registered phone number with correct country code');
+      AppUtils.failedData(
+          title: 'Error',
+          message: 'Please enter your registered phone number with correct country code'
+      );
     }
   }
 

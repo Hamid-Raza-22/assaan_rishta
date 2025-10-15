@@ -53,14 +53,14 @@ class ContactUsView extends GetView<ContactUsController> {
                       Icon(
                         Icons.headset_mic_rounded,
                         size: 48,
-                        color: AppColors.primaryColor,
+                           color: AppColors.secondaryColor,
                       ),
                       const SizedBox(height: 12),
                       const AppText(
                         text: 'We\'re Here to Help',
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primaryColor,
+                           color: AppColors.secondaryColor,
                       ),
                       const SizedBox(height: 8),
                       const AppText(
@@ -123,7 +123,7 @@ class ContactUsView extends GetView<ContactUsController> {
                               ),
                               child: Icon(
                                 Icons.support_agent,
-                                color: AppColors.primaryColor,
+                                   color: AppColors.secondaryColor,
                                 size: 24,
                               ),
                             ),
@@ -142,7 +142,7 @@ class ContactUsView extends GetView<ContactUsController> {
                                   AppText(
                                     text: 'support@asaanrishta.com',
                                     fontSize: 13,
-                                    color: AppColors.primaryColor,
+                                       color: AppColors.secondaryColor,
                                   ),
                                 ],
                               ),
@@ -224,12 +224,12 @@ class ContactUsView extends GetView<ContactUsController> {
                                Container(
                                  padding: const EdgeInsets.all(10),
                                  decoration: BoxDecoration(
-                                   color: Colors.green.withOpacity(0.1),
+                                   color: AppColors.secondaryColor.withOpacity(0.1),
                                    borderRadius: BorderRadius.circular(10),
                                  ),
                                  child: const Icon(
                                    Icons.phone,
-                                   color: Colors.green,
+                                   color: AppColors.secondaryColor,
                                    size: 24,
                                  ),
                                ),
@@ -248,7 +248,7 @@ class ContactUsView extends GetView<ContactUsController> {
                                      AppText(
                                        text: '+92 306 4727345',
                                        fontSize: 13,
-                                       color: Colors.green,
+                                       color: AppColors.secondaryColor,
                                      ),
                                    ],
                                  ),
@@ -284,7 +284,7 @@ class ContactUsView extends GetView<ContactUsController> {
                         children: [
                           Icon(
                             Icons.access_time_filled,
-                            color: AppColors.primaryColor,
+                               color: AppColors.secondaryColor,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
@@ -336,7 +336,7 @@ class ContactUsView extends GetView<ContactUsController> {
                       Icon(
                         Icons.schedule,
                         size: 20,
-                        color: AppColors.primaryColor,
+                           color: AppColors.secondaryColor,
                       ),
                       const SizedBox(width: 12),
                       Expanded(

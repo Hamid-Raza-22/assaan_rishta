@@ -58,6 +58,7 @@ class UserGuideScreen extends GetView<UserGuideController> {
                   itemBuilder: (ctx, i) => FAQItem(
                     question: faqs[i]['q']!,
                     answer: faqs[i]['a']!,
+                    url: faqs[i]['url'], // Pass URL to FAQItem
                   ),
                 );
               }

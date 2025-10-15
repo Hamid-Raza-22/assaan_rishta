@@ -16,6 +16,7 @@ import '../../viewmodels/user_details_viewmodel.dart';
 import '../../views/bottom_nav/export.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/on_boarding_screens/controller.dart';
+import '../../views/profile/connects_history/connects_history_controller.dart';
 import '../../views/profile/export.dart';
 import '../../views/profile/partner_preference/partner_preference_controller.dart';
 import '../../views/profile/user_guide/user_guide_controller.dart';
@@ -82,6 +83,9 @@ class AppBindings extends Bindings {
 
       Get.lazyPut(() => TransactionHistoryController(), fenix: true);
       debugPrint('✅ TransactionHistoryController registered');
+      Get.lazyPut(() => ConnectsHistoryController(), fenix: true);
+      debugPrint('✅ ConnectsHistoryController registered');
+
 
       Get.lazyPut(() => ChangePasswordController(), fenix: true);
       debugPrint('✅ ChangePasswordController registered');

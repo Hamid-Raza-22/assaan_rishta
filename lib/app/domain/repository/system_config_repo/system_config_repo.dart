@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'dart:async';
 import '../../../core/export.dart';
+import '../../../core/models/res_model/connects_history.dart';
 import '../../../core/services/network_services/result_type.dart';
 
 mixin SystemConfigRepo {
@@ -39,6 +40,7 @@ mixin SystemConfigRepo {
   });
 
   Future<Either<AppError, List<TransactionHistory>>> transactionHistory();
+  Future<Either<AppError, List<ConnectsHistory>>> connectsHistory();
 
   Future<Either<AppError, String>> contactUs({
     required String name,

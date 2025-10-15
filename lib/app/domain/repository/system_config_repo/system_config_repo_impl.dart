@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 import '../../../core/export.dart';
+import '../../../core/models/res_model/connects_history.dart';
 import '../../../core/services/network_services/end_points.dart';
 import '../../../core/services/network_services/network_helper.dart';
 import '../../../core/services/network_services/result_type.dart';
@@ -376,6 +377,39 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
         List<dynamic> jsonResponse = json.decode(response.body);
         if (jsonResponse.isNotEmpty) {
           return Right(TransactionHistory.fromJsonList(jsonResponse));
+        }
+        return Left(
+          AppError(
+            title: response.statusCode.toString(),
+          ),
+        );
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: "Network Exception",
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+ Future<Either<AppError, List<ConnectsHistory>>>
+      connectsHistory() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.connectsHistoryUrl(
+          _storageRepo.getInt(StorageKeys.userId).toString(),
+        ),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        List<dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse.isNotEmpty) {
+          return Right(ConnectsHistory.fromJsonList(jsonResponse));
         }
         return Left(
           AppError(

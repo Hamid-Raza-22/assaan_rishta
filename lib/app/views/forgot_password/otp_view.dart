@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../utils/exports.dart';
 import '../../widgets/export.dart';
@@ -47,11 +48,76 @@ class OtpView extends GetView<ForgotPasswordController> {
                       fontWeight: FontWeight.w400,
                     ),
                     const SizedBox(height: 24),
-                    CustomFormField(
-                      tec: controller.otpTEC,
-                      hint: 'Enter OTP',
+                    // OTP Field with Paste Button
+                    TextFormField(
+                      controller: controller.otpTEC,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 2,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Enter OTP',
+                        counterText: '',
+                        filled: true,
+                        fillColor: AppColors.fillFieldColor,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        suffixIcon: Obx(() => controller.isPasting.value
+                            ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primaryColor,
+                            ),
+                          ),
+                        )
+                            : InkWell(
+                          onTap: () => controller.pasteAndVerifyOtp(context: context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            margin: const EdgeInsets.only(right: 8),
+                            child: const Text(
+                              'Paste',
+                              style: TextStyle(
+                                color: AppColors.secondaryColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: AppColors.borderColor,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: AppColors.secondaryColor,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       validator: (value) {
                         if (value == null || value.length != 6) {
                           return 'Enter 6-digit code';
@@ -61,31 +127,38 @@ class OtpView extends GetView<ForgotPasswordController> {
                     ),
                     const SizedBox(height: 16),
                     Obx(() => CustomButton(
-                          text: controller.isVerifyingOtp.value ? 'Verifying...' : 'Verify',
-                          isGradient: true,
-                          fontColor: AppColors.whiteColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 18,
-                          onTap: controller.isVerifyingOtp.value
-                              ? null
-                              : () {
-                                  if (controller.otpFormKey.currentState!.validate()) {
-                                    controller.verifyOtpAndProceed(context: context);
-                                  }
-                                },
-                        )),
+                      text: controller.isVerifyingOtp.value
+                          ? 'Verifying...'
+                          : 'Verify',
+                      isGradient: true,
+                      fontColor: AppColors.whiteColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                      onTap: controller.isVerifyingOtp.value
+                          ? null
+                          : () {
+                        if (controller.otpFormKey.currentState!
+                            .validate()) {
+                          controller.verifyOtpAndProceed(
+                              context: context);
+                        }
+                      },
+                    )),
                     const SizedBox(height: 12),
                     Obx(() => TextButton(
-                          onPressed: controller.isSendingCode.value
-                              ? null
-                              : () {
-                                  controller.resendCode();
-                                },
-                          child: Text(
-                            controller.isSendingCode.value ? 'Resending...' : 'Resend Code',
-                            style: const TextStyle(color: AppColors.secondaryColor),
-                          ),
-                        )),
+                      onPressed: controller.isSendingCode.value
+                          ? null
+                          : () {
+                        controller.resendCode();
+                      },
+                      child: Text(
+                        controller.isSendingCode.value
+                            ? 'Resending...'
+                            : 'Resend Code',
+                        style: const TextStyle(
+                            color: AppColors.secondaryColor),
+                      ),
+                    )),
                   ],
                 ),
               ),
@@ -96,8 +169,3 @@ class OtpView extends GetView<ForgotPasswordController> {
     );
   }
 }
-
-
-
-
-

@@ -159,25 +159,25 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                           fontWeight: FontWeight.w500,
                           fontSize: 18,
                           onTap:
-                              // ()=> Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW)
-                          controller.isSendingCode.value
-                              ? null
-                              : () {
-                            if (controller.formKey.currentState!.validate()) {
-                              // Check if saved number exists
-                              if (controller.savedPhoneNumber.value.isEmpty) {
-                                Get.snackbar(
-                                  'Error',
-                                  'No registered phone number found. Please contact support.',
-                                  backgroundColor: Colors.red.withOpacity(0.9),
-                                  colorText: Colors.white,
-                                  snackPosition: SnackPosition.TOP,
-                                );
-                                return;
-                              }
-                              controller.startPhoneVerification(context: context);
-                            }
-                          },
+                               ()=> Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW)
+                          // controller.isSendingCode.value
+                          //     ? null
+                          //     : () {
+                          //   if (controller.formKey.currentState!.validate()) {
+                          //     // Check if saved number exists
+                          //     if (controller.savedPhoneNumber.value.isEmpty) {
+                          //       Get.snackbar(
+                          //         'Error',
+                          //         'No registered phone number found. Please contact support.',
+                          //         backgroundColor: Colors.red.withOpacity(0.9),
+                          //         colorText: Colors.white,
+                          //         snackPosition: SnackPosition.TOP,
+                          //       );
+                          //       return;
+                          //     }
+                          //     controller.startPhoneVerification(context: context);
+                          //   }
+                          // },
                         )),
                       ],
                     ),
