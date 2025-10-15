@@ -138,10 +138,12 @@ class AuthService extends GetxController {
   }
 
   // FIXED: Logout method with proper notification handling
+// FIXED: Logout method with proper notification handling
   Future<void> logout(BuildContext context) async {
     try {
       debugPrint('🚪 Starting logout process...');
       NotificationServices.clearSession();
+
       // 1. Update Firebase status
       if (_userId != null) {
         await FirebaseService.updateActiveStatus(false);
@@ -151,10 +153,20 @@ class AuthService extends GetxController {
       // 2. Remove FCM token from Firestore
       await _removeFCMToken();
 
-      // 3. Clear local data
+      // 3. Clear local data BUT preserve onboarding flag
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
+
+      // Save the onboarding status before clearing
+      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+      final isFirstInstall = prefs.getBool('first_install') ?? false;
+
+      // Clear all data
       await prefs.clear();
+
+      // Restore the onboarding flags
+      await prefs.setBool('has_seen_onboarding', hasSeenOnboarding);
+      await prefs.setBool('first_install', isFirstInstall);
 
       // 4. Reset local variables
       _userId = null;
@@ -166,6 +178,7 @@ class AuthService extends GetxController {
       isUserLoggedIn.value = false;
       currentUser.value = null;
       await clearGetXInstances();
+
       // 6. Clear chat controller if exists
       if (Get.isRegistered<ChatViewModel>()) {
         final chatController = Get.find<ChatViewModel>();
@@ -177,20 +190,29 @@ class AuthService extends GetxController {
       // 7. Navigate to login
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
 
-
     } catch (e) {
       NotificationServices.clearSession();
       debugPrint('💥 Error during logout: $e');
+
       // Even if there's an error, clear local data and navigate
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
+
+      // Save flags before clearing
+      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+      final isFirstInstall = prefs.getBool('first_install') ?? false;
+
       await prefs.clear();
+
+      // Restore flags
+      await prefs.setBool('has_seen_onboarding', hasSeenOnboarding);
+      await prefs.setBool('first_install', isFirstInstall);
+
       isUserLoggedIn.value = false;
       currentUser.value = null;
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
     }
-  }
-// Alternative method if you want to clear ALL GetX instances (use with caution)
+  }// Alternative method if you want to clear ALL GetX instances (use with caution)
   Future<void> clearGetXInstances() async {
     try {
       // This will delete all GetX controllers and clear the dependency tree
