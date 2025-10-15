@@ -166,9 +166,22 @@ class BuyConnectsController extends GetxController {
       "Purchase Successful",
       "You have successfully purchased connects!",
     );
-    createTransaction(
+    // createTransaction(
+    //   connectsPackagesId: purchase.productID,
+    //   transactionId: purchase.purchaseID,
+    // );
+    await createTransaction(
+      transactionId: purchase.purchaseID ?? "UNKNOWN",
       connectsPackagesId: purchase.productID,
-      transactionId: purchase.purchaseID,
+    );
+    await createGoogleTransaction(
+      transactionId: purchase.purchaseID ?? "UNKNOWN",
+      connectsPackagesId: purchase.productID,
+      currencyCode: product.currencyCode,
+      amount: product.rawPrice,
+      discountedAmount: 0, // Add discount logic if needed
+      actualAmount: product.rawPrice,
+      paymentSource: "Google Play",
     );
   }
 
@@ -186,110 +199,7 @@ class BuyConnectsController extends GetxController {
           (product) => product.id == productId,
     );
   }
-  // purchase({required PackageModel package}) async {
-  //   debugPrint("🛒 Attempting to purchase: ${package.packageName}");
-  //
-  //   try {
-  //     // Check if purchases are available
-  //     final bool isAvailable = await _inAppPurchase.isAvailable();
-  //     if (!isAvailable) {
-  //       debugPrint("❌ In-app purchases not available");
-  //       Get.snackbar(
-  //         "Error",
-  //         "In-app purchases are not available",
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //       );
-  //       return;
-  //     }
-  //
-  //     ProductDetails? product = getProductById(package.productId);
-  //
-  //     if (product != null) {
-  //       debugPrint("💳 Starting purchase for: ${product.title}");
-  //
-  //       final purchaseParam = PurchaseParam(productDetails: product);
-  //
-  //       // Show loading indicator
-  //       Get.snackbar(
-  //         "Processing",
-  //         "Starting purchase...",
-  //         backgroundColor: Colors.blue,
-  //         colorText: Colors.white,
-  //         duration: Duration(seconds: 2),
-  //       );
-  //
-  //       bool purchaseResult = await _inAppPurchase.buyConsumable(
-  //           purchaseParam: purchaseParam
-  //       );
-  //       debugPrint("🔄 Purchase initiated: $purchaseResult");
-  //
-  //     } else {
-  //       debugPrint("❌ Product not found: ${package.productId}");
-  //
-  //       // FOR TESTING ONLY - Remove this in production
-  //       if (kDebugMode) {
-  //         // Show dialog to simulate purchase
-  //         final result = await Get.dialog<bool>(
-  //           AlertDialog(
-  //             title: Text("Test Purchase"),
-  //             content: Text(
-  //               "Product '${package.packageName}' not found in Google Play.\n\n"
-  //                   "Would you like to simulate a successful purchase for testing?",
-  //             ),
-  //             actions: [
-  //               TextButton(
-  //                 onPressed: () => Get.back(result: false),
-  //                 child: Text("Cancel"),
-  //               ),
-  //               TextButton(
-  //                 onPressed: () => Get.back(result: true),
-  //                 child: Text("Simulate Purchase"),
-  //               ),
-  //             ],
-  //           ),
-  //         );
-  //
-  //         if (result == true) {
-  //           // Simulate successful purchase
-  //           subscribedPopup(
-  //             price: "PKR ${package.packagePrice}",
-  //             packageName: package.packageName,
-  //             productId: package.productId,
-  //           );
-  //
-  //           // Create a fake transaction for testing
-  //           createTransaction(
-  //             connectsPackagesId: package.productId,
-  //             transactionId: "TEST_${DateTime.now().millisecondsSinceEpoch}",
-  //           );
-  //         }
-  //       } else {
-  //         // Production error
-  //         Get.snackbar(
-  //           "Error",
-  //           "Product ${package.packageName} is not available",
-  //           backgroundColor: Colors.red,
-  //           colorText: Colors.white,
-  //         );
-  //       }
-  //     }
-  //   } catch (e) {
-  //     debugPrint("💥 Purchase error: $e");
-  //     Get.snackbar(
-  //       "Error",
-  //       "Failed to start purchase: $e",
-  //       backgroundColor: Colors.red,
-  //       colorText: Colors.white,
-  //     );
-  //   }
-  // }
-  //
-  // ProductDetails? getProductById(String productId) {
-  //   return products.firstWhereOrNull(
-  //         (product) => product.id == productId,
-  //   );
-  // }
+
 
   ///----------Google Pay End----------
   ///----------Go Pay Fast ------------
@@ -302,28 +212,7 @@ class BuyConnectsController extends GetxController {
     debugPrint("💳 Opening PayFast for amount: $amount, package: $packageId");
 
     try {
-      // Validate inputs
-      // if (amount.isEmpty) {
-      //   debugPrint("❌ Amount is empty");
-      //   Get.snackbar(
-      //     "Error",
-      //     "Invalid amount",
-      //     backgroundColor: Colors.red,
-      //     colorText: Colors.white,
-      //   );
-      //   return;
-      // }
 
-      // if (packageId.isEmpty) {
-      //   debugPrint("❌ Package ID is empty");
-      //   Get.snackbar(
-      //     "Error",
-      //     "Invalid package",
-      //     backgroundColor: Colors.red,
-      //     colorText: Colors.white,
-      //   );
-      //   return;
-      // }
 
       debugPrint("🚀 Navigating to AmountView using GetX...");
 
@@ -741,19 +630,75 @@ class BuyConnectsController extends GetxController {
   }
 
   createTransaction({
-    required connectsPackagesId,
-    required transactionId,
+    required String transactionId,
+    required String connectsPackagesId,
+
+
   }) async {
+    debugPrint("📝 Creating transaction:");
+    debugPrint("   Transaction ID: $transactionId");
+    debugPrint("   Package: $connectsPackagesId");
+
+
     final response = await systemConfigUseCases.createTransaction(
-      connectsPackagesId: connectsPackagesId,
       transactionId: transactionId,
+      connectsPackagesId: connectsPackagesId,
     );
+
     return response.fold(
           (error) {
-        debugPrint("Error : ${error.title}");
+        debugPrint("❌ Transaction Error: ${error.title}");
+        Get.snackbar(
+          "Transaction Failed",
+          error.description ?? "Could not save transaction",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       },
           (success) {
-        debugPrint("Success : $success");
+        debugPrint("✅ Transaction Success: $success");
+      },
+    );
+  }
+  createGoogleTransaction({
+    required String transactionId,
+    required String connectsPackagesId,
+    required String currencyCode,
+    required double amount,
+    required double discountedAmount,
+    required double actualAmount,
+    required String paymentSource,
+
+  }) async {
+    debugPrint("📝 Creating transaction:");
+    debugPrint("   Transaction ID: $transactionId");
+    debugPrint("   Package: $connectsPackagesId");
+    debugPrint("   Amount: $amount");
+    debugPrint("   Payment Source: $paymentSource");
+
+
+    final response = await systemConfigUseCases.createGoogleTransaction(
+      transactionId: transactionId,
+      connectsPackagesId: connectsPackagesId,
+      currencyCode: currencyCode,
+      amount: amount,
+      discountedAmount: discountedAmount,
+      actualAmount: actualAmount,
+      paymentSource: paymentSource,
+    );
+
+    return response.fold(
+          (error) {
+        debugPrint("❌ Transaction Error: ${error.title}");
+        Get.snackbar(
+          "Transaction Failed",
+          error.description ?? "Could not save transaction",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      },
+          (success) {
+        debugPrint("✅ Transaction Success: $success");
       },
     );
   }

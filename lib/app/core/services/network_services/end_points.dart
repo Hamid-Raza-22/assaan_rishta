@@ -132,6 +132,10 @@ class EndPoints {
   createTransactionUrl() {
     return '${baseUrl}Users/createtransaction';
   }
+  createGoogleTransactionUrl() {
+    // api/transaction/PostTransaction
+    return '${baseUrl}transaction/PostTransaction';
+  }
 
   transactionHistoryUrl(uid) {
     return '${baseUrl}transaction/GetTransactionsByUserId/$uid';
