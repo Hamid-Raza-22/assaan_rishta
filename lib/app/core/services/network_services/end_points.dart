@@ -45,6 +45,7 @@ class EndPoints {
   String updatePasswordUrl() {
     return '${baseUrl}user/update_pasword';
   }
+
   String resetPasswordUrl() {
     return '${baseUrl}user/reset_password';
   }
@@ -73,11 +74,11 @@ class EndPoints {
     return '${baseUrl}Users/GetAllCitiesByStateId/$stateId';
   }
 
-  getAllProfilesUrl({pageNo, pageLimit,uid}) {
+  getAllProfilesUrl({pageNo, pageLimit, uid}) {
     return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/$uid';
   }
 
-  getAllFeaturedProfilesUrl({pageNo, pageLimit,uid}) {
+  getAllFeaturedProfilesUrl({pageNo, pageLimit, uid}) {
     return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/0';
   }
 
@@ -125,13 +126,14 @@ class EndPoints {
     return '${baseUrl}User/updateConnects';
   }
 
-  deductConnectsUrl({uid,userForId}) {
+  deductConnectsUrl({uid, userForId}) {
     return '${baseUrl}user/deductConnects/$uid/$userForId';
   }
 
   createTransactionUrl() {
     return '${baseUrl}Users/createtransaction';
   }
+
   createGoogleTransactionUrl() {
     // api/transaction/PostTransaction
     return '${baseUrl}transaction/PostTransaction';
@@ -140,7 +142,8 @@ class EndPoints {
   transactionHistoryUrl(uid) {
     return '${baseUrl}transaction/GetTransactionsByUserId/$uid';
   }
-connectsHistoryUrl(uid) {
+
+  connectsHistoryUrl(uid) {
     return '${baseUrl}User/getConnectionHistory/$uid';
   }
 
@@ -151,12 +154,13 @@ connectsHistoryUrl(uid) {
   contactUsUrl() {
     return '${baseUrl}user/contactus';
   }
+
   getUserNumberUrl({required String email}) {
     return '${baseUrl}User/getUserNumber/%7Bemail%7D?email=$email';
   }
 
   ///pay fast
-  getPaymentTokenUrl({basketId,amount}){
+  getPaymentTokenUrl({basketId, amount}) {
     return '${baseUrl}PayFastController/GetToken/$basketId/$amount/PKR';
   }
 }

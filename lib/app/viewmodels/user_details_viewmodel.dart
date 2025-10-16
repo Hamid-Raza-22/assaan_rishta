@@ -413,15 +413,59 @@ class UserDetailsController extends GetxController {
         url.contains('vm.tiktok.com') ||
         url.contains('t.tiktok.com');
   }
+// Add this method to extract the direct TikTok video URL
+  Future<String?> extractTikTokVideoUrl(String tiktokUrl) async {
+    try {
+      // Using TikWM API (free service)
+      final apiUrl = 'https://www.tikwm.com/api/?url=${Uri.encodeComponent(tiktokUrl)}';
 
+      final response = await http.get(
+        Uri.parse(apiUrl),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['code'] == 0 && data['data'] != null) {
+          // Return the direct video URL without watermark (or use 'play' for watermarked version)
+          return data['data']['wmplay'] ?? data['data']['play'];
+        }
+      }
+
+      debugPrint("Failed to extract TikTok URL: ${response.body}");
+    } catch (e) {
+      debugPrint("Error extracting TikTok URL: $e");
+    }
+    return null;
+  }
+// Update your initializeVideoPlayer method
   Future<void> initializeVideoPlayer(String videoUrl) async {
     try {
       _cleanupResources(); // Clean up before initializing new player
 
+      String? directUrl = videoUrl;
+
+      // Check if it's a TikTok URL and extract the direct video URL
+      if (_isTikTokUrl(videoUrl)) {
+        debugPrint("🎬 Extracting TikTok video URL...");
+        directUrl = await extractTikTokVideoUrl(videoUrl);
+
+        if (directUrl == null) {
+          debugPrint("❌ Failed to extract TikTok video URL");
+          update(['video_player']);
+          return;
+        }
+
+        debugPrint("✅ Extracted video URL: $directUrl");
+      }
+
       videoController = VideoPlayerController.network(
-        videoUrl,
+        directUrl,
         httpHeaders: {
           'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+          'Referer': 'https://www.tiktok.com/', // Important for TikTok videos
         },
       );
 
@@ -440,7 +484,6 @@ class UserDetailsController extends GetxController {
       update(['video_player']);
     }
   }
-
   void toggleVideoPlayback() {
     if (videoController != null && videoController!.value.isInitialized) {
       if (videoController!.value.isPlaying) {

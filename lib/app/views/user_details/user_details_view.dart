@@ -813,7 +813,7 @@ Don't have the app? Download now:
     String videoUrl = controller.profileDetails.value.tiktokLink!;
 
     return Container(
-      height: 250,
+      height: 550,
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(12),

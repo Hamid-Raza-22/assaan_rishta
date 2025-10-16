@@ -39,11 +39,11 @@ class BuyConnectsController extends GetxController {
 
   @override
   void onInit() {
+    super.onInit();
     getConnects();
     controllerCenter = ConfettiController(
       duration: const Duration(seconds: 10),
     );
-    super.onInit();
     _inAppPurchase.purchaseStream.listen((List<PurchaseDetails> purchases) {
       _handlePurchaseUpdates(purchases);
     });
@@ -91,6 +91,7 @@ class BuyConnectsController extends GetxController {
   ///Google Pay
 
   Future<void> fetchProducts() async {
+    // const Set<String> productIds = {'1', '2'};
     const Set<String> productIds = {'silver_1500', 'gold_2000'};
     final ProductDetailsResponse response =
     await _inAppPurchase.queryProductDetails(productIds);
@@ -99,56 +100,46 @@ class BuyConnectsController extends GetxController {
     }
     isLoading.value = false;
   }
-  void _handlePurchaseUpdates(List<PurchaseDetails> purchases) {
-    for (var purchase in purchases) {
+  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
+    debugPrint("🔄 Purchase updates received: ${purchases.length}");
+
+    // Process only the most recent purchase if multiple are pending
+    if (purchases.isNotEmpty) {
+      final purchase = purchases.last;
+      debugPrint("💳 Processing most recent purchase: ${purchase.purchaseID}");
+      debugPrint("💳 Purchase status: ${purchase.status}");
+      debugPrint("💳 Product ID: ${purchase.productID}");
+
       if (purchase.status == PurchaseStatus.purchased) {
-        _verifyAndDeliverPurchase(purchase);
+        debugPrint("✅ Purchase successful, verifying...");
+        await _verifyAndDeliverPurchase(purchase);
       } else if (purchase.status == PurchaseStatus.error) {
+        debugPrint("❌ Purchase error: ${purchase.error}");
         Get.snackbar(
           "Purchase Failed",
-          "An error occurred during the purchase.",
+          purchase.error?.message ?? "An error occurred during the purchase.",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      } else if (purchase.status == PurchaseStatus.pending) {
+        debugPrint("⏳ Purchase pending...");
+        Get.snackbar(
+          "Purchase Pending",
+          "Your purchase is being processed...",
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+      } else if (purchase.status == PurchaseStatus.canceled) {
+        debugPrint("🚫 Purchase canceled by user");
+        Get.snackbar(
+          "Purchase Canceled",
+          "Payment was canceled",
+          backgroundColor: Colors.grey,
+          colorText: Colors.white,
         );
       }
     }
   }
-  // void _handlePurchaseUpdates(List<PurchaseDetails> purchases) {
-  //   debugPrint("🔄 Purchase updates received: ${purchases.length}");
-  //
-  //   for (var purchase in purchases) {
-  //     debugPrint("💳 Purchase status: ${purchase.status}");
-  //     debugPrint("💳 Purchase ID: ${purchase.purchaseID}");
-  //     debugPrint("💳 Product ID: ${purchase.productID}");
-  //
-  //     if (purchase.status == PurchaseStatus.purchased) {
-  //       debugPrint("✅ Purchase successful, verifying...");
-  //       _verifyAndDeliverPurchase(purchase);
-  //     } else if (purchase.status == PurchaseStatus.error) {
-  //       debugPrint("❌ Purchase error: ${purchase.error}");
-  //       Get.snackbar(
-  //         "Purchase Failed",
-  //         purchase.error?.message ?? "An error occurred during the purchase.",
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //       );
-  //     } else if (purchase.status == PurchaseStatus.pending) {
-  //       debugPrint("⏳ Purchase pending...");
-  //       Get.snackbar(
-  //         "Purchase Pending",
-  //         "Your purchase is being processed...",
-  //         backgroundColor: Colors.orange,
-  //         colorText: Colors.white,
-  //       );
-  //     } else if (purchase.status == PurchaseStatus.canceled) {
-  //       debugPrint("🚫 Purchase canceled by user");
-  //       Get.snackbar(
-  //         "Purchase Canceled",
-  //         "Payment was canceled",
-  //         backgroundColor: Colors.grey,
-  //         colorText: Colors.white,
-  //       );
-  //     }
-  //   }
-  // }
 
   Future<void> _verifyAndDeliverPurchase(PurchaseDetails purchase) async {
     // Consume the purchase if it's consumable
@@ -156,7 +147,7 @@ class BuyConnectsController extends GetxController {
       await _inAppPurchase.completePurchase(purchase);
     }
     ProductDetails? product = getProductById(purchase.productID);
-    subscribedPopup(
+    await subscribedPopup(
       price: product!.price,
       packageName: product.title,
       productId: purchase.productID,
@@ -167,21 +158,21 @@ class BuyConnectsController extends GetxController {
       "You have successfully purchased connects!",
     );
     // createTransaction(
-    //   connectsPackagesId: purchase.productID,
+    //   googleConsoleId: purchase.productID,
     //   transactionId: purchase.purchaseID,
     // );
-    await createTransaction(
+    // await createTransaction(
+    //   transactionId: purchase.purchaseID ?? "UNKNOWN",
+    //   googleConsoleId: purchase.productID,
+    // );
+    createGoogleTransaction(
       transactionId: purchase.purchaseID ?? "UNKNOWN",
-      connectsPackagesId: purchase.productID,
-    );
-    await createGoogleTransaction(
-      transactionId: purchase.purchaseID ?? "UNKNOWN",
-      connectsPackagesId: purchase.productID,
-      currencyCode: product.currencyCode,
-      amount: product.rawPrice,
-      discountedAmount: 0, // Add discount logic if needed
-      actualAmount: product.rawPrice,
-      paymentSource: "Google Play",
+      googleConsoleId: purchase.productID ?? "UNKNOWN",
+      currencyCode: product.currencyCode ?? "UNKNOWN",
+      amount: product.rawPrice ?? 0.0,
+      discountedAmount: 0.0, // Add discount logic if needed
+      actualAmount: product.rawPrice.toInt(),
+      paymentSource: "Google Pay",
     );
   }
 
@@ -629,57 +620,57 @@ class BuyConnectsController extends GetxController {
     );
   }
 
-  createTransaction({
-    required String transactionId,
-    required String connectsPackagesId,
-
-
-  }) async {
-    debugPrint("📝 Creating transaction:");
-    debugPrint("   Transaction ID: $transactionId");
-    debugPrint("   Package: $connectsPackagesId");
-
-
-    final response = await systemConfigUseCases.createTransaction(
-      transactionId: transactionId,
-      connectsPackagesId: connectsPackagesId,
-    );
-
-    return response.fold(
-          (error) {
-        debugPrint("❌ Transaction Error: ${error.title}");
-        Get.snackbar(
-          "Transaction Failed",
-          error.description ?? "Could not save transaction",
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-      },
-          (success) {
-        debugPrint("✅ Transaction Success: $success");
-      },
-    );
-  }
+  // createTransaction({
+  //   required String transactionId,
+  //   required String googleConsoleId,
+  //
+  //
+  // }) async {
+  //   debugPrint("📝 Creating transaction:");
+  //   debugPrint("   Transaction ID: $transactionId");
+  //   debugPrint("   Package: $googleConsoleId");
+  //
+  //
+  //   final response = await systemConfigUseCases.createTransaction(
+  //     transactionId: transactionId,
+  //     googleConsoleId: googleConsoleId,
+  //   );
+  //
+  //   return response.fold(
+  //         (error) {
+  //       debugPrint("❌ Transaction Error: ${error.title}");
+  //       Get.snackbar(
+  //         "Transaction Failed",
+  //         error.description ?? "Could not save transaction",
+  //         backgroundColor: Colors.red,
+  //         colorText: Colors.white,
+  //       );
+  //     },
+  //         (success) {
+  //       debugPrint("✅ Transaction Success: $success");
+  //     },
+  //   );
+  // }
   createGoogleTransaction({
-    required String transactionId,
-    required String connectsPackagesId,
-    required String currencyCode,
-    required double amount,
+    required dynamic transactionId,
+    required dynamic googleConsoleId,
+    required dynamic currencyCode,
+    required dynamic amount,
     required double discountedAmount,
-    required double actualAmount,
-    required String paymentSource,
+    required int actualAmount,
+    required dynamic paymentSource,
 
   }) async {
     debugPrint("📝 Creating transaction:");
     debugPrint("   Transaction ID: $transactionId");
-    debugPrint("   Package: $connectsPackagesId");
+    debugPrint("   Package: $googleConsoleId");
     debugPrint("   Amount: $amount");
     debugPrint("   Payment Source: $paymentSource");
 
 
     final response = await systemConfigUseCases.createGoogleTransaction(
       transactionId: transactionId,
-      connectsPackagesId: connectsPackagesId,
+      googleConsoleId: googleConsoleId,
       currencyCode: currencyCode,
       amount: amount,
       discountedAmount: discountedAmount,
@@ -704,8 +695,10 @@ class BuyConnectsController extends GetxController {
   }
 
   int getConnectsBasedOnPurchase(String productId) {
+    // if (productId == "1") {
     if (productId == "silver_1500") {
       return 03;
+    // } else if (productId == "2") {
     } else if (productId == "gold_2000") {
       return 08;
     } else {
