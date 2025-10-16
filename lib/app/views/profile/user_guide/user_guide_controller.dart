@@ -28,7 +28,8 @@ class UserGuideController extends GetxController {
       "title": "How to Sign Up on Asaan Rishta",
       "description": "Complete step-by-step guide to create your account",
       "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560589386698493186"
+      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7561805772800265494"
+      // "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560589386698493186"
     },
     {
       "title": "Login Process - Asaan Rishta App",
@@ -72,12 +73,12 @@ class UserGuideController extends GetxController {
     },
 
     // Interactions
-    {
-      "title": "How to Send Interest & Connect",
-      "description": "Step by step guide to connect with potential matches",
-      "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://www.tiktok.com/@falakaxe/video/7556688704845122824"
-    },
+    // {
+    //   "title": "How to Send Interest & Connect",
+    //   "description": "Step by step guide to connect with potential matches",
+    //   "thumbnail": "https://via.placeholder.com/150",
+    //   "url": "https://www.tiktok.com/@falakaxe/video/7556688704845122824"
+    // },
     {
       "title": "How to Chat with User",
       "description": "Learn how to start and manage conversations",

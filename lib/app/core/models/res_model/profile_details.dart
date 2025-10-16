@@ -414,7 +414,8 @@ class ProfileDetails {
     if (tiktok != null && tiktok.isNotEmpty) {
       tiktokLink = tiktok;
     } else {
-      tiktokLink = 'https://www.tiktok.com/@islamicvibes599/video/7421592716967955744?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
+      tiktokLink = 'https://www.tiktok.com/@asaanrishtaofficial0/video/7561825639393742102?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
+      // tiktokLink = 'https://www.tiktok.com/@islamicvibes599/video/7421592716967955744?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
     }
   }
 

@@ -333,21 +333,24 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
   }
   @override
   Future<Either<AppError, String>> createGoogleTransaction({
-    required String connectsPackagesId,
+    required String googleConsoleId,
     required String transactionId,
     required String currencyCode,
     required double amount,
     required double discountedAmount,
-    required double actualAmount,
+    required int actualAmount,
     required String paymentSource,
-
   }) async {
     try {
+      // googleConsoleId ke base par connectsPackagesId set karein
+      int connectsPackagesId = googleConsoleId == "silver_1500" ? 1 : 2;
+
       final response = await _networkHelper.post(
         _endPoints.createGoogleTransactionUrl(),
         headers: {"Content-Type": "application/json"},
         body: {
           "user_id": _storageRepo.getInt(StorageKeys.userId).toString(),
+          "googleConsoleId": googleConsoleId,
           "connectsPackagesId": connectsPackagesId,
           "transaction_Id": transactionId,
           "Currency_code": currencyCode,
@@ -355,9 +358,9 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
           "discountedAmount": discountedAmount,
           "actualAmount": actualAmount,
           "Payment_Source": paymentSource,
-          "createdDate": DateTime.now().toString(),
         },
       );
+
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         return Right(response.body.toString());
       }
@@ -377,7 +380,7 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
 
   @override
   Future<Either<AppError, String>> createTransaction({
-    required String connectsPackagesId,
+    required String googleConsoleId,
     required String transactionId,
   }) async {
     try {
@@ -386,7 +389,7 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
         headers: {"Content-Type": "application/json"},
         body: {
           "user_id": _storageRepo.getInt(StorageKeys.userId).toString(),
-          "connectsPackagesId": connectsPackagesId,
+          "googleConsoleId": googleConsoleId,
           "transaction_Id": transactionId,
         },
       );

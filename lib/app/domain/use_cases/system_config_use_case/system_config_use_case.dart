@@ -147,11 +147,11 @@ class SystemConfigUseCase {
   }
 
   Future<Either<AppError, String>> createTransaction({
-    required String connectsPackagesId,
+    required String googleConsoleId,
     required String transactionId,
   }) async {
     final response = await systemConfigRepo.createTransaction(
-      connectsPackagesId: connectsPackagesId,
+      googleConsoleId: googleConsoleId,
       transactionId: transactionId,
     );
     return response.fold(
@@ -164,17 +164,17 @@ class SystemConfigUseCase {
     );
   }
   Future<Either<AppError, String>> createGoogleTransaction({
-    required String connectsPackagesId,
+    required String googleConsoleId,
     required String transactionId,
     required String currencyCode,
     required double amount,
     required double discountedAmount,
-    required double actualAmount,
+    required int actualAmount,
     required String paymentSource,
 
   }) async {
     final response = await systemConfigRepo.createGoogleTransaction(
-      connectsPackagesId: connectsPackagesId,
+      googleConsoleId: googleConsoleId,
       transactionId: transactionId,
       currencyCode: currencyCode,
       amount: amount,
