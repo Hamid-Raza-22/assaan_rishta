@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import '../../core/export.dart';
+import '../../core/routes/app_routes.dart';
 import '../../viewmodels/auth_service.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import '../../data/providers/auth_provider.dart';
@@ -349,6 +350,44 @@ class UserDetailsView extends GetView<UserDetailsController> {
 
 
   void _shareProfile(BuildContext context) async {
+    final bool isLoggedIn =
+        controller.useCase.userManagementRepo.getUserLoggedInStatus();
+
+    if (!isLoggedIn) {
+      Get.dialog(
+        AlertDialog.adaptive(
+          backgroundColor: AppColors.whiteColor,
+          surfaceTintColor: AppColors.whiteColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+          title: const AppText(text: 'Login Required'),
+          content: const Text('Please login to Share profile.'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const AppText(text: 'Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Get.back();
+                Get.toNamed(AppRoutes.LOGIN);
+              },
+              child: const AppText(text: 'Login'),
+            ),
+          ],
+        ),
+        barrierDismissible: true,
+      );
+      return;
+    }
+
     final profileName = '${controller.profileDetails.value.firstName}-${controller.profileDetails.value.lastName}';
     final age = controller.profileDetails.value.age ?? '--';
     final city = controller.profileDetails.value.cityName ?? '--';
@@ -420,6 +459,44 @@ Don't have the app? Download now:
   }
 
   void _reportProfile() {
+    final bool isLoggedIn =
+        controller.useCase.userManagementRepo.getUserLoggedInStatus();
+
+    if (!isLoggedIn) {
+      Get.dialog(
+        AlertDialog.adaptive(
+          backgroundColor: AppColors.whiteColor,
+          surfaceTintColor: AppColors.whiteColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+          title: const AppText(text: 'Login Required'),
+          content: const Text('Please login to Report profiles.'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const AppText(text: 'Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Get.back();
+                Get.toNamed(AppRoutes.LOGIN);
+              },
+              child: const AppText(text: 'Login'),
+            ),
+          ],
+        ),
+        barrierDismissible: true,
+      );
+      return;
+    }
+
     final reportedId = controller.profileDetails.value.userId?.toInt() ?? 0;
     final messageController = TextEditingController();
     final nameController = TextEditingController();

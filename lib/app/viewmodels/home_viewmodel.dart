@@ -72,11 +72,19 @@ class HomeController extends GetxController {
       (success) {
         if (success.profilesList != null && success.profilesList!.isNotEmpty) {
           if (addNewCards) {
-            // Filter out profiles with duplicate IDs and apply gender filter
+            // Filter out profiles with duplicate IDs, current user, and apply gender filter
+            final currentUserId =
+                userManagementUseCases.userManagementRepo.getUserId();
+
             final newProfiles = success.profilesList!.where((profile) {
+              if (profile.userId == currentUserId) {
+                return false;
+              }
+
               bool isNotDuplicate = !profileList.any(
                 (existingProfile) => existingProfile.userId == profile.userId,
               );
+
               bool isOppositeGender = _isOppositeGender(profile.gender);
               return isNotDuplicate && isOppositeGender;
             }).toList();
@@ -103,8 +111,12 @@ class HomeController extends GetxController {
 
   /// Check if the profile gender is opposite to current user's gender
   bool _isOppositeGender(String? profileGender) {
-    if (currentUserGender == null || profileGender == null) {
-      return true; // Agar gender info nahi hai to show kar do
+    if (profileGender == null || profileGender.trim().isEmpty) {
+      return false;
+    }
+
+    if (currentUserGender == null || currentUserGender!.trim().isEmpty) {
+      return true; // Agar current user ka gender nahi mila to sab dikhao
     }
 
     String userGenderLower = currentUserGender!.toLowerCase();

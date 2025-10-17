@@ -107,7 +107,7 @@ class AppBindings extends Bindings {
 
       Get.lazyPut(() => PartnerPreferenceController(), fenix: true);
       debugPrint('✅ PartnerPreferenceController registered');
-      Get.put(() => BuyConnectsController(), permanent: true);
+      Get.lazyPut(() =>BuyConnectsController(), fenix: true);
       debugPrint('✅ BuyConnectsController registered');
 
       Get.lazyPut(() => UserGuideController(), fenix: true);
@@ -115,8 +115,6 @@ class AppBindings extends Bindings {
 
       Get.lazyPut(() => OnboardingController(), fenix: true);
       debugPrint('✅ All dependencies registered');
-
-
 
       debugPrint('🎉 All dependencies registered successfully');
     } catch (e) {

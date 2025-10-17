@@ -55,6 +55,10 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
   bool isHovered = false;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  
+  // Swipe-to-reply state
+  bool _hasTriggeredReply = false;
+  double _swipeOffset = 0;
 
   final useCase = Get.find<UserManagementUseCase>();
   final chatController = Get.find<ChatViewModel>();
@@ -97,41 +101,54 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
       });
     }
 
-    // Wrap with Dismissible for swipe-to-reply
-    return Dismissible(
-      key: Key('message_${widget.message.sent}'),
-      direction: isMe ? DismissDirection.endToStart : DismissDirection.startToEnd,
-      confirmDismiss: (direction) async {
-        // Trigger reply
-        widget.onReply?.call(widget.message);
-         HapticFeedback.mediumImpact();
-        return false; // Don't actually dismiss
+    // Wrap with GestureDetector for limited swipe-to-reply
+    return GestureDetector(
+      onHorizontalDragStart: (_) {
+        _hasTriggeredReply = false;
+        _swipeOffset = 0;
       },
-      background: Container(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: AnimatedContainer(
-          duration: Duration(milliseconds: 200),
-          padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.secondaryColor.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.reply,
-            color: AppColors.secondaryColor,
-            size: 24,
-          ),
+      onHorizontalDragUpdate: (details) {
+        setState(() {
+          _swipeOffset += details.primaryDelta ?? 0;
+          
+          // Limit swipe distance to max 60 pixels
+          if (isMe) {
+            _swipeOffset = _swipeOffset.clamp(-60.0, 0.0);
+          } else {
+            _swipeOffset = _swipeOffset.clamp(0.0, 60.0);
+          }
+        });
+        
+        // Trigger reply when threshold crossed (only once)
+        if (!_hasTriggeredReply && _swipeOffset.abs() > 40) {
+          _hasTriggeredReply = true;
+          widget.onReply?.call(widget.message);
+          HapticFeedback.mediumImpact();
+        }
+      },
+      onHorizontalDragEnd: (_) {
+        // Reset swipe offset with animation
+        setState(() {
+          _swipeOffset = 0;
+        });
+      },
+      onHorizontalDragCancel: () {
+        setState(() {
+          _swipeOffset = 0;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        transform: Matrix4.translationValues(_swipeOffset, 0, 0),
+        child: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: _buildMessageContainer(context, chatMq, theme, isMe),
+            );
+          },
         ),
-      ),
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: _buildMessageContainer(context, chatMq, theme, isMe),
-          );
-        },
       ),
     );
   }

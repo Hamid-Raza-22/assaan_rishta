@@ -27,6 +27,8 @@ class EditProfileController extends GetxController {
   var lastNameTEC = TextEditingController();
   var gender = "Male".obs;
   var mobileTEC = TextEditingController();
+  var countryCode = 'PK'.obs; // Country ISO code
+  var phoneNumber = ''.obs; // Store phone number
   var dobTEC = TextEditingController();
   var selectedDateTime = DateTime.now().obs;
   var userKaTarufTEC = TextEditingController();
@@ -169,6 +171,26 @@ class EditProfileController extends GetxController {
     _generateHeightList();
     _initDropDownAPIs();
     super.onInit();
+  }
+
+  // Phone validation method - simplified for edit profile
+  String? validatePhone(String? phone) {
+    if (phone == null || phone.isEmpty) {
+      return 'Phone number is required';
+    }
+
+    // Remove any non-digit characters
+    final cleanNumber = phone.replaceAll(RegExp(r'\D'), '');
+
+    if (cleanNumber.length < 10) {
+      return 'Phone number must be at least 10 digits';
+    }
+
+    if (cleanNumber.length > 15) {
+      return 'Phone number must not exceed 15 digits';
+    }
+
+    return null;
   }
 
   void _generateHeightList() {
@@ -847,7 +869,21 @@ class EditProfileController extends GetxController {
     lastNameTEC.text = '${profile.lastName}';
     gender.value = '${profileDetails.value.gender}';
     caste = profileDetails.value.cast ?? "";
-    mobileTEC.text = '${profileDetails.value.mobileNo}';
+    
+    // Parse mobile number - remove country code if present
+    String mobileNo = '${profileDetails.value.mobileNo}';
+    if (mobileNo.startsWith('+')) {
+      // Extract just the number part (without country code)
+      // IntlPhoneField will handle country code display
+      mobileNo = mobileNo.replaceAll(RegExp(r'[^\d]'), '');
+      // For Pakistan numbers, typically 12 digits total (92 + 10 digits)
+      // We want just the 10 digit local number
+      if (mobileNo.length > 10) {
+        mobileNo = mobileNo.substring(mobileNo.length - 10);
+      }
+    }
+    mobileTEC.text = mobileNo;
+    
     DateTime dateTime = DateTime.parse('${profileDetails.value.dateOfBirth}');
     dobTEC.text = DateFormat('dd/MM/yyyy').format(dateTime);
     selectedDateTime.value = dateTime;

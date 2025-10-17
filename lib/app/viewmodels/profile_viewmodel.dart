@@ -183,44 +183,44 @@ class ProfileController extends GetxController {
   }
 
   // Enhanced chat user card detection method
-  static Future<bool> isUserDeleted(String userId) async {
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
-          .doc(userId)
-          .get();
-
-      if (!userDoc.exists) {
-        return true; // User doesn't exist
-      }
-
-      final userData = userDoc.data()!;
-      return userData['account_deleted'] == true;
-
-    } catch (e) {
-      debugPrint('Error checking if user is deleted: $e');
-      return false;
-    }
-  }
+  // static Future<bool> isUserDeleted(String userId) async {
+  //   try {
+  //     final userDoc = await FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(userId)
+  //         .get();
+  //
+  //     if (!userDoc.exists) {
+  //       return true; // User doesn't exist
+  //     }
+  //
+  //     final userData = userDoc.data()!;
+  //     return userData['account_deleted'] == true;
+  //
+  //   } catch (e) {
+  //     debugPrint('Error checking if user is deleted: $e');
+  //     return false;
+  //   }
+  // }
 
   // Method to get user deletion timestamp
-  static Future<String?> getUserDeletionTime(String userId) async {
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
-          .doc(userId)
-          .get();
-
-      if (userDoc.exists && userDoc.data()!['account_deleted'] == true) {
-        return userDoc.data()!['deleted_at'] as String?;
-      }
-
-      return null;
-    } catch (e) {
-      debugPrint('Error getting deletion time: $e');
-      return null;
-    }
-  }
+  // static Future<String?> getUserDeletionTime(String userId) async {
+  //   try {
+  //     final userDoc = await FirebaseFirestore.instance
+  //         .collection('Hamid_users')
+  //         .doc(userId)
+  //         .get();
+  //
+  //     if (userDoc.exists && userDoc.data()!['account_deleted'] == true) {
+  //       return userDoc.data()!['deleted_at'] as String?;
+  //     }
+  //
+  //     return null;
+  //   } catch (e) {
+  //     debugPrint('Error getting deletion time: $e');
+  //     return null;
+  //   }
+  // }
 
   // Rest of your existing methods remain the same...
 

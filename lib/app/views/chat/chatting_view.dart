@@ -599,7 +599,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         .snapshots()
         .listen((snapshot) {
 
+      bool hasChanges = false;
+      final updatedMessages = List<Message>.from(cachedMessages);
+
       for (var change in snapshot.docChanges) {
+        if (change.doc.data() == null) continue;
         final data = change.doc.data()!;
         final messageId = change.doc.id;
 
@@ -608,30 +612,49 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             change.type == DocumentChangeType.added) {
 
           // Find message in local list
-          final index = cachedMessages.indexWhere((m) => m.sent == messageId);
+          final index = updatedMessages.indexWhere((m) => m.sent == messageId);
           if (index != -1) {
-            final message = cachedMessages[index];
+            final message = updatedMessages[index];
 
             // Update status based on data
             final newStatus = _parseMessageStatus(data);
+            final newDelivered = data['delivered']?.toString() ?? '';
+            final newRead = data['read']?.toString() ?? '';
+            
             final hasChanged = message.status != newStatus ||
-                message.read != (data['read'] ?? '') ||
-                message.delivered != (data['delivered'] ?? '');
+                message.read != newRead ||
+                message.delivered != newDelivered;
 
             if (hasChanged) {
-              // Update message fields
-              message.status = newStatus;
-              message.delivered = data['delivered'] ?? '';
-              message.read = data['read'] ?? '';
+              // Create updated message with new status
+              final updatedMessage = Message(
+                toId: message.toId,
+                msg: message.msg,
+                read: newRead,
+                type: message.type,
+                fromId: message.fromId,
+                sent: message.sent,
+                status: newStatus,
+                delivered: newDelivered,
+                isViewOnce: message.isViewOnce,
+                isViewed: message.isViewed,
+                reactions: message.reactions,
+              );
 
-              // Force refresh
-              cachedMessages[index] = message;
-              cachedMessages.refresh();
+              updatedMessages[index] = updatedMessage;
+              hasChanges = true;
 
               debugPrint('📊 Status updated for message $messageId: ${newStatus.name}');
             }
           }
         }
+      }
+
+      // Only update if there were actual changes
+      if (hasChanges) {
+        cachedMessages.assignAll(updatedMessages);
+        // Also update the cache in chatController
+        chatController.cachedMessagesPerUser[user.id] = updatedMessages;
       }
     });
   }

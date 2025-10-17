@@ -59,14 +59,21 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                       const SizedBox(height: 10),
                       isDrinkIsSmoke(context: context),
                       const SizedBox(height: 10),
-                      CustomButton(
+                      Obx(() => CustomButton(
                         text: "Update",
-                        fontColor: AppColors.whiteColor,
-                        isGradient: true,
-                        onTap: () {
-                          controller.updatePartnerPreference(context);
-                        },
-                      ),
+                        fontColor: controller.isFormValid.value 
+                            ? AppColors.whiteColor 
+                            : AppColors.greyColor,
+                        isGradient: controller.isFormValid.value,
+                        backgroundColor: controller.isFormValid.value
+                            ? null
+                            : AppColors.borderColor,
+                        onTap: controller.isFormValid.value
+                            ? () {
+                                controller.updatePartnerPreference(context);
+                              }
+                            : null,
+                      )),
                       const SizedBox(height: 90),
                     ],
                   )
@@ -86,7 +93,6 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       ),
     );
   }
-
   getAgeFromAndAgeTo({context}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -110,6 +116,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                 items: controller.ageFromList,
                 onChanged: (value) {
                   controller.ageFrom.value = value!;
+                  controller.validateForm();
                   controller.update();
                 },
                 decoration: basicInfoDecoration(
@@ -139,6 +146,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                 items: controller.ageFromList,
                 onChanged: (value) {
                   controller.ageTo.value = value!;
+                  controller.validateForm();
                   controller.update();
                 },
                 decoration: basicInfoDecoration(
@@ -170,6 +178,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: languagesList,
         onListChanged: (value) {
           controller.languages = value.obs;
+          controller.validateForm();
           controller.update();
         },
         decoration: multiSelectionDecoration(
@@ -190,6 +199,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: controller.castNameList,
         onChanged: (value) {
           controller.caste = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -209,6 +219,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: controller.degreesList,
         onChanged: (value) {
           controller.education = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -228,6 +239,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: controller.occupationList,
         onChanged: (value) {
           controller.occupation = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -260,6 +272,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         onChanged: (value) {
           if (value != null) {
             controller.monthlyIncome.value = value;
+            controller.validateForm();
             controller.update();
           }
         },
@@ -281,6 +294,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: languagesList,
         onChanged: (value) {
           controller.motherTongue.value = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -309,6 +323,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                 controller.stateController.clear();
                 controller.cityController.clear();
                 controller.getAllStates(context, value?.id);
+                controller.validateForm();
               },
               decoration: basicInfoDecoration(
                 hintStyle: GoogleFonts.poppins(
@@ -354,6 +369,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
               if (value != null) {
                 controller.cityId = value.id!;
                 controller.cityController.value = value;
+                controller.validateForm();
               }
             },
             decoration: basicInfoDecoration(
@@ -380,6 +396,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: controller.religionList,
         onChanged: (value) {
           controller.religion = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -399,6 +416,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: controller.heightList,
         onChanged: (value) {
           controller.height = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -419,6 +437,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         onChanged: (value) {
           if (value != null) {
             controller.built.value = value;
+            controller.validateForm();
             controller.update();
           }
         },
@@ -441,6 +460,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         onChanged: (value) {
           if (value != null) {
             controller.complexion.value = value;
+            controller.validateForm();
             controller.update();
           }
         },
@@ -462,6 +482,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         items: controller.maritalStatusList,
         onChanged: (value) {
           controller.maritalStatus = value!;
+          controller.validateForm();
           controller.update();
         },
         decoration: basicInfoDecoration(
@@ -493,6 +514,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
             items: const ["Yes", "No"],
             onChanged: (value) {
               controller.isDrink.value = value!;
+              controller.validateForm();
               controller.update();
             },
             decoration: basicInfoDecoration(
@@ -511,6 +533,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
             items: const ["Yes", "No"],
             onChanged: (value) {
               controller.isSmoke.value = value!;
+              controller.validateForm();
               controller.update();
             },
             decoration: basicInfoDecoration(

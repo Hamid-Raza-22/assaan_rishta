@@ -22,9 +22,6 @@ import '../export.dart';
 class BuyConnectsController extends GetxController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
 
-  // // Remove Stacked navigation service
-  // final _navigationService = locator<NavigationService>();
-
   RxBool isLoading = true.obs;
   RxInt totalConnects = 0.obs;
   ConfettiController? controllerCenter;
@@ -32,11 +29,20 @@ class BuyConnectsController extends GetxController {
   ///in-app-purchase
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final List<ProductDetails> products = <ProductDetails>[].obs;
+  // A set to keep track of purchases being processed to avoid duplicates.
+  final Set<String> _processingPurchases = <String>{};
+  // Track if purchase is already in progress
+  RxBool isPurchaseInProgress = false.obs;
+  // Track last purchase time to prevent rapid clicks
+  DateTime? _lastPurchaseTime;
 
   ///Go Pay Fast
   final emailTEC = TextEditingController();
   final phoneTEC = TextEditingController();
 
+  // Add stream subscription variable
+  StreamSubscription<List<PurchaseDetails>>? _purchaseStreamSubscription;
+  
   @override
   void onInit() {
     super.onInit();
@@ -44,54 +50,96 @@ class BuyConnectsController extends GetxController {
     controllerCenter = ConfettiController(
       duration: const Duration(seconds: 10),
     );
-    _inAppPurchase.purchaseStream.listen((List<PurchaseDetails> purchases) {
-      _handlePurchaseUpdates(purchases);
+    
+    // Clear any stuck processing purchases from previous instances
+    _processingPurchases.clear();
+    isPurchaseInProgress.value = false;
+    
+    // Cancel any existing subscription first
+    _purchaseStreamSubscription?.cancel();
+    
+    // Small delay to ensure clean state
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // Create new subscription with proper handling
+      _purchaseStreamSubscription = _inAppPurchase.purchaseStream.listen(
+        (List<PurchaseDetails> purchases) {
+          // Filter out already completed purchases
+          final newPurchases = purchases.where((p) => 
+            p.purchaseID == null || !_completedPurchases.contains(p.purchaseID)
+          ).toList();
+          
+          if (newPurchases.isNotEmpty) {
+            _handlePurchaseUpdates(newPurchases);
+          }
+        },
+        onDone: () {
+          debugPrint('Purchase stream done');
+        },
+        onError: (error) {
+          debugPrint('Purchase stream error: $error');
+        },
+        cancelOnError: false,
+      );
     });
+    
     fetchProducts();
+    _inAppPurchase.isAvailable().then((available) {
+      if (available) {
+        // Don't restore on every init, only when needed
+        // _inAppPurchase.restorePurchases();
+      }
+    });
   }
 
   getConnects() async {
-    isLoading = true.obs;
+    isLoading.value = true;
     final response = await systemConfigUseCases.getConnects();
-    return response.fold(
+    response.fold(
           (error) {
-        isLoading = false.obs;
+        isLoading.value = false;
+        debugPrint("❌ Error fetching connects: ${error.title}");
       },
           (success) {
-        isLoading = false.obs;
-        totalConnects.value = int.parse(success);
+        isLoading.value = false;
+        final newConnects = int.parse(success);
+        final oldConnects = totalConnects.value;
+        totalConnects.value = newConnects;
         update();
+        
+        if (newConnects != oldConnects) {
+          debugPrint("🔄 Connects updated: $oldConnects → $newConnects");
+        }
       },
     );
   }
 
-  buyConnects(context, {int? connect, afterPayment}) async {
-    if (afterPayment == false) AppUtils.onLoading(context);
+  // This method is for granting connects via backend, not for initiating a purchase.
+  Future<bool> _grantConnects(String productId, String description) async {
+    final connectsToAdd = getConnectsBasedOnPurchase(productId);
+    if (connectsToAdd == 0) return false;
+
     final response = await systemConfigUseCases.buyConnects(
-      connect: connect ?? 0,
-      connectDesc: "By using google pay",
+      connect: connectsToAdd,
+      connectDesc: description,
     );
+
     return response.fold(
           (error) {
-        if (afterPayment == false) AppUtils.dismissLoader(context);
+        debugPrint("❌ Failed to grant connects on backend: ${error.title}");
+        return false;
       },
           (success) {
-        if (afterPayment == false) AppUtils.dismissLoader(context);
-        AppUtils.successData(
-          title: "Connect Purchased",
-          message: "Connects added into your account.",
-        );
-        totalConnects.value += connect ?? 0;
+        debugPrint("✅ Successfully granted $connectsToAdd connects on backend.");
         controllerCenter!.play();
-        update();
+        return true;
       },
     );
   }
+
 
   ///Google Pay
 
   Future<void> fetchProducts() async {
-    // const Set<String> productIds = {'1', '2'};
     const Set<String> productIds = {'silver_1500', 'gold_2000'};
     final ProductDetailsResponse response =
     await _inAppPurchase.queryProductDetails(productIds);
@@ -102,17 +150,53 @@ class BuyConnectsController extends GetxController {
   }
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     debugPrint("🔄 Purchase updates received: ${purchases.length}");
-
-    // Process only the most recent purchase if multiple are pending
-    if (purchases.isNotEmpty) {
-      final purchase = purchases.last;
-      debugPrint("💳 Processing most recent purchase: ${purchase.purchaseID}");
-      debugPrint("💳 Purchase status: ${purchase.status}");
-      debugPrint("💳 Product ID: ${purchase.productID}");
+    
+    // Process only unique purchases
+    final uniquePurchases = <String, PurchaseDetails>{};
+    for (var purchase in purchases) {
+      if (purchase.purchaseID != null) {
+        uniquePurchases[purchase.purchaseID!] = purchase;
+      }
+    }
+    
+    for (var purchase in uniquePurchases.values) {
+      // CRITICAL: Check if already completed FIRST before any other checks
+      if (purchase.purchaseID != null && _completedPurchases.contains(purchase.purchaseID)) {
+        debugPrint("✅ Purchase already completed: ${purchase.purchaseID}, completing with Google Play only.");
+        // Just complete it with Google Play if pending
+        if (purchase.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchase);
+        }
+        continue;
+      }
+      
+      // Check both local and global processing sets
+      if (_processingPurchases.contains(purchase.purchaseID) || 
+          _globalProcessingPurchases.contains(purchase.purchaseID)) {
+        debugPrint("🔄 Already processing purchase: ${purchase.purchaseID}, skipping.");
+        continue;
+      }
 
       if (purchase.status == PurchaseStatus.purchased) {
         debugPrint("✅ Purchase successful, verifying...");
+        
+        // Add to processing sets (NOT completed yet)
+        if (purchase.purchaseID != null) {
+          _processingPurchases.add(purchase.purchaseID!);
+          _globalProcessingPurchases.add(purchase.purchaseID!);
+        }
+        
         await _verifyAndDeliverPurchase(purchase);
+        // Reset purchase in progress flag
+        isPurchaseInProgress.value = false;
+
+      } else if (purchase.status == PurchaseStatus.restored) {
+        // This is a restored purchase. You might want to handle this.
+        // For consumable products, you might not need to do anything, but you should still complete them.
+        if (purchase.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchase);
+          debugPrint("Restored purchase completed: ${purchase.purchaseID}");
+        }
       } else if (purchase.status == PurchaseStatus.error) {
         debugPrint("❌ Purchase error: ${purchase.error}");
         Get.snackbar(
@@ -121,6 +205,8 @@ class BuyConnectsController extends GetxController {
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
+        _processingPurchases.remove(purchase.purchaseID);
+        isPurchaseInProgress.value = false;
       } else if (purchase.status == PurchaseStatus.pending) {
         debugPrint("⏳ Purchase pending...");
         Get.snackbar(
@@ -137,51 +223,158 @@ class BuyConnectsController extends GetxController {
           backgroundColor: Colors.grey,
           colorText: Colors.white,
         );
+        _processingPurchases.remove(purchase.purchaseID);
+        isPurchaseInProgress.value = false;
       }
     }
   }
 
+  // Track completed purchases to prevent duplicates (static to persist across instances)
+  static final Set<String> _completedPurchases = {};
+  static final Set<String> _globalProcessingPurchases = {};
+  static final Set<String> _processedTransactions = {}; // Track backend transactions
+  
+  // Lock to prevent concurrent processing
+  static bool _isProcessingAnyPurchase = false;
+  
   Future<void> _verifyAndDeliverPurchase(PurchaseDetails purchase) async {
-    // Consume the purchase if it's consumable
-    if (purchase.pendingCompletePurchase) {
-      await _inAppPurchase.completePurchase(purchase);
-    }
-    ProductDetails? product = getProductById(purchase.productID);
-    await subscribedPopup(
-      price: product!.price,
-      packageName: product.title,
-      productId: purchase.productID,
-    );
+    try {
+      
+      ProductDetails? product = getProductById(purchase.productID);
+      if (product == null) {
+        debugPrint("Could not find product for id: ${purchase.productID}");
+        isPurchaseInProgress.value = false;
+        return; // Exit if product details are not found.
+      }
 
-    Get.snackbar(
-      "Purchase Successful",
-      "You have successfully purchased connects!",
-    );
-    // createTransaction(
-    //   googleConsoleId: purchase.productID,
-    //   transactionId: purchase.purchaseID,
-    // );
-    // await createTransaction(
-    //   transactionId: purchase.purchaseID ?? "UNKNOWN",
-    //   googleConsoleId: purchase.productID,
-    // );
-    createGoogleTransaction(
-      transactionId: purchase.purchaseID ?? "UNKNOWN",
-      googleConsoleId: purchase.productID ?? "UNKNOWN",
-      currencyCode: product.currencyCode ?? "UNKNOWN",
-      amount: product.rawPrice ?? 0.0,
-      discountedAmount: 0.0, // Add discount logic if needed
-      actualAmount: product.rawPrice.toInt(),
-      paymentSource: "Google Pay",
-    );
+      // CRITICAL: Check if this transaction was already processed in backend
+      final transactionId = purchase.purchaseID ?? "UNKNOWN";
+      if (_processedTransactions.contains(transactionId)) {
+        debugPrint("⚠️ Transaction already processed in backend: $transactionId");
+        // Still complete with Google Play
+        if (purchase.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchase);
+        }
+        return;
+      }
+      
+      // Mark transaction as being processed
+      _processedTransactions.add(transactionId);
+      
+      // 1. Grant connects by calling your backend.
+      final bool connectsGranted = await _grantConnects(
+          purchase.productID, "Purchased via Google Play");
+
+      if (connectsGranted) {
+        // 1.5 Update connects count immediately in UI
+        await getConnects();
+        update(); // Trigger UI update
+        debugPrint("🔄 Connects updated in real-time after grant");
+        // 2. Log the transaction with your backend.
+        await createGoogleTransaction(
+          transactionId: transactionId,
+          googleConsoleId: purchase.productID,
+          currencyCode: product.currencyCode,
+          amount: product.rawPrice,
+          discountedAmount: 0.0,
+          actualAmount: product.rawPrice.toInt(),
+          paymentSource: "Google Pay",
+        );
+
+        // 3. Show a success pop-up.
+        await subscribedPopup(
+          packageName: product.title,
+        );
+
+        // 4. Mark as completed ONLY after successful verification and delivery
+        if (purchase.purchaseID != null) {
+          _completedPurchases.add(purchase.purchaseID!);
+          debugPrint("✅ Purchase marked as completed: ${purchase.purchaseID}");
+        }
+        
+        // 5. IMPORTANT: Complete the purchase with Google Play.
+        if (purchase.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchase);
+          debugPrint("✅ Purchase successfully completed and consumed: ${purchase.purchaseID}");
+        }
+
+        // 6. Final refresh to ensure latest count
+        await getConnects();
+        update(); // Force UI update
+        debugPrint("🔄 Final connects refresh completed");
+
+      } else {
+        // If connects were not granted, show an error.
+        Get.snackbar(
+          "Delivery Failed",
+          "Could not add connects to your account. Please contact support.",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      debugPrint("❌ Error during verification/delivery: $e");
+      // Remove from processed transactions on error so it can be retried
+      _processedTransactions.remove(purchase.purchaseID);
+      // DON'T add to completed purchases on error
+      debugPrint("⚠️ Purchase failed, not marked as completed: ${purchase.purchaseID}");
+      Get.snackbar(
+        "Verification Error",
+        "An error occurred while verifying your purchase. Please contact support.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      // ALWAYS remove the purchase from the processing sets (not from completed)
+      _processingPurchases.remove(purchase.purchaseID);
+      _globalProcessingPurchases.remove(purchase.purchaseID);
+      debugPrint("🏏 Finished processing purchase: ${purchase.purchaseID}");
+      debugPrint("📊 Total completed purchases: ${_completedPurchases.length}");
+      debugPrint("📊 Total processed transactions: ${_processedTransactions.length}");
+    }
   }
 
-// In BuyConnectsController, modify the purchase method to bypass Google Play for testing:
-  purchase({required PackageModel package}) {
+
+// In BuyConnectsController, modify the purchase method to prevent duplicate purchases:
+  purchase({required PackageModel package}) async {
+    // Check if purchase is already in progress
+    if (isPurchaseInProgress.value) {
+      debugPrint('⚠️ Purchase already in progress, ignoring duplicate request');
+      Get.snackbar(
+        'Please Wait',
+        'A purchase is already being processed',
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+    
+    // Check for rapid clicks (within 2 seconds)
+    if (_lastPurchaseTime != null && 
+        DateTime.now().difference(_lastPurchaseTime!).inSeconds < 2) {
+      debugPrint('⚠️ Rapid purchase attempt blocked');
+      return;
+    }
+    
     ProductDetails? product = getProductById(package.productId);
     if (product != null) {
-      final purchaseParam = PurchaseParam(productDetails: product);
-      _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+      // Set purchase in progress flag
+      isPurchaseInProgress.value = true;
+      _lastPurchaseTime = DateTime.now();
+      
+      try {
+        final purchaseParam = PurchaseParam(productDetails: product);
+        await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+      } catch (e) {
+        debugPrint('❌ Error initiating purchase: $e');
+        isPurchaseInProgress.value = false;
+      }
+      
+      // Reset flag after a delay
+      Future.delayed(const Duration(seconds: 3), () {
+        isPurchaseInProgress.value = false;
+      });
     }
   }
 
@@ -372,12 +565,16 @@ class BuyConnectsController extends GetxController {
                     children: [
                       Icon(Icons.send, color: Colors.white, size: 16),
                       SizedBox(width: 8),
-                      Text(
-                        'Send Receipt via WhatsApp \n+92 306 4727345',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
+                      Flexible(
+                        child: Text(
+                          'Send Receipt via WhatsApp \\n+92 306 4727345',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                            height: 1.2,
+                          ),
                         ),
                       ),
                     ],
@@ -550,16 +747,41 @@ class BuyConnectsController extends GetxController {
   }
   @override
   void dispose() {
+    // Clear local processing but keep global tracking
+    _processingPurchases.clear();
+    isPurchaseInProgress.value = false;
+    
+    _purchaseStreamSubscription?.cancel();
     controllerCenter!.dispose();
     emailTEC.dispose();
     phoneTEC.dispose();
     super.dispose();
   }
+  
+  // Method to clear old completed purchases (call this periodically)
+  static void clearOldCompletedPurchases() {
+    if (_completedPurchases.length > 100) {
+      // Keep only recent 50 purchases
+      final recentPurchases = _completedPurchases.toList().sublist(
+        _completedPurchases.length - 50
+      );
+      _completedPurchases.clear();
+      _completedPurchases.addAll(recentPurchases);
+    }
+    
+    if (_processedTransactions.length > 100) {
+      // Keep only recent 50 transactions
+      final recentTransactions = _processedTransactions.toList().sublist(
+        _processedTransactions.length - 50
+      );
+      _processedTransactions.clear();
+      _processedTransactions.addAll(recentTransactions);
+    }
+  }
 
+  // Refactored to be a simple confirmation dialog.
   subscribedPopup({
-    required String price,
     required String packageName,
-    required String productId,
   }) {
     showDialog(
       context: Get.context!,
@@ -591,7 +813,7 @@ class BuyConnectsController extends GetxController {
               ),
               const SizedBox(height: 12),
               Text(
-                "You have successfully subscribed to your selected plan! Enjoy access to exclusive features and benefits tailored to your $packageName membership.",
+                "You have successfully subscribed to the $packageName plan! Your connects have been added to your account.",
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.normal,
@@ -606,11 +828,6 @@ class BuyConnectsController extends GetxController {
                 fontColor: AppColors.whiteColor,
                 onTap: () {
                   Navigator.of(context).pop();
-                  buyConnects(
-                    context,
-                    connect: getConnectsBasedOnPurchase(productId),
-                    afterPayment: true,
-                  );
                 },
               ),
             ],
@@ -620,37 +837,6 @@ class BuyConnectsController extends GetxController {
     );
   }
 
-  // createTransaction({
-  //   required String transactionId,
-  //   required String googleConsoleId,
-  //
-  //
-  // }) async {
-  //   debugPrint("📝 Creating transaction:");
-  //   debugPrint("   Transaction ID: $transactionId");
-  //   debugPrint("   Package: $googleConsoleId");
-  //
-  //
-  //   final response = await systemConfigUseCases.createTransaction(
-  //     transactionId: transactionId,
-  //     googleConsoleId: googleConsoleId,
-  //   );
-  //
-  //   return response.fold(
-  //         (error) {
-  //       debugPrint("❌ Transaction Error: ${error.title}");
-  //       Get.snackbar(
-  //         "Transaction Failed",
-  //         error.description ?? "Could not save transaction",
-  //         backgroundColor: Colors.red,
-  //         colorText: Colors.white,
-  //       );
-  //     },
-  //         (success) {
-  //       debugPrint("✅ Transaction Success: $success");
-  //     },
-  //   );
-  // }
   createGoogleTransaction({
     required dynamic transactionId,
     required dynamic googleConsoleId,
@@ -666,7 +852,12 @@ class BuyConnectsController extends GetxController {
     debugPrint("   Package: $googleConsoleId");
     debugPrint("   Amount: $amount");
     debugPrint("   Payment Source: $paymentSource");
-
+    
+    // Double check - should not create duplicate transaction
+    if (_processedTransactions.contains(transactionId)) {
+      debugPrint("⚠️ Attempted duplicate transaction creation blocked: $transactionId");
+      return;
+    }
 
     final response = await systemConfigUseCases.createGoogleTransaction(
       transactionId: transactionId,
@@ -695,12 +886,10 @@ class BuyConnectsController extends GetxController {
   }
 
   int getConnectsBasedOnPurchase(String productId) {
-    // if (productId == "1") {
     if (productId == "silver_1500") {
-      return 03;
-    // } else if (productId == "2") {
+      return 3;
     } else if (productId == "gold_2000") {
-      return 08;
+      return 8;
     } else {
       return 0;
     }

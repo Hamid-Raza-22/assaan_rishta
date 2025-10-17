@@ -771,20 +771,19 @@ class FirebaseService {
   //       debugPrint('❌ Error clearing deletion record: $e');
   //     }
   //   }
-  // Updated sendFirstMessage to respect deletion status
-  Future<void> sendFirstMessage(
+  // Updated sendFirstMessage with optional timestamp parameter
+   static Future<void> sendFirstMessage(
     ChatUser chatUser,
     String msg,
-    Type type,
-  ) async {
+    Type type, {
+    String? messageId,  // Optional message ID to use
+  }) async {
     if (me == null) {
       await getSelfInfo();
     }
 
-    deductConnects(userForId: chatUser.id);
-
     final currentUserId = useCase.getUserId().toString();
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final timestamp = messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
 
     WriteBatch batch = firestore.batch();
 
@@ -821,7 +820,81 @@ class FirebaseService {
     }
 
     await batch.commit();
-    await sendMessage(chatUser, msg, type);
+    
+    // Send message with the same timestamp/messageId
+    await sendMessageWithId(chatUser, msg, type, messageId: timestamp, isFirstMessage: true, recipientId: chatUser.id);
+  }
+  
+  // New method to send message with specific ID
+  static Future<void> sendMessageWithId(
+    ChatUser chatUser,
+    String msg,
+    Type type, {
+    required String messageId,
+    bool isFirstMessage = false,
+    String? recipientId,
+  }) async {
+    if (me == null) {
+      await getSelfInfo();
+    }
+
+    final currentUserId = useCase.getUserId().toString();
+
+    final Message message = Message(
+      toId: chatUser.id,
+      msg: msg,
+      read: '',
+      type: type,
+      fromId: currentUserId,
+      sent: messageId,
+      status: MessageStatus.sent, // Set as sent initially
+    );
+
+    try {
+      // Send the message with specific ID
+      await firestore
+          .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+          .doc(messageId)
+          .set(message.toJson());
+
+      // Update timestamps
+      await updateConversationTimestamp(currentUserId, chatUser.id, messageId);
+
+      // Only update receiver's timestamp if they have the chat
+      final receiverChatDoc = await firestore
+          .collection('Hamid_users')
+          .doc(chatUser.id)
+          .collection('my_users')
+          .doc(currentUserId)
+          .get();
+
+      if (receiverChatDoc.exists) {
+        await updateConversationTimestamp(chatUser.id, currentUserId, messageId);
+      }
+
+      // Update receiver's last message
+      await firestore.collection('Hamid_users').doc(chatUser.id).update({
+        'last_message': messageId,
+      });
+
+      debugPrint('✅ Message sent with ID: $messageId');
+      
+      // If this is the first message, deduct connects only after successful send
+      if (isFirstMessage && recipientId != null) {
+        await deductConnects(userForId: recipientId);
+        debugPrint('✅ Connects deducted after first message sent successfully');
+      }
+      
+      sendNotificationIfNeeded(chatUser, msg, type, currentUserId, messageId);
+
+    } catch (e) {
+      debugPrint('❌ Error sending message: $e');
+      // If it's first message and it failed, don't deduct connects
+      if (isFirstMessage) {
+        debugPrint('⚠️ First message failed - connects not deducted');
+      }
+      rethrow; // Rethrow to handle in calling code
+    }
   }
 
   // Add this method to handle incoming messages
@@ -1206,7 +1279,7 @@ class FirebaseService {
   //   return blockedUsers.containsKey(useCase.getUserId().toString());
   // }
 
-  deductConnects({required userForId}) async {
+  static deductConnects({required userForId}) async {
     final response = await systemUseCase.deductConnects(
       userForId: int.parse(userForId),
     );

@@ -784,6 +784,23 @@ class ChatListController extends GetxController {
       _loadDeletionRecords();
     });
   }
+  
+  // Method to handle new user added to chat
+  Future<void> onNewUserAdded(String userId) async {
+    try {
+      debugPrint('👤 New user added to chat: $userId');
+      
+      // Wait a bit for Firebase to sync
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Force refresh to get the new user
+      forceRefresh();
+      
+      debugPrint('✅ Chat list updated with new user');
+    } catch (e) {
+      debugPrint('❌ Error handling new user: $e');
+    }
+  }
 
   // FIXED: Reconnect listeners with state check
   // FIXED: Better reconnect logic
