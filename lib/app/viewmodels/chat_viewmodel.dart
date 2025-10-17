@@ -255,7 +255,33 @@ _clearImageFromCache(String imageUrl) {
 
     return _repo.getAllMessages(user).map((snapshot) {
       final allMessages = snapshot.docs
-          .map((doc) => Message.fromJson(doc.data()))
+          .map((doc) {
+            final data = doc.data();
+            final message = Message.fromJson(data);
+            
+            // Ensure status is properly set from Firestore data
+            if (data['status'] != null) {
+              try {
+                message.status = MessageStatus.values.firstWhere(
+                  (e) => e.name == data['status'],
+                  orElse: () {
+                    // Fallback to determining status from timestamps
+                    if (data['read'] != null && data['read'].toString().isNotEmpty) {
+                      return MessageStatus.read;
+                    } else if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
+                      return MessageStatus.delivered;
+                    } else {
+                      return MessageStatus.sent;
+                    }
+                  },
+                );
+              } catch (e) {
+                debugPrint('⚠️ Error parsing status: $e');
+              }
+            }
+            
+            return message;
+          })
           .toList();
       // Mark new incoming messages as delivered
       processMessageStatuses(allMessages, user.id);
@@ -551,6 +577,7 @@ _clearImageFromCache(String imageUrl) {
         user,
         text.trim(),
         Type.text,
+        messageId: time, // Pass the same ID used for optimistic message
         onMessageCreated: (message) {
           debugPrint('✅ Message created with status: ${message.status}');
         },
@@ -558,8 +585,33 @@ _clearImageFromCache(String imageUrl) {
           // Update the message status in the list
           final index = messages.indexWhere((m) => m.sent == time);
           if (index != -1) {
-            messages[index].status = status;
-            messages.refresh();
+            final oldMessage = messages[index];
+            // Create new message object with updated status
+            final updatedMessage = Message(
+              toId: oldMessage.toId,
+              msg: oldMessage.msg,
+              read: oldMessage.read,
+              type: oldMessage.type,
+              fromId: oldMessage.fromId,
+              sent: oldMessage.sent,
+              status: status,
+              delivered: status == MessageStatus.delivered || status == MessageStatus.read
+                  ? DateTime.now().millisecondsSinceEpoch.toString()
+                  : oldMessage.delivered,
+              isViewOnce: oldMessage.isViewOnce,
+              isViewed: oldMessage.isViewed,
+              reactions: oldMessage.reactions,
+            );
+            
+            // Replace with new object to trigger reactive update
+            final updatedMessages = List<Message>.from(messages);
+            updatedMessages[index] = updatedMessage;
+            messages.assignAll(updatedMessages);
+            
+            // Update cache
+            if (selectedUser.value != null) {
+              cacheMessages(selectedUser.value!.id, updatedMessages);
+            }
           }
           debugPrint('📊 Message status updated to: $status');
         },
@@ -572,8 +624,28 @@ _clearImageFromCache(String imageUrl) {
       // Update status to failed
       final index = messages.indexWhere((m) => m.sent == time);
       if (index != -1) {
-        messages[index].status = MessageStatus.failed;
-        messages.refresh();
+        final oldMessage = messages[index];
+        final failedMessage = Message(
+          toId: oldMessage.toId,
+          msg: oldMessage.msg,
+          read: oldMessage.read,
+          type: oldMessage.type,
+          fromId: oldMessage.fromId,
+          sent: oldMessage.sent,
+          status: MessageStatus.failed,
+          delivered: oldMessage.delivered,
+          isViewOnce: oldMessage.isViewOnce,
+          isViewed: oldMessage.isViewed,
+          reactions: oldMessage.reactions,
+        );
+        
+        final updatedMessages = List<Message>.from(messages);
+        updatedMessages[index] = failedMessage;
+        messages.assignAll(updatedMessages);
+        
+        if (selectedUser.value != null) {
+          cacheMessages(selectedUser.value!.id, updatedMessages);
+        }
       }
 
       rethrow;
@@ -592,9 +664,7 @@ _clearImageFromCache(String imageUrl) {
   }
 
 
-  // FIXED: Better first message handling
-  // FIXED: Better first message handling
-  // FIXED: First message with proper user selection
+  // FIXED: Better first message handling with status tracking
   Future<void> sendFirstMessage(String text) async {
     if (selectedUser.value == null) {
       debugPrint('❌ ERROR: No selected user for first message');
@@ -609,9 +679,65 @@ _clearImageFromCache(String imageUrl) {
       return;
     }
 
+    // Create optimistic message with pending status
+    final time = DateTime.now().millisecondsSinceEpoch.toString();
+    final optimisticMessage = Message(
+      toId: user.id,
+      msg: text.trim(),
+      read: '',
+      type: Type.text,
+      fromId: _repo.currentUserId,
+      sent: time,
+      status: MessageStatus.pending,
+    );
+
+    // Add to UI immediately
+    final currentMessages = List<Message>.from(messages);
+    currentMessages.insert(0, optimisticMessage);
+    messages.assignAll(currentMessages);
+    cacheMessages(user.id, currentMessages);
+
     try {
-      // Send the first message
-      await _repo.sendFirstMessage(user, text.trim(), Type.text);
+      // Send the first message with status tracking
+      await _repo.sendFirstMessageWithStatus(
+        user,
+        text.trim(),
+        Type.text,
+        messageId: time,
+        onStatusUpdate: (status) {
+          // Update the message status in the list
+          final index = messages.indexWhere((m) => m.sent == time);
+          if (index != -1) {
+            final oldMessage = messages[index];
+            final updatedMessage = Message(
+              toId: oldMessage.toId,
+              msg: oldMessage.msg,
+              read: oldMessage.read,
+              type: oldMessage.type,
+              fromId: oldMessage.fromId,
+              sent: oldMessage.sent,
+              status: status,
+              delivered: status == MessageStatus.delivered || status == MessageStatus.read
+                  ? DateTime.now().millisecondsSinceEpoch.toString()
+                  : oldMessage.delivered,
+              isViewOnce: oldMessage.isViewOnce,
+              isViewed: oldMessage.isViewed,
+              reactions: oldMessage.reactions,
+            );
+            
+            // Replace with new object to trigger reactive update
+            final updatedMessages = List<Message>.from(messages);
+            updatedMessages[index] = updatedMessage;
+            messages.assignAll(updatedMessages);
+            
+            // Update cache
+            if (selectedUser.value != null) {
+              cacheMessages(selectedUser.value!.id, updatedMessages);
+            }
+          }
+          debugPrint('📊 First message status updated to: $status');
+        },
+      );
 
       // Clear any deletion record since user is actively chatting
       if (_persistentDeletionCache.containsKey(user.id)) {
@@ -622,6 +748,33 @@ _clearImageFromCache(String imageUrl) {
       debugPrint("✅ First message sent successfully to ${user.name}");
     } catch (e) {
       debugPrint("❌ Error sending first message: $e");
+
+      // Update status to failed
+      final index = messages.indexWhere((m) => m.sent == time);
+      if (index != -1) {
+        final oldMessage = messages[index];
+        final failedMessage = Message(
+          toId: oldMessage.toId,
+          msg: oldMessage.msg,
+          read: oldMessage.read,
+          type: oldMessage.type,
+          fromId: oldMessage.fromId,
+          sent: oldMessage.sent,
+          status: MessageStatus.failed,
+          delivered: oldMessage.delivered,
+          isViewOnce: oldMessage.isViewOnce,
+          isViewed: oldMessage.isViewed,
+          reactions: oldMessage.reactions,
+        );
+        
+        final updatedMessages = List<Message>.from(messages);
+        updatedMessages[index] = failedMessage;
+        messages.assignAll(updatedMessages);
+        
+        if (selectedUser.value != null) {
+          cacheMessages(selectedUser.value!.id, updatedMessages);
+        }
+      }
 
       // Show error to user
       Get.snackbar(
@@ -634,8 +787,7 @@ _clearImageFromCache(String imageUrl) {
 
       // Rethrow for handling in UI
       rethrow;
-    }
-  }
+    }}
 
   // Helper method to verify and set selected user
   void ensureUserSelected(ChatUser user) {
@@ -921,12 +1073,25 @@ _clearImageFromCache(String imageUrl) {
   }
 
   Future<bool> addChatUser(String uid) async {
-    debugPrint('🚀 Adding chat user $uid');
-    final result = await _repo.addChatUser(uid);
-    if (result) {
-      debugPrint('✅ Chat user added successfully');
+    try {
+      debugPrint('📝 Adding chat user: $uid');
+      final result = await _repo.addChatUser(uid);
+      debugPrint('✅ Chat user added: $result');
+      
+      // Refresh chat list if user was added successfully
+      if (result && Get.isRegistered<ChatListController>()) {
+        final chatListController = Get.find<ChatListController>();
+        // Force refresh the chat list to show new user
+        await Future.delayed(const Duration(milliseconds: 500));
+        chatListController.forceRefresh();
+        debugPrint('🔄 Chat list refreshed after adding new user');
+      }
+      
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error adding chat user: $e');
+      return false;
     }
-    return result;
   }
 
   Future<void> updateMessageReadStatus(Message message) => _repo.updateMessageReadStatus(message);

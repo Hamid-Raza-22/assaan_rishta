@@ -67,6 +67,9 @@ class PartnerPreferenceController extends GetxController {
   var isDrink = "".obs;
   var isSmoke = "".obs;
 
+  // Form validation
+  RxBool isFormValid = false.obs;
+
   ///old
   var partnerProfile = PartnerPreferenceData().obs;
   List<AllCountries> countryList = [];
@@ -77,7 +80,37 @@ class PartnerPreferenceController extends GetxController {
   void onInit() {
     _generateHeightList();
     _initDropDownAPIs();
+    // Listen to text field changes
+    userDiWohtiKaTarufTEC.addListener(validateForm);
     super.onInit();
+  }
+
+  @override
+  void onClose() {
+    userDiWohtiKaTarufTEC.removeListener(validateForm);
+    super.onClose();
+  }
+
+  // Validate all required fields
+  void validateForm() {
+    isFormValid.value = ageFrom.value.isNotEmpty &&
+        ageTo.value.isNotEmpty &&
+        languages.isNotEmpty &&
+        caste.isNotEmpty &&
+        education.isNotEmpty &&
+        occupation.isNotEmpty &&
+        monthlyIncome.value.isNotEmpty &&
+        motherTongue.value.isNotEmpty &&
+        country.isNotEmpty &&
+        cityId > 0 &&
+        religion.isNotEmpty &&
+        height.isNotEmpty &&
+        built.value.isNotEmpty &&
+        complexion.value.isNotEmpty &&
+        maritalStatus.isNotEmpty &&
+        userDiWohtiKaTarufTEC.text.trim().isNotEmpty &&
+        isDrink.value.isNotEmpty &&
+        isSmoke.value.isNotEmpty;
   }
 
   void _generateHeightList() {
@@ -306,6 +339,9 @@ class PartnerPreferenceController extends GetxController {
             .map((e) => e.replaceAll('"', '').trim())
             .toList()
         : [];
+    
+    // Validate form after loading data
+    validateForm();
     update();
   }
 

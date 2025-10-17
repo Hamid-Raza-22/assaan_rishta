@@ -146,7 +146,14 @@ class FilterController extends BaseController {
           (success) {
         totalCounts = success.totalRecords!;
         if (success.profilesList!.isNotEmpty) {
-          profileList.addAll(success.profilesList!);
+          final currentUserId = userManagementUseCases.getUserId();
+          final filteredProfiles = success.profilesList!.where((profile) {
+            final alreadyAdded = profileList
+                .any((existing) => existing.userId == profile.userId);
+            return profile.userId != currentUserId && !alreadyAdded;
+          }).toList();
+
+          profileList.addAll(filteredProfiles);
           isReloadMore.value = false;
         }
         if (context != null) {
@@ -177,7 +184,15 @@ class FilterController extends BaseController {
           (success) {
         totalCounts = success.totalRecords!;
         if (success.profilesList!.isNotEmpty) {
-          profileList.addAll(success.profilesList!);
+          final currentUserId = userManagementUseCases.getUserId();
+
+          final filteredProfiles = success.profilesList!.where((profile) {
+            final alreadyAdded = profileList
+                .any((existing) => existing.userId == profile.userId);
+            return profile.userId != currentUserId && !alreadyAdded;
+          }).toList();
+
+          profileList.addAll(filteredProfiles);
           isReloadMore.value = false;
         }
         if (isFirstLoad.isTrue) {

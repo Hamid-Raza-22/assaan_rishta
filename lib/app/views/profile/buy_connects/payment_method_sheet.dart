@@ -32,6 +32,18 @@ void showPurchaseBottomSheet({
               text: 'Google Pay',
               onTap: () async {
                 debugPrint("🔵 Google Pay clicked");
+                // Check if purchase is already in progress
+                if (controller.isPurchaseInProgress.value) {
+                  debugPrint("⚠️ Purchase already in progress");
+                  Navigator.of(context).pop();
+                  Get.snackbar(
+                    'Please Wait',
+                    'A purchase is already being processed',
+                    backgroundColor: Colors.orange,
+                    colorText: Colors.white,
+                  );
+                  return;
+                }
                 Navigator.of(context).pop();
                 await controller.purchase(package: package);
               },

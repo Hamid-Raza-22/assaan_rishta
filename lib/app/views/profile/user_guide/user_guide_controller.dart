@@ -49,7 +49,7 @@ class UserGuideController extends GetxController {
       "title": "Edit & Update Your Profile",
       "description": "Learn how to modify your profile information",
       "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560603662754647298"
+      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560601466507988226"
     },
     {
       "title": "Change Your Profile Picture",
@@ -86,6 +86,12 @@ class UserGuideController extends GetxController {
       "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560609325270437142"
     },
     {
+      "title": "How to Share a User Profile",
+      "description": "Share interesting profiles with friends and family",
+      "thumbnail": "https://via.placeholder.com/150",
+      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560594459486866710"
+    },
+    {
       "title": "Add Profiles to Favorites",
       "description": "Save your favorite profiles for easy access",
       "thumbnail": "https://via.placeholder.com/150",
@@ -97,7 +103,7 @@ class UserGuideController extends GetxController {
       "title": "All Payment Methods Overview",
       "description": "Complete guide to all available payment options",
       "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560609992655506710"
+      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7561825639393742102"
     },
     // {
     //   "title": "Buy & Manage Your Connects",
@@ -187,11 +193,9 @@ class UserGuideController extends GetxController {
       "title": "How to Share a Vendor Profile",
       "description": "Share interesting profiles with friends and family",
       "thumbnail": "https://via.placeholder.com/150",
-      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7560594459486866710"
+      "url": "https://www.tiktok.com/@asaanrishtaofficial0/video/7562150281358626070"
     },
   ];
-
-  // FAQ Data - Now with optional URL field
   final Map<String, List<Map<String, String>>> faqData = {
     "Generic Questions": [
       {

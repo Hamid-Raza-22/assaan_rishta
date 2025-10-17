@@ -305,6 +305,8 @@ class UserDetailsController extends GetxController {
       return;
     }
 
+    pauseVideoPlayback();
+
     String receiverIdStr = '${profileDetails.value.userId}';
     String receiverName = '${profileDetails.value.firstName} ${profileDetails.value.lastName}';
     String receiverEmail = '${profileDetails.value.email}';
@@ -491,6 +493,15 @@ class UserDetailsController extends GetxController {
       } else {
         videoController!.play();
       }
+      update(['video_player']);
+    }
+  }
+
+  void pauseVideoPlayback() {
+    if (videoController != null &&
+        videoController!.value.isInitialized &&
+        videoController!.value.isPlaying) {
+      videoController!.pause();
       update(['video_player']);
     }
   }

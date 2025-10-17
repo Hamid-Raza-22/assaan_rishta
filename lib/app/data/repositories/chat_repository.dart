@@ -117,32 +117,25 @@ class ChatRepository {
       Get.find<UserManagementUseCase>().getUserId().toString();
   // Send message with status tracking
   Future<void> sendMessageWithStatus(
-
     ChatUser user,
     String msg,
     Type type, {
+    required String messageId, // Required: caller provides consistent ID
     Function(Message)? onMessageCreated,
     Function(MessageStatus)? onStatusUpdate,
   }) async {
-    final time = DateTime.now().millisecondsSinceEpoch.toString();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('last_message_time', time);
-    // Example of getting the value, you might use this elsewhere
-     final lastMessageTime = prefs.getString('last_message_time');
-    debugPrint('Last message time from prefs: $lastMessageTime');
-
     final currentUserId = Get.find<UserManagementUseCase>()
         .getUserId()
         .toString();
 
-    // Create message with pending status
+    // Create message with pending status using provided messageId
     final Message message = Message(
       toId: user.id,
       msg: msg,
       read: '',
       type: type,
       fromId: currentUserId,
-      sent: lastMessageTime!,
+      sent: messageId, // Use caller-provided ID
       status: MessageStatus.pending,
       delivered: '',
     );
@@ -159,7 +152,7 @@ class ChatRepository {
           .collection('Hamid_chats')
           .doc(conversationId)
           .collection('messages')
-          .doc(lastMessageTime)
+          .doc(messageId)
           .set({
             ...message.toJson(),
             'status': MessageStatus.sent.name,
@@ -173,23 +166,17 @@ class ChatRepository {
       onStatusUpdate?.call(MessageStatus.sent);
 
       // Update timestamps
-      await updateConversationTimestamps(currentUserId, user.id, lastMessageTime);
-      // Set up real-time listener for delivery confirmation
-      // _listenForMessageStatusUpdates(
-      //   conversationId: conversationId,
-      //   messageId: time,
-      //   onStatusUpdate: onStatusUpdate,
-      // );
+      await updateConversationTimestamps(currentUserId, user.id, messageId);
+      
       // Set up real-time delivery listener
       _setupDeliveryListener(
         conversationId: conversationId,
-        messageId: lastMessageTime,
+        messageId: messageId,
         recipientId: user.id,
         onStatusUpdate: onStatusUpdate,
       );
-      // Check if recipient is online to update delivery status
-      // await checkAndUpdateDeliveryStatus(user.id, time, conversationId);
-      await sendNotificationIfNeeded(user, msg, type, currentUserId,lastMessageTime);
+      
+      await sendNotificationIfNeeded(user, msg, type, currentUserId, messageId);
     } catch (e) {
       // Update status to failed
       onStatusUpdate?.call(MessageStatus.failed);
@@ -859,8 +846,7 @@ class ChatRepository {
   Stream<QuerySnapshot<Map<String, dynamic>>> getAllMessages(ChatUser user) =>
       FirebaseService.getAllMessages(user);
 
-  Future<void> sendMessage(ChatUser user, String msg, Type type) =>
-      FirebaseService.sendMessage(user, msg, type);
+
 
   Future<void> sendNotificationIfNeeded(
     ChatUser user,
@@ -870,8 +856,92 @@ class ChatRepository {
       String messageTimestamp
   ) => FirebaseService.sendNotificationIfNeeded(user, msg, type, currentUserId, messageTimestamp);
 
-  Future<void> sendFirstMessage(ChatUser user, String msg, Type type) =>
-      FirebaseService().sendFirstMessage(user, msg, type);
+  // Future<void> sendFirstMessage(
+  //   ChatUser user,
+  //   String msg,
+  //   Type type,
+  // ) => FirebaseService.sendFirstMessage(user, msg, type);
+
+  // Send first message with status tracking
+  Future<void> sendFirstMessageWithStatus(
+    ChatUser user,
+    String msg,
+    Type type, {
+    required String messageId,
+    Function(MessageStatus)? onStatusUpdate,
+  }) async {
+    final currentUserId = Get.find<UserManagementUseCase>()
+        .getUserId()
+        .toString();
+
+    // Create message with pending status
+    final Message message = Message(
+      toId: user.id,
+      msg: msg,
+      read: '',
+      type: type,
+      fromId: currentUserId,
+      sent: messageId,
+      status: MessageStatus.pending,
+      delivered: '',
+    );
+
+    // Notify UI immediately with pending status
+    onStatusUpdate?.call(MessageStatus.pending);
+
+    try {
+      // First, add the chat user and deduct connects with the specific messageId
+      await FirebaseService.sendFirstMessage(user, msg, type, messageId: messageId);
+
+      // Small delay to ensure message is created
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Then update the message status to sent
+      final conversationId = getConversationId(currentUserId, user.id);
+      
+      // Check if message document exists
+      final messageDoc = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId)
+          .get();
+
+      if (messageDoc.exists) {
+        // Update message status to sent
+        await FirebaseFirestore.instance
+            .collection('Hamid_chats')
+            .doc(conversationId)
+            .collection('messages')
+            .doc(messageId)
+            .update({
+              'status': MessageStatus.sent.name,
+              'deliveryPending': true,
+            });
+
+        onStatusUpdate?.call(MessageStatus.sent);
+      } else {
+        // If document doesn't exist, set status to sent anyway
+        // since the message was sent via sendFirstMessage
+        onStatusUpdate?.call(MessageStatus.sent);
+        debugPrint('⚠️ Message document not found for status update, but message was sent');
+      }
+
+      // Set up delivery listener
+      _setupDeliveryListener(
+        conversationId: conversationId,
+        messageId: messageId,
+        recipientId: user.id,
+        onStatusUpdate: onStatusUpdate,
+      );
+
+      debugPrint('✅ First message sent with status tracking');
+    } catch (e) {
+      onStatusUpdate?.call(MessageStatus.failed);
+      debugPrint('❌ Error sending first message: $e');
+      rethrow;
+    }
+  }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getLastMessage(ChatUser user) =>
       FirebaseService.getLastMessage(user);

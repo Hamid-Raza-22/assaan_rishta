@@ -155,10 +155,16 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  AppText(
-                    text: controller.vendorsItem.venderBusinessName,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
+                  Center(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: AppText(
+                        text: controller.vendorsItem.venderBusinessName,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 5),
                   // Share button below vendor name

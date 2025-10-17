@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/routes/app_routes.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/storage_services/export.dart';
+import '../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../views/bottom_nav/export.dart';
 import 'chat_viewmodel.dart';
 
@@ -54,10 +55,21 @@ class AuthService extends GetxController {
       final userImage = prefs.getString(StorageKeys.userPic);
 
       if (isLoggedIn && userId != null && userId > 0) {
+        // Set user data temporarily for verification and potential cleanup
         _userId = userId;
         _userEmail = userEmail;
         _userName = userName;
         _userImage = userImage;
+
+        // Verify if user still exists in backend
+        debugPrint('🔍 Verifying user profile in backend for user ID: $userId');
+        final profileExists = await _verifyUserProfileExists();
+
+        if (!profileExists) {
+          debugPrint('⚠️ User profile not found in backend. Logging out user ID: $userId');
+          await _forceLogout();
+          return;
+        }
 
         isUserLoggedIn.value = true;
         currentUser.value = UserData(
@@ -138,7 +150,6 @@ class AuthService extends GetxController {
   }
 
   // FIXED: Logout method with proper notification handling
-// FIXED: Logout method with proper notification handling
   Future<void> logout(BuildContext context) async {
     try {
       debugPrint('🚪 Starting logout process...');
@@ -212,7 +223,9 @@ class AuthService extends GetxController {
       currentUser.value = null;
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
     }
-  }// Alternative method if you want to clear ALL GetX instances (use with caution)
+  }
+
+  // Alternative method if you want to clear ALL GetX instances (use with caution)
   Future<void> clearGetXInstances() async {
     try {
       // This will delete all GetX controllers and clear the dependency tree
@@ -237,6 +250,7 @@ class AuthService extends GetxController {
       debugPrint('⚠️ Error clearing GetX instances: $e');
     }
   }
+
   // Update FCM token in Firestore
   Future<void> _updateFCMToken() async {
     try {
@@ -287,21 +301,218 @@ class AuthService extends GetxController {
     }
   }
 
-  // Check if user needs to login
-  // Future<bool> checkIfUserLogin() async {
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final isLoggedIn = prefs.getBool(StorageKeys.isUserLoggedIn) ?? false;
-  //     final userId = prefs.getInt(StorageKeys.userId) ?? 0;
-  //
-  //     return isLoggedIn && userId > 0;
-  //   } catch (e) {
-  //     debugPrint('Error checking login status: $e');
-  //     return false;
-  //   }
-  // }
+  // Verify if user profile exists in backend
+  Future<bool> _verifyUserProfileExists() async {
+    try {
+      if (!Get.isRegistered<UserManagementUseCase>()) {
+        debugPrint('⚠️ UserManagementUseCase not registered yet');
+        return true; // Assume user exists if use case not available
+      }
+
+      final userManagementUseCase = Get.find<UserManagementUseCase>();
+      final response = await userManagementUseCase.getCurrentUserProfile();
+
+      return response.fold(
+        (error) {
+          // If error code is 404 or user not found, return false
+          debugPrint('❌ Profile verification failed: ${error.title} - ${error.description}');
+          if (error.title == '404' || error.title == '401' || error.title == '403') {
+            return false;
+          }
+          // For other errors (network issues, etc.), assume user exists
+          return true;
+        },
+        (profile) {
+          // Check if email is null or empty (indicates deleted/non-existent user)
+          if (profile.email == null || profile.email!.isEmpty) {
+            debugPrint('⚠️ User profile not found - email is null or empty');
+            return false;
+          }
+          debugPrint('✅ User profile verified successfully - email: ${profile.email}');
+          return true;
+        },
+      );
+    } catch (e) {
+      debugPrint('💥 Error verifying user profile: $e');
+      // On exception, assume user exists to avoid false logouts
+      return true;
+    }
+  }
+
+  // Force logout without context (for automatic logout)
+  Future<void> _forceLogout() async {
+    try {
+      debugPrint('🚪 Force logout initiated...');
+      NotificationServices.clearSession();
+
+      final currentUserId = _userId;
+      debugPrint('🚪 Force logout initiated for user: $currentUserId');
 
 
+      // Update Firebase status if possible
+      if (_userId != null) {
+        try {
+          await FirebaseService.updateActiveStatus(false);
+          await FirebaseService.insideChatStatus(false);
+        } catch (e) {
+          debugPrint('⚠️ Error updating Firebase status: $e');
+        }
+      }
+
+      // Perform complete Firebase cleanup
+      if (currentUserId != null) {
+        try {
+          await _performCompleteFirebaseCleanup(currentUserId.toString());
+        } catch (e) {
+          debugPrint('⚠️ Error performing Firebase cleanup: $e');
+        }
+      }
+
+      // Remove FCM token
+      try {
+        await _removeFCMToken();
+      } catch (e) {
+        debugPrint('⚠️ Error removing FCM token: $e');
+      }
+
+      // Clear local data BUT preserve onboarding flag
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+
+      // Save the onboarding status before clearing
+      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+      final isFirstInstall = prefs.getBool('first_install') ?? false;
+
+      // Clear all data
+      await prefs.clear();
+
+      // Restore the onboarding flags
+      await prefs.setBool('has_seen_onboarding', hasSeenOnboarding);
+      await prefs.setBool('first_install', isFirstInstall);
+
+      // Reset local variables
+      _userId = null;
+      _userEmail = null;
+      _userName = null;
+      _userImage = null;
+
+      // Update observable states
+      isUserLoggedIn.value = false;
+      currentUser.value = null;
+
+      await clearGetXInstances();
+
+      debugPrint('✅ Force logout completed');
+
+      // Navigate to login
+      Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
+    } catch (e) {
+      debugPrint('💥 Error during force logout: $e');
+      // Ensure we still navigate to login even on error
+      isUserLoggedIn.value = false;
+      currentUser.value = null;
+      Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
+    }
+  }
+
+  // Complete Firebase cleanup when user is automatically logged out
+  Future<void> _performCompleteFirebaseCleanup(String userId) async {
+    try {
+      debugPrint('🔥 Starting complete Firebase cleanup for user: $userId');
+
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Step 1: Mark user as deleted (instead of immediate deletion)
+      final userRef = FirebaseFirestore.instance.collection('Hamid_users').doc(userId);
+      batch.update(userRef, {
+        'account_deleted': true,
+        'deleted_at': DateTime.now().millisecondsSinceEpoch.toString(),
+        'name': 'Deleted User',
+        'image': '', // Clear image
+        'about': 'This account has been deleted',
+        'is_online': false,
+        'is_mobile_online': false,
+        'is_web_online': false,
+        'push_token': '', // Clear push token
+      });
+
+      // Step 2: Get all users who have this deleted user in their chat list
+      final allUsersSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .get();
+
+      for (var userDoc in allUsersSnapshot.docs) {
+        if (userDoc.id == userId) continue; // Skip the deleted user
+
+        // Check if this user has the deleted user in their my_users
+        final myUsersRef = userDoc.reference.collection('my_users').doc(userId);
+        final myUserDoc = await myUsersRef.get();
+
+        if (myUserDoc.exists) {
+          // Mark this chat as with deleted user
+          batch.update(myUsersRef, {
+            'user_deleted': true,
+            'deletion_timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+          });
+
+          debugPrint('📱 Updated chat reference for user: ${userDoc.id}');
+        }
+      }
+
+      // Step 3: Clean up user's own my_users collection
+      final myUsersSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(userId)
+          .collection('my_users')
+          .get();
+
+      for (var doc in myUsersSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Step 4: Clean up deleted_chats collection
+      final deletedChatsSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(userId)
+          .collection('deleted_chats')
+          .get();
+
+      for (var doc in deletedChatsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Step 5: Update all active conversations to show deletion status
+      final conversationsSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .where('participants', arrayContains: userId)
+          .get();
+
+      for (var chatDoc in conversationsSnapshot.docs) {
+        // Add a system message about user deletion
+        final systemMessageRef = chatDoc.reference
+            .collection('messages')
+            .doc(DateTime.now().millisecondsSinceEpoch.toString());
+
+        batch.set(systemMessageRef, {
+          'fromId': 'SYSTEM',
+          'toId': '',
+          'msg': 'This user has deleted their account',
+          'type': 'system',
+          'sent': DateTime.now().millisecondsSinceEpoch.toString(),
+          'read': '',
+        });
+      }
+
+      // Commit all changes
+      await batch.commit();
+
+      debugPrint('✅ Complete Firebase cleanup completed successfully');
+
+    } catch (e) {
+      debugPrint('❌ Error in Firebase cleanup: $e');
+      // Don't rethrow - we still want to complete logout even if cleanup fails
+    }
+  }
 }
 
 // User data model

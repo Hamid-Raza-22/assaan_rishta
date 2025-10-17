@@ -27,6 +27,16 @@ class TransactionHistoryController extends GetxController {
         return [];
       },
       (success) {
+        success.sort((a, b) {
+          final aDate = a.createdDate;
+          final bDate = b.createdDate;
+
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+
+          return bDate.compareTo(aDate);
+        });
         return success;
       },
     );

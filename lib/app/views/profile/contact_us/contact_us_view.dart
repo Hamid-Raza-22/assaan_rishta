@@ -304,7 +304,7 @@ class ContactUsView extends GetView<ContactUsController> {
                       ),
                       const SizedBox(height: 4),
                       const AppText(
-                        text: 'Saturday: 10:00 AM - 4:00 PM (PST)',
+                        text: 'Saturday: 09:00 AM - 6:00 PM (PST)',
                         fontSize: 13,
                         color: AppColors.greyColor,
                       ),

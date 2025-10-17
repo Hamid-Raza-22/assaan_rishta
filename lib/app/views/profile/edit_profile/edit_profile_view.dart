@@ -1,10 +1,12 @@
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_datetime_picker_bdaya/flutter_datetime_picker_bdaya.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/export.dart';
@@ -237,13 +239,77 @@ class EditProfileView extends GetView<EditProfileController> {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              getEditListTile(
-                title: 'Mobile No',
-                subtitle: '${controller.profileDetails.value.mobileNo}',
-                tec: controller.mobileTEC,
+              AppText(
+                text: 'Mobile No',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.blackColor,
+              ),
+              const SizedBox(height: 5),
+              IntlPhoneField(
+                controller: controller.mobileTEC,
+                style: GoogleFonts.poppins(
+                  color: AppColors.blackColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                dropdownTextStyle: GoogleFonts.poppins(
+                  color: AppColors.blackColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                dropdownIconPosition: IconPosition.trailing,
+                dropdownIcon: const Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 16,
+                  color: CupertinoColors.systemGrey,
+                ),
+                textInputAction: TextInputAction.next,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: false,
+                  signed: false,
+                ),
+                flagsButtonMargin: const EdgeInsets.only(left: 10),
+                decoration: InputDecoration(
+                  hintText: 'Mobile Number',
+                  filled: true,
+                  fillColor: AppColors.fillFieldColor,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(
+                      color: AppColors.borderColor,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                ),
+                cursorColor: AppColors.primaryColor,
+                initialCountryCode: controller.countryCode.value,
+                disableLengthCheck: true,
+                validator: (phone) {
+                  return controller.validatePhone(phone?.number);
+                },
+                onChanged: (phone) {
+                  controller.countryCode.value = phone.countryISOCode;
+                  controller.phoneNumber.value = phone.completeNumber;
+                },
+                onCountryChanged: (country) {
+                  controller.countryCode.value = country.code;
+                  controller.mobileTEC.clear();
+                },
               ),
             ],
           ),
