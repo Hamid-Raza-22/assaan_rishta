@@ -61,16 +61,20 @@ class AuthService extends GetxController {
         _userName = userName;
         _userImage = userImage;
 
-        // Verify if user still exists in backend
-        debugPrint('🔍 Verifying user profile in backend for user ID: $userId');
+        // Fast professional verification - check email first
+        debugPrint('🔍 Verifying user profile for user ID: $userId');
+        
         final profileExists = await _verifyUserProfileExists();
 
         if (!profileExists) {
-          debugPrint('⚠️ User profile not found in backend. Logging out user ID: $userId');
+          debugPrint('⚠️ User profile invalid (email null/empty). Force logout initiated.');
+          // Await force logout to ensure navigation completes
           await _forceLogout();
-          return;
+          isInitialized.value = true; // Mark as initialized after logout
+          return; // Stop here - don't proceed to home
         }
 
+        // Profile exists and is valid
         isUserLoggedIn.value = true;
         currentUser.value = UserData(
           id: userId,
@@ -301,7 +305,7 @@ class AuthService extends GetxController {
     }
   }
 
-  // Verify if user profile exists in backend
+  // Fast professional verification - check email validity
   Future<bool> _verifyUserProfileExists() async {
     try {
       if (!Get.isRegistered<UserManagementUseCase>()) {
@@ -310,30 +314,35 @@ class AuthService extends GetxController {
       }
 
       final userManagementUseCase = Get.find<UserManagementUseCase>();
+      
+      // Fast API call without timeout
+      debugPrint('🚀 Fetching user profile from backend...');
       final response = await userManagementUseCase.getCurrentUserProfile();
 
       return response.fold(
         (error) {
-          // If error code is 404 or user not found, return false
+          // If error code is 404 or user not found, return false immediately
           debugPrint('❌ Profile verification failed: ${error.title} - ${error.description}');
           if (error.title == '404' || error.title == '401' || error.title == '403') {
+            debugPrint('⚠️ User not found in backend - Force logout required');
             return false;
           }
           // For other errors (network issues, etc.), assume user exists
+          debugPrint('⚠️ Network/other error - assuming user exists');
           return true;
         },
         (profile) {
-          // Check if email is null or empty (indicates deleted/non-existent user)
+          // CRITICAL: Fast check - if email is null or empty, user is invalid
           if (profile.email == null || profile.email!.isEmpty) {
-            debugPrint('⚠️ User profile not found - email is null or empty');
+            debugPrint('❌ INVALID PROFILE: Email is null or empty - Force logout required');
             return false;
           }
-          debugPrint('✅ User profile verified successfully - email: ${profile.email}');
+          debugPrint('✅ Profile valid - Email: ${profile.email}');
           return true;
         },
       );
     } catch (e) {
-      debugPrint('💥 Error verifying user profile: $e');
+      debugPrint('💥 Exception verifying profile: $e');
       // On exception, assume user exists to avoid false logouts
       return true;
     }
@@ -404,8 +413,10 @@ class AuthService extends GetxController {
 
       debugPrint('✅ Force logout completed');
 
-      // Navigate to login
+      // Ensure navigation happens
+      await Future.delayed(const Duration(milliseconds: 100));
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
+      debugPrint('📍 Navigated to Account Type page');
     } catch (e) {
       debugPrint('💥 Error during force logout: $e');
       // Ensure we still navigate to login even on error
@@ -415,7 +426,7 @@ class AuthService extends GetxController {
     }
   }
 
-  // Complete Firebase cleanup when user is automatically logged out
+  // Complete Firebase cleanup when user is automatically logged out (optimized)
   Future<void> _performCompleteFirebaseCleanup(String userId) async {
     try {
       debugPrint('🔥 Starting complete Firebase cleanup for user: $userId');

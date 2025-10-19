@@ -56,15 +56,17 @@ class EditProfileView extends GetView<EditProfileController> {
   }
 
   getGeneralInfo(context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.profileContainerColor,
-        borderRadius: BorderRadius.all(Radius.circular(20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Form(
+      key: controller.generalInfoFormKey,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: AppColors.profileContainerColor,
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           const SizedBox(height: 10),
           const AppText(
             text: "General Information",
@@ -298,16 +300,17 @@ class EditProfileView extends GetView<EditProfileController> {
                 ),
                 cursorColor: AppColors.primaryColor,
                 initialCountryCode: controller.countryCode.value,
-                disableLengthCheck: true,
-                validator: (phone) {
-                  return controller.validatePhone(phone?.number);
-                },
+                disableLengthCheck: true, // We handle validation ourselves
+                validator: controller.validatePhone, // Use proper validator with PhoneNumber
                 onChanged: (phone) {
                   controller.countryCode.value = phone.countryISOCode;
                   controller.phoneNumber.value = phone.completeNumber;
                 },
                 onCountryChanged: (country) {
+                  // Update country code when country changes
                   controller.countryCode.value = country.code;
+                  
+                  // Clear phone field for better UX
                   controller.mobileTEC.clear();
                 },
               ),
@@ -426,10 +429,22 @@ class EditProfileView extends GetView<EditProfileController> {
             fontColor: AppColors.whiteColor,
             isGradient: true,
             onTap: () {
-              controller.updateGeneralInfo(context);
+              // Validate form before updating
+              if (controller.generalInfoFormKey.currentState!.validate()) {
+                controller.updateGeneralInfo(context);
+              } else {
+                Get.snackbar(
+                  "Validation Error",
+                  "Please fix the errors in the form",
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                  snackPosition: SnackPosition.BOTTOM,
+                );
+              }
             },
           ),
         ],
+        ),
       ),
     );
   }

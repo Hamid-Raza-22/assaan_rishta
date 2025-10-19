@@ -7,9 +7,11 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import '../../../utils/exports.dart';
 import '../../../core/export.dart';
 import '../../../domain/export.dart';
+import '../../../viewmodels/signup_viewmodel.dart'; // For PhoneValidationRule
 
 class EditProfileController extends GetxController {
   final useCases = Get.find<UserManagementUseCase>();
@@ -149,6 +151,9 @@ class EditProfileController extends GetxController {
   var exercises = "".obs;
   var visitGym = "".obs;
 
+  ///general info
+  final generalInfoFormKey = GlobalKey<FormState>();
+  
   ///origin
   final originFormKey = GlobalKey<FormState>();
   var ethnicOrigin = "".obs;
@@ -166,6 +171,18 @@ class EditProfileController extends GetxController {
   var internationalPassport = "".obs;
   var internationalPassportNoTEC = TextEditingController();
 
+  // Phone validation rules (same as signup)
+  final Map<String, PhoneValidationRule> phoneValidationRules = {
+    'PK': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'Pakistan'),
+    'IN': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'India'),
+    'US': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'United States'),
+    'GB': PhoneValidationRule(minLength: 10, maxLength: 11, countryName: 'United Kingdom'),
+    'SA': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'Saudi Arabia'),
+    'AE': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'UAE'),
+    'CA': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'Canada'),
+    'AU': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'Australia'),
+  };
+
   @override
   void onInit() {
     _generateHeightList();
@@ -173,24 +190,64 @@ class EditProfileController extends GetxController {
     super.onInit();
   }
 
-  // Phone validation method - simplified for edit profile
-  String? validatePhone(String? phone) {
-    if (phone == null || phone.isEmpty) {
+  // Updated phone validation with country-specific rules
+  String? validatePhone(PhoneNumber? phone) {
+    if (phone == null || phone.number.isEmpty) {
       return 'Phone number is required';
     }
 
-    // Remove any non-digit characters
-    final cleanNumber = phone.replaceAll(RegExp(r'\D'), '');
+    // Get validation rule for current country
+    final rule = phoneValidationRules[countryCode.value] ??
+        PhoneValidationRule(minLength: 7, maxLength: 15, countryName: 'Default');
 
-    if (cleanNumber.length < 10) {
-      return 'Phone number must be at least 10 digits';
+    // Clean the phone number
+    final cleanNumber = phone.number.replaceAll(RegExp(r'\D'), '');
+
+    if (cleanNumber.length < rule.minLength) {
+      return 'Phone must be ${rule.minLength} digits for ${rule.countryName}';
     }
 
-    if (cleanNumber.length > 15) {
-      return 'Phone number must not exceed 15 digits';
+    if (cleanNumber.length > rule.maxLength) {
+      return 'Phone must not exceed ${rule.maxLength} digits for ${rule.countryName}';
+    }
+
+    // Country-specific format validation
+    if (!_isValidPhoneFormat(cleanNumber, countryCode.value)) {
+      return 'Invalid phone format for ${rule.countryName}';
     }
 
     return null;
+  }
+
+  // Helper method for country-specific format validation
+  bool _isValidPhoneFormat(String number, String countryISO) {
+    final digitsOnly = number.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.isEmpty) return false;
+
+    switch (countryISO) {
+      case 'PK':
+        // Pakistan: Mobile numbers must start with 3
+        return digitsOnly.startsWith('3') && digitsOnly.length == 10;
+      case 'IN':
+        // India: Mobile numbers must start with 6-9
+        if (digitsOnly.length != 10) return false;
+        final firstDigit = int.tryParse(digitsOnly[0]) ?? 0;
+        return firstDigit >= 6 && firstDigit <= 9;
+      case 'US':
+      case 'CA':
+        // US/Canada: Cannot start with 0 or 1
+        if (digitsOnly.length != 10) return false;
+        final firstDigit = int.tryParse(digitsOnly[0]) ?? 0;
+        return firstDigit >= 2 && firstDigit <= 9;
+      case 'SA':
+        // Saudi Arabia: Mobile must start with 5
+        return digitsOnly.startsWith('5') && digitsOnly.length == 9;
+      case 'AE':
+        // UAE: Mobile must start with 5
+        return digitsOnly.startsWith('5') && digitsOnly.length == 9;
+      default:
+        return true; // Allow any format for other countries
+    }
   }
 
   void _generateHeightList() {

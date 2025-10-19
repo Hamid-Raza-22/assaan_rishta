@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/core/services/deep_link_handler.dart';
+import 'package:assaan_rishta/app/viewmodels/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import '../../core/base/export.dart';
@@ -23,12 +25,34 @@ class SplashController extends BaseController {
     // Wait for splash screen to be visible
     await Future.delayed(const Duration(seconds: 2));
 
-    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
+    // CRITICAL: Wait for AuthService to complete email verification
+    final authService = Get.find<AuthService>();
+    debugPrint('⏳ Waiting for auth verification to complete...');
+    
+    // Wait for auth service to initialize (max 10 seconds)
+    int attempts = 0;
+    while (!authService.isInitialized.value && attempts < 100) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+    
+    debugPrint('✅ Auth verification completed. Initialized: ${authService.isInitialized.value}');
+
+    // Check auth status AFTER verification completes
+    bool isLoggedIn = authService.isUserLoggedIn.value;
+    
+    debugPrint('🔑 User logged in status: $isLoggedIn');
 
     if (isLoggedIn) {
       // If logged in, check Firestore flag whether partner preference is updated
       try {
-        final uid = useCase.getUserId();
+        final uid = authService.userId;
+        if (uid == null) {
+          debugPrint('⚠️ User ID is null after login - going to account type');
+          Get.offNamed(AppRoutes.ACCOUNT_TYPE);
+          return;
+        }
+        
         final doc = await FirebaseFirestore.instance
             .collection('Hamid_users')
             .doc(uid.toString())
@@ -39,11 +63,14 @@ class SplashController extends BaseController {
             data != null && (data['is_preference_updated'] == true);
 
         if (isPreferenceUpdated) {
+          debugPrint('🏠 Navigating to Home');
           Get.offNamed(AppRoutes.BOTTOM_NAV);
         } else {
+          debugPrint('⚙️ Navigating to Partner Preference');
           Get.offNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
         }
       } catch (e) {
+        debugPrint('❌ Error checking preference: $e');
         // Fallback to home on any error
         Get.offNamed(AppRoutes.BOTTOM_NAV);
       }
@@ -54,6 +81,7 @@ class SplashController extends BaseController {
         DeepLinkHandler.processPendingDeepLink();
       });
     } else {
+      debugPrint('📝 User not logged in - going to account type');
       // For non-logged in users, check if there's a pending deep link
       // If yes, it will handle navigation, otherwise go to account type
 
