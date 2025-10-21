@@ -19,6 +19,7 @@ class BuyConnectsView extends GetView<BuyConnectsController> {
     return GetBuilder<BuyConnectsController>(
       initState: (_) {
         Get.put(BuyConnectsController());
+
       },
       builder: (_) {
         return Scaffold(
@@ -60,12 +61,12 @@ class BuyConnectsView extends GetView<BuyConnectsController> {
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.whiteColor,
                                 ),
-                                AppText(
+                                Obx(() => AppText(
                                   text: '${controller.totalConnects.value}',
                                   fontSize: 30,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.whiteColor,
-                                ),
+                                )),
                               ],
                             ),
                             ConfettiWidget(

@@ -9,6 +9,7 @@ import '../core/export.dart';
 import '../core/services/firebase_service/export.dart';
 import '../data/repositories/chat_repository.dart';
 import 'dart:io';
+import '../views/chat/chatting_view.dart';
 import '../views/chat/export.dart';
 import 'chat_list_viewmodel.dart';
 

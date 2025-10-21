@@ -17,7 +17,10 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
   Widget build(BuildContext context) {
     return GetBuilder<PartnerPreferenceController>(
       initState: (_) {
-        Get.put(PartnerPreferenceController());
+        Get.put(PartnerPreferenceController(), permanent: false);
+      },
+      dispose: (_) {
+        Get.delete<PartnerPreferenceController>();
       },
       builder: (_) {
         return Scaffold(
@@ -94,68 +97,87 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
     );
   }
   getAgeFromAndAgeTo({context}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppText(
-                text: "Age From",
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.blackColor,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AppText(
+                    text: "Age From",
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.blackColor,
+                  ),
+                  const SizedBox(height: 05),
+                  Obx(() => CustomDropdown<String>(
+                    hintText: controller.ageFrom.isEmpty
+                        ? 'Age From'
+                        : controller.ageFrom.value,
+                    items: controller.ageFromList,
+                    onChanged: (value) {
+                      controller.ageFrom.value = value!;
+                      controller.validateForm();
+                      controller.update();
+                    },
+                    decoration: basicInfoDecoration(
+                      hintStyle: getHintStyle(controller.ageFrom.value),
+                      hasError: controller.ageValidationError.value.isNotEmpty,
+                    ),
+                  )),
+                ],
               ),
-              const SizedBox(height: 05),
-              CustomDropdown<String>(
-                hintText: controller.ageFrom.isEmpty
-                    ? 'Age From'
-                    : controller.ageFrom.value,
-                items: controller.ageFromList,
-                onChanged: (value) {
-                  controller.ageFrom.value = value!;
-                  controller.validateForm();
-                  controller.update();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.ageFrom.value),
-                ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AppText(
+                    text: "Age To",
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.blackColor,
+                  ),
+                  const SizedBox(height: 05),
+                  Obx(() => CustomDropdown<String>(
+                    hintText: controller.ageTo.isEmpty
+                        ? 'Age To'
+                        : controller.ageTo.value,
+                    items: controller.ageFromList,
+                    onChanged: (value) {
+                      controller.ageTo.value = value!;
+                      controller.validateForm();
+                      controller.update();
+                    },
+                    decoration: basicInfoDecoration(
+                      hintStyle: getHintStyle(controller.ageTo.value),
+                      hasError: controller.ageValidationError.value.isNotEmpty,
+                    ),
+                  )),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          flex: 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppText(
-                text: "Age To",
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.blackColor,
-              ),
-              const SizedBox(height: 05),
-              CustomDropdown<String>(
-                hintText: controller.ageTo.isEmpty
-                    ? 'Age To'
-                    : controller.ageTo.value,
-                items: controller.ageFromList,
-                onChanged: (value) {
-                  controller.ageTo.value = value!;
-                  controller.validateForm();
-                  controller.update();
-                },
-                decoration: basicInfoDecoration(
-                  hintStyle: getHintStyle(controller.ageTo.value),
+        // Error message display
+        Obx(() => controller.ageValidationError.value.isNotEmpty
+            ? Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: AppText(
+                  text: controller.ageValidationError.value,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.red,
                 ),
-              ),
-            ],
-          ),
-        ),
+              )
+            : const SizedBox.shrink()),
       ],
     );
   }

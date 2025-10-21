@@ -17,7 +17,7 @@ abstract class AppRoutes {
   static const String PROFILE = '/profile';
   static const String PROFILE_DETAIL_VIEW = '/profile-detail-view';
   static const String PROFILE_EDIT_VIEW = '/profile-edit-view';
-  static const String PARTNER_PREFERENCE_VIEW = '/partner_preference-view';
+  static const String PARTNER_PREFERENCE_VIEW = '/partner-preference-view';
   static const String FAVORITES_VIEW = '/favorites_view';
   // static const String USER_DETAILS_VIEW = '/rishta';
   static const String USER_DETAILS_VIEW = '/rishta';

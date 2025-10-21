@@ -11,6 +11,7 @@ import '../core/export.dart';
 import '../utils/exports.dart';
 import '../viewmodels/chat_list_viewmodel.dart';
 import '../viewmodels/chat_viewmodel.dart';
+import '../views/chat/chatting_view.dart';
 import '../views/chat/export.dart';
 
 // Enhanced controller with real-time status updates

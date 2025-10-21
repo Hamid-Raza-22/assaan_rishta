@@ -3,12 +3,21 @@ import 'package:flutter/material.dart';
 
 import 'exports.dart';
 
-CustomDropdownDecoration? basicInfoDecoration({TextStyle? hintStyle}) =>
+CustomDropdownDecoration? basicInfoDecoration({
+  TextStyle? hintStyle,
+  bool hasError = false,
+}) =>
     CustomDropdownDecoration(
       closedFillColor: AppColors.fillFieldColor,
       expandedFillColor: AppColors.whiteColor,
-      closedBorder: Border.all(color: AppColors.borderColor),
-      expandedBorder: Border.all(color: AppColors.borderColor),
+      closedBorder: Border.all(
+        color: hasError ? Colors.red : AppColors.borderColor,
+        width: hasError ? 1.5 : 1.0,
+      ),
+      expandedBorder: Border.all(
+        color: hasError ? Colors.red : AppColors.borderColor,
+        width: hasError ? 1.5 : 1.0,
+      ),
       hintStyle: hintStyle,
       closedSuffixIcon: const Icon(
         Icons.keyboard_arrow_down,
