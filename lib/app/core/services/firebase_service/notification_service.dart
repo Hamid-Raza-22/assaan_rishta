@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
+import 'package:assaan_rishta/app/core/services/env_config_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -35,7 +36,7 @@ class NotificationServices {
   static void initializeSession(String userId) {
     _currentSessionId = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
     _sessionStartTime = DateTime.now();
-    debugPrint('🔑 New notification session initialized: $_currentSessionId');
+    debugPrint(' New notification session initialized: $_currentSessionId');
     // Check for any pending deliveries when user logs in
     DeliveryConfirmationService.processAllPendingDeliveries(userId);
   }
@@ -44,7 +45,7 @@ class NotificationServices {
   static void clearSession() {
     _currentSessionId = null;
     _sessionStartTime = null;
-    debugPrint('🔑 Notification session cleared');
+    debugPrint(' Notification session cleared');
   }
   // Map to store messages for each sender
   static final Map<String, List<String>> _senderMessages = {};
@@ -57,7 +58,7 @@ class NotificationServices {
   // Add method to check and handle pending navigation
   static Future<void> checkPendingNavigation() async {
     if (_hasPendingNavigation && _pendingNotification != null) {
-      debugPrint('🔔 Processing pending notification navigation...');
+      debugPrint(' Processing pending notification navigation...');
       _hasPendingNavigation = false;
       final tempNotification = _pendingNotification;
       _pendingNotification = null;
@@ -79,7 +80,7 @@ class NotificationServices {
 
       // Check if user is logged in
       if (!authService.isUserLoggedIn.value || authService.userId == null) {
-        debugPrint('❌ No user logged in, rejecting notification');
+        debugPrint(' No user logged in, rejecting notification');
         return false;
       }
 
@@ -91,7 +92,7 @@ class NotificationServices {
       final notificationTimestamp = message.data['timestamp'];
       final notificationSessionId = message.data['sessionId'];
 
-      debugPrint('🔍 Enhanced notification validation:');
+      debugPrint(' Enhanced notification validation:');
       debugPrint('   Current User ID: $currentUserId');
       debugPrint('   Current Session ID: $_currentSessionId');
       debugPrint('   Session Start Time: $_sessionStartTime');
@@ -101,12 +102,12 @@ class NotificationServices {
       debugPrint('   Notification Session ID: $notificationSessionId');
 
       if (senderId != null && senderId == currentUserId) {
-        debugPrint('❌ Notification is from current user (self-notification), rejecting');
+        debugPrint(' Notification is from current user (self-notification), rejecting');
         return false;
       }
       // Check if notification is for current user
       // if (receiverId == null || receiverId.isEmpty) {
-      //   debugPrint('⚠️ No receiverId in notification data');
+      //   debugPrint(' No receiverId in notification data');
       //   return false;
       // }
       // 2. SESSION VALIDATION: Check if notification belongs to current session
@@ -118,18 +119,18 @@ class NotificationServices {
 
           // Reject notifications from before current login session
           if (notificationTime.isBefore(_sessionStartTime!)) {
-            debugPrint('❌ Old notification rejected: Received before current login session');
+            debugPrint(' Old notification rejected: Received before current login session');
             debugPrint('   Notification time: $notificationTime');
             debugPrint('   Session start time: $_sessionStartTime');
             return false;
           }
         } catch (e) {
-          debugPrint('⚠️ Could not parse notification timestamp: $e');
+          debugPrint(' Could not parse notification timestamp: $e');
           // If we can't parse timestamp, be conservative and reject old-looking notifications
           // Allow only very recent notifications (within last 5 minutes)
           final now = DateTime.now();
           if (_sessionStartTime != null && now.difference(_sessionStartTime!).inMinutes > 5) {
-            debugPrint('❌ Rejecting potentially old notification due to unparseable timestamp');
+            debugPrint(' Rejecting potentially old notification due to unparseable timestamp');
             return false;
           }
         }
@@ -138,16 +139,16 @@ class NotificationServices {
       // // 3. ENHANCED USER VALIDATION: Check if receiverId matches current user
       // if (receiverId != null && receiverId.isNotEmpty) {
       //   if (receiverId != currentUserId) {
-      //     debugPrint('❌ Notification for different user: Expected $currentUserId, got $receiverId');
+      //     debugPrint(' Notification for different user: Expected $currentUserId, got $receiverId');
       //     return false;
       //   }
-      //   debugPrint('✅ Notification validated via receiverId match');
+      //   debugPrint(' Notification validated via receiverId match');
       //   return true;
       // }
 
       // 4. FALLBACK VALIDATION: If no receiverId, do additional checks
       if (senderId == null || senderId.isEmpty) {
-        debugPrint('❌ No sender ID in notification data');
+        debugPrint(' No sender ID in notification data');
         return false;
       }
 
@@ -155,11 +156,11 @@ class NotificationServices {
       try {
         final currentAuthUserId = AuthService.instance.userId?.toString();
         if (currentAuthUserId != currentUserId) {
-          debugPrint('❌ User context changed during validation');
+          debugPrint(' User context changed during validation');
           return false;
         }
       } catch (e) {
-        debugPrint('❌ Error verifying current user context: $e');
+        debugPrint(' Error verifying current user context: $e');
         return false;
       }
 
@@ -171,20 +172,20 @@ class NotificationServices {
             .get();
 
         if (!senderDoc.exists) {
-          debugPrint('❌ Sender user does not exist: $senderId');
+          debugPrint(' Sender user does not exist: $senderId');
           return false;
         }
 
-        debugPrint('✅ Enhanced notification validated: From $senderId to $currentUserId');
+        debugPrint(' Enhanced notification validated: From $senderId to $currentUserId');
         return true;
 
       } catch (e) {
-        debugPrint('❌ Error validating sender existence: $e');
+        debugPrint(' Error validating sender existence: $e');
         return false;
       }
 
     } catch (e) {
-      debugPrint('❌ Error in enhanced notification validation: $e');
+      debugPrint(' Error in enhanced notification validation: $e');
       return false;
     }
   }
@@ -206,7 +207,7 @@ class NotificationServices {
           .get();
 
       if (!userDoc.exists) {
-        debugPrint('❌ Current user document not found in Firestore');
+        debugPrint(' Current user document not found in Firestore');
         return false;
       }
 
@@ -217,54 +218,59 @@ class NotificationServices {
           .get();
 
       if (!senderDoc.exists) {
-        debugPrint('❌ Sender user does not exist in Firestore');
+        debugPrint(' Sender user does not exist in Firestore');
         return false;
       }
 
-      debugPrint('✅ Sender validation passed');
+      debugPrint(' Sender validation passed');
       return true;
 
     } catch (e) {
-      debugPrint('❌ Error validating sender: $e');
+      debugPrint(' Error validating sender: $e');
       return false;
     }
   }
 
   static Future<String> getAccessToken() async {
-    Map<String, String> serviceAccountJson = {
-      "type": "service_account",
-      "project_id": "asaan-rishta-chat",
-      "private_key_id": "3d239983797c2f900d66aeb4e00e4940f473cd2a",
-      "private_key":
-      "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCv2DHlFCO012eI\nZYGub2NeLdA/IDCGVbWdF/rtRx3OOFA2xqqds2qIBXjvrpamvhW4mVwtK2H2K8y2\nqb60UegF45RO3jjGUNhTImHFUaU0i8o4l2qe6w+NcE8qg+BZKNBP0jYmgP7X5HYU\ndQfYqZcFsCQd1MSkpkHE5SLxkwwbIbHTS608PCkMexBSLdbnngx1yXlTqnJd0RUo\ntUSJzC2ETeIdFVXvw/XTBcOhXTXjmEecKYNISfW8EOlIJt0SvB3fxmLJiEqw1ZGs\nUu/tt0KGy2mAX4pbo8VckGbqBKk1iS4r5NPaAfANVjR/+Nutru4oFG0WmQW09iMo\nEcn186DhAgMBAAECggEABFB2q20cwejry+55Ib5vAsJXHthfZmlbjgvWwsv1EtBi\nA/EIgjti3ozbUm6fOL62zddZ6gwLoJCDKptkL9yHV78lXjDAtflpcFM6cL7bwbv5\nCX3KDnV8FYNbFuMCze802rOAs33EWufKn55+M3o4N8oSPcbgzv0bBZ2dV43c/Pyi\ne/5C+u4I79VdFK95exzII7la21kw1d2WEk8YZErSyyYoph0gE2Tv2o3XLO+x4EkC\nsbHOCr8r2b2aCw7bRO0D050LnDbIU530kMb3Jbt12qGFppGZKTAMr5fwetwz2Gcm\nmuOaNQsIL/UQ3kIrF0CRZv6FwQGvFPQgHG6GAnhr8QKBgQDte9GegjT3ICoM/5hN\npe/Sq+4B6ttpR8nrnoCXh1/UL2gjb8Bc/7lKEaBtP9pN0bcZrVWAhk9/Ybjk4qb4\nF89XKPIBkGsxpy4xVPR6v4n+hB5ofjN7NpB5k93MrWr+S/4olLSlfAwIuymREbHz\no2g8asx8Zh9Av8A/WAtIGAkLcQKBgQC9jg6BXgg2F+6YTj8tjrx8FCZNYBqzYdgq\nXNBzbt7tQx0AxosBCMv9/7cx0WgwZ3kedPaAd0FD94qmi+e1A1FbWzHXIG7qWG2L\nRWc01oOz+vlM5cDVmDXlBVjEM1tfsEcbg/NRUgL2QjP9ZwwIV7Tkk8TcWweNRaiC\ny3ThDjzUcQKBgGYZpbWQJVVZ7rpH6SL5BHJ+mIUag9pvktBKBN8gxIJlH1Cc6wcQ\nqoi9q0tM+H4ce6v+aZQoKmWJjgRZrY9cLTg70k/51xwx1BpBfBqJ3rod8zTZjSib\n/OFIQUOOC0HpSgwIYuICwum+DdDg2rD0wAu5ntCc1zLvPaf+IluMedcBAoGABtWn\najy0uRaV0MIJfyAFZcfoNaQAcnVVsPlVvsPBn/ZqhkuiWXAywr7EoTQ2uIASmumG\ntc0W+ldjlWu3+AvdlBiurF4MAcEceggPl5UgfI3RDVe/YzQwxUgzEifz5Hhbp/9S\n95yoZK6wZzOe+HIJILC/SV6y4AIh+E1TsoWr5dECgYBXu+6dfidFJ6R6bjjFOtKO\nP/vhSfhEAPG1crfg8QcepbThVTcYQv0yYTrd9aVQ2+t3WY8QrG91WI77qsujvrDg\nWyr8sRNtvkD8sDrc7LXbHpkGnscPtkLv3ANmdjaQcg/nrBY0Ng6GmwSGf/DimpJD\n8GifHfQRhLAwKtDDjbRF+g==\n-----END PRIVATE KEY-----\n",
-      "client_email":
-      "asaan-rishta-chat@asaan-rishta-chat.iam.gserviceaccount.com",
-      "client_id": "114478927019035620233",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url":
-      "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url":
-      "https://www.googleapis.com/robot/v1/metadata/x509/asaan-rishta-chat%40asaan-rishta-chat.iam.gserviceaccount.com",
-      "universe_domain": "googleapis.com"
-    };
-    List<String> scopes = [
+    // Load Firebase Service Account credentials from environment variables
+    // This is MUCH more secure than hardcoding credentials
+    final Map<String, String> serviceAccountJson = EnvConfig.getFirebaseServiceAccountJson();
+    
+    // Validate that credentials are loaded
+    if (serviceAccountJson['private_key']?.isEmpty ?? true) {
+      debugPrint(' ERROR: Firebase Service Account credentials not found in .env file!');
+      debugPrint(' Please add FIREBASE_SERVICE_ACCOUNT_* variables to your .env file');
+      throw Exception('Firebase Service Account credentials not configured');
+    }
+    
+    debugPrint(' Firebase Service Account credentials loaded from environment');
+    
+    final List<String> scopes = [
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/firebase.database",
       "https://www.googleapis.com/auth/firebase.messaging",
     ];
-    http.Client client = await auth.clientViaServiceAccount(
-      auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
-      scopes,
-    );
-    auth.AccessCredentials credentials =
-    await auth.obtainAccessCredentialsViaServiceAccount(
-      auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
-      scopes,
-      client,
-    );
-    client.close();
-    return credentials.accessToken.data;
+    
+    try {
+      http.Client client = await auth.clientViaServiceAccount(
+        auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
+        scopes,
+      );
+      
+      auth.AccessCredentials credentials =
+      await auth.obtainAccessCredentialsViaServiceAccount(
+        auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
+        scopes,
+        client,
+      );
+      
+      client.close();
+      debugPrint(' Firebase access token obtained successfully');
+      return credentials.accessToken.data;
+    } catch (e) {
+      debugPrint(' Error obtaining Firebase access token: $e');
+      rethrow;
+    }
   }
 
   FirebaseMessaging messaging = FirebaseMessaging.instance;
@@ -1083,7 +1089,14 @@ class NotificationServices {
       }
 
       String serverTokenKey = await getAccessToken();
-      String endPoint = "https://fcm.googleapis.com/v1/projects/asaan-rishta-chat/messages:send";
+      // Use project ID from environment variables instead of hardcoding
+      final projectId = EnvConfig.firebaseServiceAccountProjectId;
+      String endPoint = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
+      
+      if (projectId.isEmpty) {
+        debugPrint('❌ ERROR: Firebase project ID not configured');
+        return;
+      }
       //final currentTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
 
       Map<String, dynamic> message = {

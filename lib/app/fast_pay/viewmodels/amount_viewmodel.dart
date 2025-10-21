@@ -8,6 +8,8 @@ import 'package:stacked/stacked.dart';
 
 // Import WebViewScreen directly
 import '../views/webview_screen.dart';
+import '../../core/services/env_config_service.dart';
+import '../../core/services/secure_storage_service.dart';
 import '../../core/services/storage_services/export.dart';
 import '../services/api_service.dart';
 // Remove Stacked imports
@@ -55,9 +57,24 @@ class AmountViewModel extends BaseViewModel {
 
     try {
 
-      String merchantId = "83233";
-      final sharedPref = await SharedPreferences.getInstance();
-      int? userId = sharedPref.getInt(StorageKeys.userId);
+      // Load merchant ID from environment variables instead of hardcoding
+      String merchantId = EnvConfig.payfastMerchantId;
+      
+      if (merchantId.isEmpty) {
+        debugPrint("❌ ERROR: PayFast merchant ID not configured in .env");
+        Get.snackbar(
+          "Configuration Error",
+          "Payment gateway not configured. Please contact support.",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+      
+      // Use SecureStorage for user ID instead of plain SharedPreferences
+      final secureStorage = SecureStorageService();
+      final userIdStr = await secureStorage.getUserId();
+      final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
 
       debugPrint("👤 User ID: $userId");
 

@@ -1,4 +1,5 @@
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
+import 'package:assaan_rishta/app/core/services/secure_storage_service.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_button.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_checkbox.dart';
 import 'package:assaan_rishta/app/views/login/widgets/custom_text_field.dart';
@@ -118,9 +119,11 @@ class LoginView extends GetView<LoginViewModel> {
                           if (response.isRight()) {
                             final result = response.getOrElse(() => '');
                             debugPrint('Response Body: $result');
-                            SharedPreferences prefs = await SharedPreferences.getInstance();
-                            prefs.setString('userNumber', result);
-                            prefs.setString('Email', controller.emailController.text);
+                            // Use SecureStorage instead of plain SharedPreferences
+                            final secureStorage = SecureStorageService();
+                            await secureStorage.saveUserPhone(result);
+                            await secureStorage.saveUserEmail(controller.emailController.text);
+                            debugPrint('✅ Phone and email saved securely');
                             Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW,
                                 arguments: controller.emailController.text);
                           } else {

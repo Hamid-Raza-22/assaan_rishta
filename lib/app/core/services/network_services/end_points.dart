@@ -1,6 +1,8 @@
+import '../env_config_service.dart';
+
 class EndPoints {
-  static String baseUrl = 'https://thsolutionz.com/api/';
-  static String authBaseUrl = 'https://thsolutionz.com/';
+  static String get baseUrl => EnvConfig.baseUrl;
+  static String get authBaseUrl => EnvConfig.authBaseUrl;
 
   String loginUrl() {
     return '${authBaseUrl}token';

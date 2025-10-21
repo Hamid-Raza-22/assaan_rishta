@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/services/secure_storage_service.dart';
 import '../../../domain/export.dart';
 import '../../../utils/exports.dart';
 import '../../../core/services/storage_services/export.dart';
@@ -37,9 +38,10 @@ class ContactUsController extends GetxController {
 
   Future<void> _prefillUserDetails() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedName = prefs.getString(StorageKeys.userName) ?? '';
-      final savedEmail = prefs.getString(StorageKeys.userEmail) ?? '';
+      // Use SecureStorage for user details
+      final secureStorage = SecureStorageService();
+      final savedName = await secureStorage.getUserName() ?? '';
+      final savedEmail = await secureStorage.getUserEmail() ?? '';
 
       if (savedName.isNotEmpty) {
         nameTEC.text = savedName;
