@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/core/services/deep_link_handler.dart';
+import 'package:assaan_rishta/app/core/utils/developer_mode_checker.dart';
 import 'package:assaan_rishta/app/viewmodels/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -25,6 +26,10 @@ class SplashController extends BaseController {
     // Wait for splash screen to be visible
     await Future.delayed(const Duration(seconds: 2));
 
+    // CRITICAL: Check Developer Mode FIRST - Block app if enabled
+    if (kReleaseMode || kProfileMode) {
+      await _checkDeveloperModeBlocking();
+    }
     // CRITICAL: Wait for AuthService to complete email verification
     // AuthService is already running in parallel since app start (Get.put in AppBindings)
     final authService = Get.find<AuthService>();
@@ -99,6 +104,40 @@ class SplashController extends BaseController {
           Get.offNamed(AppRoutes.ACCOUNT_TYPE);
         }
       });
+    }
+  }
+
+  /// Check developer mode and BLOCK app from proceeding
+  /// App will NOT move from splash until developer mode is disabled
+  Future<void> _checkDeveloperModeBlocking() async {
+    debugPrint('🔍 Checking developer mode before proceeding...');
+    
+    bool isDeveloperMode = await DeveloperModeChecker.isDeveloperModeEnabled();
+    
+    if (isDeveloperMode) {
+      debugPrint('⚠️ Developer mode enabled - BLOCKING app at splash screen');
+      
+      // Show blocking dialog
+      DeveloperModeChecker.showDeveloperModeDialog();
+      
+      // Keep checking every 2 seconds until developer mode is OFF
+      while (isDeveloperMode) {
+        await Future.delayed(const Duration(seconds: 2));
+        isDeveloperMode = await DeveloperModeChecker.isDeveloperModeEnabled();
+        
+        if (!isDeveloperMode) {
+          debugPrint('✅ Developer mode disabled - closing dialog and continuing');
+          // Close the dialog
+          if (Get.isDialogOpen ?? false) {
+            Get.back();
+          }
+          break;
+        } else {
+          debugPrint('⏳ Still waiting for developer mode to be disabled...');
+        }
+      }
+    } else {
+      debugPrint('✅ Developer mode not enabled - proceeding normally');
     }
   }
 }

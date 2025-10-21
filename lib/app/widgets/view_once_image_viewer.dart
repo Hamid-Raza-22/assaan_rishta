@@ -1,11 +1,10 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:no_screenshot/no_screenshot.dart';
 
 import '../core/models/chat_model/message.dart';
+import '../core/utils/screen_security.dart';
 
 class ViewOnceImageViewer extends StatefulWidget {
   final Message message;
@@ -22,7 +21,6 @@ class ViewOnceImageViewer extends StatefulWidget {
 }
 
 class _ViewOnceImageViewerState extends State<ViewOnceImageViewer> {
-  final _noScreenshot = NoScreenshot.instance;
   bool _hasViewed = false;
   int _secondsRemaining = 25; // Auto-close after 10 seconds
   Timer? _timer;
@@ -32,7 +30,9 @@ class _ViewOnceImageViewerState extends State<ViewOnceImageViewer> {
     super.initState();
     _startTimer();
     _markAsViewed();
-    _toggleScreenshotProtection(true);
+    
+    // Enable screen security (block screenshots & recording)
+    ScreenSecurity.enableScreenSecurity();
   }
 
   void _startTimer() {
@@ -57,25 +57,20 @@ class _ViewOnceImageViewerState extends State<ViewOnceImageViewer> {
 
   void _closeViewer() {
     _timer?.cancel();
+    
+    // Disable screen security when closing
+    ScreenSecurity.disableScreenSecurity();
+    
     Navigator.pop(context);
-    _toggleScreenshotProtection(false);
-  }
-
-  Future<void> _toggleScreenshotProtection(bool enable) async {
-    try {
-      if (enable) {
-        await _noScreenshot.screenshotOff();
-      } else {
-        await _noScreenshot.screenshotOn();
-      }
-    } catch (e) {
-      debugPrint('Failed to toggle screenshot protection: $e');
-    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    
+    // Ensure screen security is disabled
+    ScreenSecurity.disableScreenSecurity();
+    
     super.dispose();
   }
   @override

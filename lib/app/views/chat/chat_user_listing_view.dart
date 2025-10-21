@@ -1,6 +1,7 @@
 // chat_user_listing_view.dart - Fixed with proper refresh mechanism
 
 import 'package:assaan_rishta/app/core/services/firebase_service/export.dart';
+import 'package:assaan_rishta/app/core/utils/screen_security.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -31,6 +32,10 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
   @override
   void initState() {
     super.initState();
+    
+    // Enable screen security (block screenshots & recording)
+    ScreenSecurity.enableScreenSecurity();
+    
     WidgetsBinding.instance.addObserver(this);
 
     // Initialize or get existing controller
@@ -102,6 +107,9 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
   }
   @override
   void dispose() {
+    // Disable screen security when leaving chat list
+    ScreenSecurity.disableScreenSecurity();
+    
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

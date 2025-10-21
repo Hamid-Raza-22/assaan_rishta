@@ -10,6 +10,7 @@ import 'package:stacked/stacked.dart';
 import '../views/webview_screen.dart';
 import '../../core/services/env_config_service.dart';
 import '../../core/services/secure_storage_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/services/storage_services/export.dart';
 import '../services/api_service.dart';
 // Remove Stacked imports
@@ -43,12 +44,12 @@ class AmountViewModel extends BaseViewModel {
     required String srtAmount,
     required String packageId,
   }) async {
-    debugPrint("🔗 Getting PayFast token...");
-    debugPrint("💰 Amount: $srtAmount");
-    debugPrint("📦 Package ID: $packageId");
+    AppLogger.network('Getting PayFast token...');
+    AppLogger.info('Amount: $srtAmount');
+    AppLogger.info('Package ID: $packageId');
 
     if (!formKey.currentState!.validate()) {
-      debugPrint("❌ Form validation failed");
+      AppLogger.warning('Form validation failed');
       return;
     }
 
@@ -61,7 +62,7 @@ class AmountViewModel extends BaseViewModel {
       String merchantId = EnvConfig.payfastMerchantId;
       
       if (merchantId.isEmpty) {
-        debugPrint("❌ ERROR: PayFast merchant ID not configured in .env");
+        AppLogger.error('PayFast merchant ID not configured in .env');
         Get.snackbar(
           "Configuration Error",
           "Payment gateway not configured. Please contact support.",
@@ -76,10 +77,10 @@ class AmountViewModel extends BaseViewModel {
       final userIdStr = await secureStorage.getUserId();
       final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
 
-      debugPrint("👤 User ID: $userId");
+      AppLogger.info('User ID: $userId');
 
       if (userId == null) {
-        debugPrint("❌ User ID not found");
+        AppLogger.warning('User ID not found');
         Get.snackbar(
           "Error",
           "User not logged in",
@@ -92,12 +93,12 @@ class AmountViewModel extends BaseViewModel {
       final amount = double.parse(srtAmount);
       final basketId = 'ITEM-${Random().nextInt(10000).toString()}';
 
-      debugPrint("🛒 Basket ID: $basketId");
-      debugPrint("📧 Email: ${emailTEC.text}");
-      debugPrint("📱 Phone: ${phoneTEC.text}");
+      AppLogger.info('Basket ID: $basketId');
+      AppLogger.info('Email: ${emailTEC.text}');
+      AppLogger.info('Phone: ${phoneTEC.text}');
 
       final token = await _apiService.getToken(basketId, amount.toString());
-      debugPrint("🔑 Token received: ${token.substring(0, 20)}...");
+      AppLogger.success('Token received: ${token.substring(0, 20)}...');
 
       // Use GetX navigation instead of Stacked
       await Get.to(
@@ -115,10 +116,10 @@ class AmountViewModel extends BaseViewModel {
         duration: const Duration(milliseconds: 300),
       );
 
-      debugPrint("✅ Navigated to WebView");
+      AppLogger.success('Navigated to WebView');
 
     } catch (e) {
-      debugPrint('💥 Error in getToken: $e');
+      AppLogger.error('Error in getToken', e);
       Get.snackbar(
         "Error",
         "Failed to process payment: ${e.toString()}",

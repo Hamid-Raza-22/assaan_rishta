@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/routes/app_routes.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/secure_storage_service.dart';
+import '../core/utils/app_logger.dart';
 import '../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../views/bottom_nav/export.dart';
 import 'chat_viewmodel.dart';
@@ -45,7 +46,7 @@ class AuthService extends GetxController {
   // Check authentication status on app start
   Future<void> checkAuthStatus() async {
     try {
-      debugPrint('🔐 Checking authentication status...');
+      AppLogger.info('Checking authentication status...');
       final secureStorage = SecureStorageService();
 
       final isLoggedIn = await secureStorage.isUserLoggedIn();
@@ -63,7 +64,7 @@ class AuthService extends GetxController {
         _userImage = userImage;
 
         // Fast professional verification - check email first
-        debugPrint('🔍 Verifying user profile for user ID: $userId');
+        AppLogger.info('Verifying user profile for user ID: $userId');
         
         final profileExists = await _verifyUserProfileExists();
 
@@ -88,7 +89,7 @@ class AuthService extends GetxController {
         // Update FCM token for logged in user
         await _updateFCMToken();
 
-        debugPrint('✅ User authenticated: $userName (ID: $userId)');
+        AppLogger.success('User authenticated: $userName (ID: $userId)');
 
         // Navigate to home if on account type page
         if (Get.currentRoute == AppRoutes.ACCOUNT_TYPE) {
@@ -159,7 +160,7 @@ class AuthService extends GetxController {
   // FIXED: Logout method with proper notification handling
   Future<void> logout(BuildContext context) async {
     try {
-      debugPrint('🚪 Starting logout process...');
+      AppLogger.lifecycle('Waiting for auth verification to complete...');
       NotificationServices.clearSession();
 
       // 1. Update Firebase status
@@ -206,14 +207,14 @@ class AuthService extends GetxController {
         chatController.dispose();
       }
 
-      debugPrint('✅ Logout completed successfully');
+      AppLogger.success('Logout completed successfully');
 
       // 7. Navigate to login
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
 
     } catch (e) {
       NotificationServices.clearSession();
-      debugPrint('💥 Error during logout: $e');
+      AppLogger.error('Error during logout: $e');
 
       // Even if there's an error, clear secure storage and local data
       final secureStorage = SecureStorageService();
@@ -258,9 +259,9 @@ class AuthService extends GetxController {
         Get.delete<ChatListController>(force: true);
       }
 
-      debugPrint('🧹 All GetX instances cleared');
+      AppLogger.lifecycle('All GetX instances cleared');
     } catch (e) {
-      debugPrint('⚠️ Error clearing GetX instances: $e');
+      AppLogger.error('Error clearing GetX instances: $e');
     }
   }
 
@@ -272,7 +273,7 @@ class AuthService extends GetxController {
       final fcmToken = await FirebaseMessaging.instance.getToken();
       if (fcmToken == null) return;
 
-      debugPrint('📱 Updating FCM token for user: $_userId');
+      AppLogger.lifecycle('Updating FCM token for user: $_userId');
 
       // Update token in Firestore
       await FirebaseFirestore.instance
@@ -283,9 +284,9 @@ class AuthService extends GetxController {
         'last_token_update': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('✅ FCM token updated successfully');
+      AppLogger.success('FCM token updated successfully');
     } catch (e) {
-      debugPrint('❌ Error updating FCM token: $e');
+      AppLogger.error('Error updating FCM token: $e');
     }
   }
 
@@ -294,7 +295,7 @@ class AuthService extends GetxController {
     try {
       if (_userId == null || _userId! <= 0) return;
 
-      debugPrint('🔕 Removing FCM token for user: $_userId');
+      AppLogger.lifecycle('Removing FCM token for user: $_userId');
 
       // Remove token from Firestore
       await FirebaseFirestore.instance
@@ -308,9 +309,9 @@ class AuthService extends GetxController {
       // Also delete the token locally from FCM
       await FirebaseMessaging.instance.deleteToken();
 
-      debugPrint('✅ FCM token removed successfully');
+      AppLogger.success('FCM token removed successfully');
     } catch (e) {
-      debugPrint('❌ Error removing FCM token: $e');
+      AppLogger.error('Error removing FCM token: $e');
     }
   }
 
@@ -318,40 +319,40 @@ class AuthService extends GetxController {
   Future<bool> _verifyUserProfileExists() async {
     try {
       if (!Get.isRegistered<UserManagementUseCase>()) {
-        debugPrint('⚠️ UserManagementUseCase not registered yet');
+        AppLogger.lifecycle('UserManagementUseCase not registered yet');
         return true; // Assume user exists if use case not available
       }
 
       final userManagementUseCase = Get.find<UserManagementUseCase>();
       
       // Fast API call without timeout
-      debugPrint('🚀 Fetching user profile from backend...');
+      AppLogger.lifecycle('Fetching user profile from backend...');
       final response = await userManagementUseCase.getCurrentUserProfile();
 
       return response.fold(
         (error) {
           // If error code is 404 or user not found, return false immediately
-          debugPrint('❌ Profile verification failed: ${error.title} - ${error.description}');
+          AppLogger.error('Profile verification failed: ${error.title} - ${error.description}');
           if (error.title == '404' || error.title == '401' || error.title == '403') {
-            debugPrint('⚠️ User not found in backend - Force logout required');
+            AppLogger.error('User not found in backend - Force logout required');
             return false;
           }
           // For other errors (network issues, etc.), assume user exists
-          debugPrint('⚠️ Network/other error - assuming user exists');
+          AppLogger.error('Network/other error - assuming user exists');
           return true;
         },
         (profile) {
           // CRITICAL: Fast check - if email is null or empty, user is invalid
           if (profile.email == null || profile.email!.isEmpty) {
-            debugPrint('❌ INVALID PROFILE: Email is null or empty - Force logout required');
+            AppLogger.error('INVALID PROFILE: Email is null or empty - Force logout required');
             return false;
           }
-          debugPrint('✅ Profile valid - Email: ${profile.email}');
+          AppLogger.success('Profile valid - Email: ${profile.email}');
           return true;
         },
       );
     } catch (e) {
-      debugPrint('💥 Exception verifying profile: $e');
+      AppLogger.error('Exception verifying profile: $e');
       // On exception, assume user exists to avoid false logouts
       return true;
     }
