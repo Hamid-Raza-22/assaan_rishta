@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 import 'package:get/get.dart';
@@ -37,6 +38,9 @@ Future<bool> isFirstInstall() async {
 }
 
 Future<void> main() async {
+  if (kReleaseMode || kProfileMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Environment Configuration
@@ -216,7 +220,6 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // _checkSecurity();
   }
 
 

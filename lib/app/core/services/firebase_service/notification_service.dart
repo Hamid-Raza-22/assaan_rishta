@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/core/services/env_config_service.dart';
+import 'package:assaan_rishta/app/core/utils/app_logger.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -238,12 +239,12 @@ class NotificationServices {
     
     // Validate that credentials are loaded
     if (serviceAccountJson['private_key']?.isEmpty ?? true) {
-      debugPrint(' ERROR: Firebase Service Account credentials not found in .env file!');
-      debugPrint(' Please add FIREBASE_SERVICE_ACCOUNT_* variables to your .env file');
+      AppLogger.error('Firebase Service Account credentials not found in .env file!');
+      AppLogger.error('Please add FIREBASE_SERVICE_ACCOUNT_* variables to your .env file');
       throw Exception('Firebase Service Account credentials not configured');
     }
     
-    debugPrint(' Firebase Service Account credentials loaded from environment');
+    AppLogger.success('Firebase Service Account credentials loaded from environment');
     
     final List<String> scopes = [
       "https://www.googleapis.com/auth/userinfo.email",
@@ -265,10 +266,10 @@ class NotificationServices {
       );
       
       client.close();
-      debugPrint(' Firebase access token obtained successfully');
+      AppLogger.success('Firebase access token obtained successfully');
       return credentials.accessToken.data;
     } catch (e) {
-      debugPrint(' Error obtaining Firebase access token: $e');
+      AppLogger.error('Error obtaining Firebase access token', e);
       rethrow;
     }
   }
@@ -1094,7 +1095,7 @@ class NotificationServices {
       String endPoint = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
       
       if (projectId.isEmpty) {
-        debugPrint('❌ ERROR: Firebase project ID not configured');
+        AppLogger.error('Firebase project ID not configured');
         return;
       }
       //final currentTimestamp = DateTime.now().millisecondsSinceEpoch.toString();

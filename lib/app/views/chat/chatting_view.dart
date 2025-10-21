@@ -16,6 +16,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../core/export.dart';
+import '../../core/utils/screen_security.dart';
 import '../../core/routes/app_routes.dart';
 import '../../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../../utils/exports.dart';
@@ -99,6 +100,10 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   @override
   void onInit() {
     super.onInit();
+    
+    // Enable screen security (block screenshots & recording)
+    ScreenSecurity.enableScreenSecurity();
+    
     // Add disposal flag
     scrollController = ScrollController();
     // Listen to keyboard visibility
@@ -854,6 +859,10 @@ Future<void> showImageOptions() async {
   @override
   void onClose() {
     debugPrint('🗑️ Closing ChattingViewController for ${user.name}');
+    
+    // Disable screen security when leaving chat
+    ScreenSecurity.disableScreenSecurity();
+    
     scrollController.dispose();
 
     // Mark controller as inactive
