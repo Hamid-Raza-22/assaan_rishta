@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/routes/app_routes.dart';
 import '../core/services/firebase_service/export.dart';
-import '../core/services/storage_services/export.dart';
+import '../core/services/secure_storage_service.dart';
 import '../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../views/bottom_nav/export.dart';
 import 'chat_viewmodel.dart';
@@ -46,13 +46,14 @@ class AuthService extends GetxController {
   Future<void> checkAuthStatus() async {
     try {
       debugPrint('🔐 Checking authentication status...');
-      final prefs = await SharedPreferences.getInstance();
+      final secureStorage = SecureStorageService();
 
-      final isLoggedIn = prefs.getBool(StorageKeys.isUserLoggedIn) ?? false;
-      final userId = prefs.getInt(StorageKeys.userId);
-      final userEmail = prefs.getString(StorageKeys.userEmail);
-      final userName = prefs.getString(StorageKeys.userName);
-      final userImage = prefs.getString(StorageKeys.userPic);
+      final isLoggedIn = await secureStorage.isUserLoggedIn();
+      final userIdStr = await secureStorage.getUserId();
+      final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
+      final userEmail = await secureStorage.getUserEmail();
+      final userName = await secureStorage.getUserName();
+      final userImage = await secureStorage.getUserPic();
 
       if (isLoggedIn && userId != null && userId > 0) {
         // Set user data temporarily for verification and potential cleanup
@@ -126,12 +127,14 @@ class AuthService extends GetxController {
       _userName = name;
       _userImage = image;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(StorageKeys.isUserLoggedIn, true);
-      await prefs.setInt(StorageKeys.userId, userId);
-      await prefs.setString(StorageKeys.userEmail, email);
-      await prefs.setString(StorageKeys.userName, name);
-      await prefs.setString(StorageKeys.userPic, image);
+      // Use secure storage for sensitive user data
+      final secureStorage = SecureStorageService();
+      await secureStorage.saveUserSession(
+        userId: userId,
+        email: email,
+        name: name,
+        pic: image,
+      );
 
       isUserLoggedIn.value = true;
       currentUser.value = UserData(
@@ -168,7 +171,10 @@ class AuthService extends GetxController {
       // 2. Remove FCM token from Firestore
       await _removeFCMToken();
 
-      // 3. Clear local data BUT preserve onboarding flag
+      // 3. Clear secure storage and local data BUT preserve onboarding flag
+      final secureStorage = SecureStorageService();
+      await secureStorage.clearAll();
+      
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
 
@@ -209,7 +215,10 @@ class AuthService extends GetxController {
       NotificationServices.clearSession();
       debugPrint('💥 Error during logout: $e');
 
-      // Even if there's an error, clear local data and navigate
+      // Even if there's an error, clear secure storage and local data
+      final secureStorage = SecureStorageService();
+      await secureStorage.clearAll();
+      
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
 
@@ -384,7 +393,10 @@ class AuthService extends GetxController {
         debugPrint('⚠️ Error removing FCM token: $e');
       }
 
-      // Clear local data BUT preserve onboarding flag
+      // Clear secure storage and local data BUT preserve onboarding flag
+      final secureStorage = SecureStorageService();
+      await secureStorage.clearAll();
+      
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
 

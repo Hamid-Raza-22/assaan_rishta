@@ -1,13 +1,14 @@
 // lib/app/data/providers/auth_provider.dart
 import 'package:get/get.dart';
 
+import '../../core/services/env_config_service.dart';
 import '../models/login_model.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends GetConnect {
   @override
   void onInit() {
-    httpClient.baseUrl = 'https://thsolutionz.com/api/';
+    httpClient.baseUrl = EnvConfig.baseUrl;
     httpClient.timeout = Duration(seconds: 30);
   }
 

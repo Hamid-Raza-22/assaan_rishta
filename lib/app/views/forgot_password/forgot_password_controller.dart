@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/base/export.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/secure_storage_service.dart';
 import '../../utils/exports.dart';
 import '../../domain/export.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,10 +97,11 @@ class ForgotPasswordController extends BaseController{
   }
 
   Future<void> _loadPhoneNumber() async {
-    final prefs = await SharedPreferences.getInstance();
-    String fullNumber = prefs.getString('userNumber') ?? '';
+    // Use SecureStorage instead of SharedPreferences
+    final secureStorage = SecureStorageService();
+    String fullNumber = await secureStorage.getUserPhone() ?? '';
 
-    debugPrint('📱 Saved phone number from SharedPreferences: "$fullNumber"');
+    debugPrint('📱 Saved phone number from SecureStorage: "$fullNumber"');
 
     if (fullNumber.isEmpty) {
       return;
@@ -456,8 +458,9 @@ class ForgotPasswordController extends BaseController{
     AppUtils.onLoading(context);
 
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String email = prefs.getString('Email') ?? '';
+      // Use SecureStorage for email
+      final secureStorage = SecureStorageService();
+      String email = await secureStorage.getUserEmail() ?? '';
 
       debugPrint('🔐 Updating password with email: $email');
 

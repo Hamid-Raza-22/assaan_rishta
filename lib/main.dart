@@ -14,6 +14,8 @@ import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
 import 'app/core/services/deep_link_handler.dart';
+import 'app/core/services/env_config_service.dart';
+import 'app/core/services/secure_storage_service.dart';
 
 import 'app/core/services/firebase_service/delivery_confirmation_service.dart';
 import 'app/core/services/firebase_service/export.dart';
@@ -37,12 +39,34 @@ Future<bool> isFirstInstall() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Environment Configuration
+  try {
+    await EnvConfig.init();
+    if (!EnvConfig.validate()) {
+      throw Exception('❌ Environment variables validation failed. Check .env file.');
+    }
+    debugPrint('✅ Environment configuration loaded successfully');
+  } catch (e) {
+    debugPrint('❌ Failed to load environment configuration: $e');
+    // You might want to show an error screen here
+  }
+
+  // Initialize Secure Storage
+  try {
+    await SecureStorageService().init();
+    debugPrint('✅ Secure storage initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Failed to initialize secure storage: $e');
+  }
+
   bool firstTime = await isFirstInstall();
 
   if (firstTime) {
     // Clear all data on first install
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    // Clear secure storage as well
+    await SecureStorageService().clearAll();
     // NOW set the flag after clearing everything else
     await prefs.setBool('first_install', false);
   }

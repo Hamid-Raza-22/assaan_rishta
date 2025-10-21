@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../core/services/env_config_service.dart';
 
 class ApiService {
   final Dio _dio = Dio();
@@ -10,7 +11,7 @@ class ApiService {
     ));
     try {
       final response = await _dio.get(
-        'https://thsolutionz.com/api/PayFastController/GetToken/$basketId/$amount/PKR',
+        '${EnvConfig.baseUrl}PayFastController/GetToken/$basketId/$amount/PKR',
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
           followRedirects: true,

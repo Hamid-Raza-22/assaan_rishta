@@ -2,11 +2,11 @@ import 'package:assaan_rishta/app/viewmodels/chat_viewmodel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 import '../core/routes/app_routes.dart';
+import '../core/services/secure_storage_service.dart';
 
-import '../core/services/storage_services/export.dart';
 
 import '../domain/export.dart';
 import '../utils/exports.dart';
@@ -136,9 +136,6 @@ class LoginViewModel extends GetxController {
       },
           (success) async {
         try {
-
-          final pref = await SharedPreferences.getInstance();
-
           // SAFE USER ID HANDLING
           final safeUserId = success.userId ?? 0;
           final safeName = "${success.firstName ?? ''} ${success.lastName ?? ''}";
@@ -146,15 +143,17 @@ class LoginViewModel extends GetxController {
 
           debugPrint('👤 User data: ID=$safeUserId, Name=$safeName, Email=$safeEmail');
 
-          // SAVE USER DATA SAFELY
-          await pref.setString(StorageKeys.userPassword, passwordController.text);
-          await pref.setInt(StorageKeys.userId, safeUserId);
-          await pref.setString(StorageKeys.userEmail, safeEmail);
-          await pref.setString(StorageKeys.userName, safeName);
-          await pref.setString(StorageKeys.userPic, AppConstants.profileImg);
-          await pref.setBool(StorageKeys.isUserLoggedIn, true);
+          // SAVE USER DATA SECURELY using SecureStorageService
+          final secureStorage = SecureStorageService();
+          await secureStorage.saveUserPassword(passwordController.text);
+          await secureStorage.saveUserSession(
+            userId: safeUserId,
+            email: safeEmail,
+            name: safeName,
+            pic: AppConstants.profileImg,
+          );
 
-          debugPrint('💾 User data saved to preferences');
+          debugPrint('💾 User data saved securely');
 
           // Use AuthService for login
           final authService = AuthService.instance;

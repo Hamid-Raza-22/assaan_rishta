@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import '../core/services/env_config_service.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -52,11 +53,11 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBXvMqvobjVh11HFpQ2JJIFDJke1qgp5bo',
-    appId: '1:546459710100:android:6d90a8ce53295a0a90fa81',
-    messagingSenderId: '546459710100',
-    projectId: 'asaan-rishta-chat',
-    storageBucket: 'asaan-rishta-chat.firebasestorage.app',
+  static FirebaseOptions get android => FirebaseOptions(
+    apiKey: EnvConfig.firebaseApiKey,
+    appId: EnvConfig.firebaseAppId,
+    messagingSenderId: EnvConfig.firebaseMessagingSenderId,
+    projectId: EnvConfig.firebaseProjectId,
+    storageBucket: EnvConfig.firebaseStorageBucket,
   );
 }

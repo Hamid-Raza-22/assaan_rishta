@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../core/services/env_config_service.dart';
 import '../../utils/exports.dart';
 import '../../widgets/custom_button.dart';
 // Import your BottomNavView if needed for success navigation
@@ -53,10 +54,10 @@ class _WebViewScreenState extends State<WebViewScreen> {
         "&VERSION=MERCHANT-CART-0.1" +
         "&TXNDESC=Silver Package_for chat" +
         "&SUCCESS_URL=${getSuccessCheckUrl()}" +
-        "&FAILURE_URL=https://asaanrishta.com/failure" +
+        "&FAILURE_URL=${EnvConfig.payfastFailureUrl}" +
         "&BASKET_ID=${widget.basketId}" +
         "&ORDER_DATE=${getOrderDate()}" +
-        "&CHECKOUT_URL=https://thsolutionz.com/api/PayFastController/CheckOut" +
+        "&CHECKOUT_URL=${EnvConfig.payfastCheckoutUrl}" +
         "&CURRENCY_CODE=PKR" +
         "&TRAN_TYPE=ECOMM_PURCHASE" +
         "&RECURRING_TXN=";
@@ -120,8 +121,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
         ),
       )
       ..loadRequest(
-        Uri.parse(
-            'https://ipg1.apps.net.pk/Ecommerce/api/Transaction/PostTransaction'),
+        Uri.parse(EnvConfig.payfastTransactionUrl),
         method: LoadRequestMethod.post,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -229,6 +229,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
   }
 
   String getSuccessCheckUrl() {
-    return "https://asaanrishta.com/success/${widget.userId}/${widget.packageId}";
+    return "${EnvConfig.payfastSuccessUrl}/${widget.userId}/${widget.packageId}";
   }
 }
