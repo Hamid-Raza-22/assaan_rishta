@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 // import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 import 'package:get/get.dart';
 
+import 'app/config/firebase_options.dart';
 import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
@@ -22,7 +23,7 @@ import 'app/fast_pay/app/app.locator.dart';
 import 'app/utils/app_colors.dart';
 import 'app/viewmodels/chat_list_viewmodel.dart';
 import 'app/viewmodels/chat_viewmodel.dart';
-import 'firebase_options.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<bool> isFirstInstall() async {
@@ -194,43 +195,6 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     // _checkSecurity();
   }
 
-  // Future<void> _checkSecurity() async {
-  //   bool isJailbroken;
-  //   bool isDeveloperMode;
-  //
-  //   try {
-  //     isJailbroken = await FlutterJailbreakDetection.jailbroken;
-  //     isDeveloperMode = await FlutterJailbreakDetection.developerMode;
-  //   } on PlatformException {
-  //     isJailbroken = true;
-  //     isDeveloperMode = true;
-  //   }
-  //
-  //   if (!mounted) return;
-  //
-  //   if (isJailbroken || isDeveloperMode) {
-  //     WidgetsBinding.instance.addPostFrameCallback((_) {
-  //       showDialog(
-  //         context: context,
-  //         barrierDismissible: false,
-  //         builder: (BuildContext context) {
-  //           return AlertDialog(
-  //             title: const Text('Security Alert'),
-  //             content: const Text('For your safety, this app cannot be run on a rooted device or with developer mode enabled.'),
-  //             actions: <Widget>[
-  //               TextButton(
-  //                 child: const Text('OK'),
-  //                 onPressed: () {
-  //                   SystemNavigator.pop();
-  //                 },
-  //               ),
-  //             ],
-  //           );
-  //         },
-  //       );
-  //     });
-  //   }
-  // }
 
   @override
   void dispose() {

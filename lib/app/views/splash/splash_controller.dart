@@ -26,17 +26,22 @@ class SplashController extends BaseController {
     await Future.delayed(const Duration(seconds: 2));
 
     // CRITICAL: Wait for AuthService to complete email verification
+    // AuthService is already running in parallel since app start (Get.put in AppBindings)
     final authService = Get.find<AuthService>();
     debugPrint('⏳ Waiting for auth verification to complete...');
     
-    // Wait for auth service to initialize (max 10 seconds)
+    // Wait for auth service to initialize (max 5 seconds - should be faster now)
     int attempts = 0;
-    while (!authService.isInitialized.value && attempts < 100) {
+    while (!authService.isInitialized.value && attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
       attempts++;
     }
     
-    debugPrint('✅ Auth verification completed. Initialized: ${authService.isInitialized.value}');
+    if (!authService.isInitialized.value) {
+      debugPrint('⚠️ Auth verification timeout - defaulting to logged out');
+    }
+    
+    debugPrint('✅ Auth verification completed in ${attempts * 100}ms. Initialized: ${authService.isInitialized.value}');
 
     // Check auth status AFTER verification completes
     bool isLoggedIn = authService.isUserLoggedIn.value;

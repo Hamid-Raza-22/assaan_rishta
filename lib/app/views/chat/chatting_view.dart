@@ -1,10 +1,9 @@
-// Optimized ChattingView with instant block status display
-// chatting_view.dart
+// ChattingView - Clean UI Layer
+// Displays chat interface using ChattingViewController
 
 import 'dart:async';
 import 'dart:io';
 
-import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -17,10 +16,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../core/export.dart';
-import '../../domain/export.dart';
+import '../../core/routes/app_routes.dart';
+import '../../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../../utils/exports.dart';
-import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
+import '../../viewmodels/chat_viewmodel.dart';
 import '../../widgets/export.dart';
 import '../../widgets/typing_indicator.dart';
 
@@ -136,17 +136,17 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       final ctx = Get.context;
       if (ctx == null) return;
       final otherUrl = user.image;
-      if (_isValidNetworkUrl(otherUrl)) {
+      if (isValidNetworkUrl(otherUrl)) {
         precacheImage(CachedNetworkImageProvider(otherUrl), ctx);
       }
       final meUrl = currentUserImageUrl.value;
-      if (_isValidNetworkUrl(meUrl)) {
+      if (isValidNetworkUrl(meUrl)) {
         precacheImage(CachedNetworkImageProvider(meUrl), ctx);
       }
     } catch (_) {}
   }
 
-  bool _isValidNetworkUrl(String? url) {
+  bool isValidNetworkUrl(String? url) {
     if (url == null || url.isEmpty) return false;
     final uri = Uri.tryParse(url);
     return uri != null && (uri.isScheme('http') || uri.isScheme('https')) && (uri.host.isNotEmpty);
@@ -387,7 +387,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   }
 
   // Enhanced reply method with proper message identification
-  void _handleReply(Message message) {
+  void handleReply(Message message) {
     final isMe = useCase.getUserId().toString() == message.fromId;
     final senderName = isMe ? 'You' : (cachedUserData.value?.name ?? 'User');
 
@@ -417,13 +417,13 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     HapticFeedback.lightImpact();
   }
 
-  void _clearReply() {
+  void clearReply() {
     replyingTo.value = null;
     replyPreview.value = '';
   }
 
   // Enhanced send message with reply support
-  Future<void> _sendMessageWithReply() async {
+  Future<void> sendMessageWithReply() async {
     final message = textController.text.trim();
     if (message.isEmpty) return;
 
@@ -432,7 +432,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         : message;
 
     textController.clear();
-    _clearReply();
+    clearReply();
 
     try {
       if (cachedMessages.isEmpty) {
@@ -620,7 +620,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             final newStatus = _parseMessageStatus(data);
             final newDelivered = data['delivered']?.toString() ?? '';
             final newRead = data['read']?.toString() ?? '';
-            
+
             final hasChanged = message.status != newStatus ||
                 message.read != newRead ||
                 message.delivered != newDelivered;
@@ -707,25 +707,7 @@ Future<void> showImageOptions() async {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // ListTile(
-            //   leading: Container(
-            //     padding: const EdgeInsets.all(10),
-            //     decoration: BoxDecoration(
-            //       color: Colors.blue.withOpacity(0.1),
-            //       borderRadius: BorderRadius.circular(10),
-            //     ),
-            //     child: const Icon(Icons.photo_library, color: Colors.blue),
-            //   ),
-            //   title: const Text(
-            //     'Send Normal Image',
-            //     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            //   ),
-            //   subtitle: const Text('Image will remain in chat'),
-            //   onTap: () {
-            //     Navigator.pop(context);
-            //     _pickImage(isViewOnce: false);
-            //   },
-            // ),
+
             const SizedBox(height: 10),
             ListTile(
               leading: Container(
@@ -1232,17 +1214,7 @@ Future<void> showImageOptions() async {
       exitSelectionMode();
     }
   }
-  // Navigation methods
-  // void navigateBack() {
-  //   // FIXED: Deactivate controller before navigating
-  //   deactivate();
-  //
-  //   if (Navigator.of(Get.context!).canPop()) {
-  //     Get.back();
-  //   } else {
-  //     Get.offAll(() => const BottomNavView(index: 2));
-  //   }
-  // }
+
 // FIXED: Navigation methods with better cleanup
   Future<void> navigateBack() async {
     debugPrint('⬅️ Navigating back from chat');
@@ -1539,7 +1511,7 @@ class _ChattingViewState extends State<ChattingView> {
           if (!isBlockedByThem && !isDelete && !hasBlockedThem)
             ClipRRect(
               borderRadius: BorderRadius.circular(chatMq.height * .3),
-              child: controller._isValidNetworkUrl(controller.userImageUrl)
+              child: controller.isValidNetworkUrl(controller.userImageUrl)
                   ? CachedNetworkImage(
                       fit: BoxFit.cover,
                       height: chatMq.height * .05,
@@ -1826,7 +1798,7 @@ class _ChattingViewState extends State<ChattingView> {
                           // Handle reaction
                         },
                         onReply: (message) {
-                          controller._handleReply(message);
+                          controller.handleReply(message);
                         },
                       )),
                     );
@@ -2081,7 +2053,7 @@ class _ChattingViewState extends State<ChattingView> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: controller._clearReply,
+                        onTap: controller.clearReply,
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           child: Icon(
@@ -2174,7 +2146,7 @@ class _ChattingViewState extends State<ChattingView> {
 
               // Send button
               GestureDetector(
-                onTap: controller._sendMessageWithReply,
+                onTap: controller.sendMessageWithReply,
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(

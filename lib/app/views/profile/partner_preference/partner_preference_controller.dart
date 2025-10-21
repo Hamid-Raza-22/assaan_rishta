@@ -19,6 +19,7 @@ class PartnerPreferenceController extends GetxController {
       List.generate(33, (index) => (18 + index).toString());
   RxString ageFrom = "".obs;
   RxString ageTo = "".obs;
+  RxString ageValidationError = "".obs; // Error message for age validation
   var selectedLanguages = "";
   var languages = <String>[].obs;
 
@@ -83,17 +84,48 @@ class PartnerPreferenceController extends GetxController {
     // Listen to text field changes
     userDiWohtiKaTarufTEC.addListener(validateForm);
     super.onInit();
+    validateForm();
   }
 
   @override
   void onClose() {
     userDiWohtiKaTarufTEC.removeListener(validateForm);
+    userDiWohtiKaTarufTEC.dispose();
+    debugPrint("[GETX] PartnerPreferenceController onClose() called");
     super.onClose();
+  }
+
+  // @override
+  // void onDelete() {
+  //   debugPrint("[GETX] \"PartnerPreferenceController\" onDelete() called");
+  //   super.onDelete();
+  // }
+
+  // Validate age range
+  bool validateAgeRange() {
+    if (ageFrom.value.isEmpty || ageTo.value.isEmpty) {
+      ageValidationError.value = "";
+      return true; // If fields are empty, don't block validation (other checks will handle empty fields)
+    }
+    
+    final ageFromInt = int.tryParse(ageFrom.value) ?? 0;
+    final ageToInt = int.tryParse(ageTo.value) ?? 0;
+    
+    if (ageFromInt >= ageToInt) {
+      ageValidationError.value = "Age From must be less than Age To";
+      return false;
+    }
+    
+    ageValidationError.value = "";
+    return true;
   }
 
   // Validate all required fields
   void validateForm() {
-    isFormValid.value = ageFrom.value.isNotEmpty &&
+    // First validate age range
+    final ageRangeValid = validateAgeRange();
+    
+    final allFieldsFilled = ageFrom.value.isNotEmpty &&
         ageTo.value.isNotEmpty &&
         languages.isNotEmpty &&
         caste.isNotEmpty &&
@@ -111,6 +143,30 @@ class PartnerPreferenceController extends GetxController {
         userDiWohtiKaTarufTEC.text.trim().isNotEmpty &&
         isDrink.value.isNotEmpty &&
         isSmoke.value.isNotEmpty;
+    
+    isFormValid.value = allFieldsFilled && ageRangeValid;
+    
+    debugPrint("🔍 Form Validation:");
+    debugPrint("   ageFrom: ${ageFrom.value.isNotEmpty} (${ageFrom.value})");
+    debugPrint("   ageTo: ${ageTo.value.isNotEmpty} (${ageTo.value})");
+    debugPrint("   languages: ${languages.isNotEmpty}");
+    debugPrint("   caste: ${caste.isNotEmpty} ($caste)");
+    debugPrint("   education: ${education.isNotEmpty} ($education)");
+    debugPrint("   occupation: ${occupation.isNotEmpty} ($occupation)");
+    debugPrint("   monthlyIncome: ${monthlyIncome.value.isNotEmpty} (${monthlyIncome.value})");
+    debugPrint("   motherTongue: ${motherTongue.value.isNotEmpty} (${motherTongue.value})");
+    debugPrint("   country: ${country.isNotEmpty} ($country)");
+    debugPrint("   cityId: ${cityId > 0} ($cityId)");
+    debugPrint("   religion: ${religion.isNotEmpty} ($religion)");
+    debugPrint("   height: ${height.isNotEmpty} ($height)");
+    debugPrint("   built: ${built.value.isNotEmpty} (${built.value})");
+    debugPrint("   complexion: ${complexion.value.isNotEmpty} (${complexion.value})");
+    debugPrint("   maritalStatus: ${maritalStatus.isNotEmpty} ($maritalStatus)");
+    debugPrint("   aboutPartner: ${userDiWohtiKaTarufTEC.text.trim().isNotEmpty}");
+    debugPrint("   isDrink: ${isDrink.value.isNotEmpty} (${isDrink.value})");
+    debugPrint("   isSmoke: ${isSmoke.value.isNotEmpty} (${isSmoke.value})");
+    debugPrint("   ageRangeValid: $ageRangeValid");
+    debugPrint("   ✅ Form valid: ${isFormValid.value}");
   }
 
   void _generateHeightList() {
@@ -323,6 +379,7 @@ class PartnerPreferenceController extends GetxController {
     occupation = (profile.partnerOccupation ?? "").capitalize!;
     monthlyIncome.value = (profile.partnerAnnualIncome ?? "").capitalize!;
     motherTongue.value = (profile.partnerMotherTounge ?? "").capitalize!;
+    country = (profile.aboutCountryName ?? "").capitalize!; // ✅ SET COUNTRY
     religion = (profile.partnerReligion ?? "").capitalize!;
     height = (profile.partnerHeight ?? "").capitalize!;
     built.value = (profile.partnerBuilt ?? "").capitalize!;
@@ -331,7 +388,7 @@ class PartnerPreferenceController extends GetxController {
     userDiWohtiKaTarufTEC.text = (profile.aboutPartner ?? "").capitalize!;
     isDrink.value = getStringBool(profile.partnerDrinkHabbit);
     isSmoke.value = getStringBool(profile.partnerSmokeHabbit);
-    cityId = profile.aboutParentCityId!;
+    cityId = profile.aboutParentCityId ?? 0; // ✅ SAFE DEFAULT
     selectedLanguages = (profile.partnerLanguages ?? "");
     languages.value = profile.partnerLanguages != null
         ? profile.partnerLanguages!
@@ -339,6 +396,10 @@ class PartnerPreferenceController extends GetxController {
             .map((e) => e.replaceAll('"', '').trim())
             .toList()
         : [];
+    
+    debugPrint("✅ Loaded partner preference data");
+    debugPrint("   Country: $country");
+    debugPrint("   City ID: $cityId");
     
     // Validate form after loading data
     validateForm();

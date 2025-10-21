@@ -47,7 +47,6 @@ mixin SystemConfigRepo {
     required double discountedAmount,
     required int actualAmount,
     required String paymentSource,
-
   });
 
   Future<Either<AppError, List<TransactionHistory>>> transactionHistory();

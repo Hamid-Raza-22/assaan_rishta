@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 
 import '../../views/account_type/account_type_view.dart';
 import '../../views/bottom_nav/bottom_nav_view.dart';
+import '../../views/chat/chatting_view.dart';
 import '../../views/chat/export.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/home/home_view.dart';

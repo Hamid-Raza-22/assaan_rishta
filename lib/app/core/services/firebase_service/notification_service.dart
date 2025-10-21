@@ -18,6 +18,7 @@ import '../../../viewmodels/auth_service.dart';
 import '../../../viewmodels/chat_list_viewmodel.dart';
 import '../../../viewmodels/chat_viewmodel.dart';
 import '../../../views/bottom_nav/export.dart';
+import '../../../views/chat/chatting_view.dart';
 import '../../../views/chat/export.dart';
 import '../../export.dart';
 import 'delivery_confirmation_service.dart';
