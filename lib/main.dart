@@ -109,12 +109,16 @@ Future<void> main() async {
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase first
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   debugPrint('🔥 Background message received');
   debugPrint('📋 Message data: ${message.data}');
+
+  // Small delay to ensure Firebase is fully ready
+  await Future.delayed(const Duration(milliseconds: 100));
 
   if (message.data['type'] == 'chat') {
     // Extract and validate data

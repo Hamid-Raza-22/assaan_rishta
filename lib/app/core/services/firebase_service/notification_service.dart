@@ -244,6 +244,16 @@ class NotificationServices {
       throw Exception('Firebase Service Account credentials not configured');
     }
     
+    // Validate PEM format
+    final privateKey = serviceAccountJson['private_key']!;
+    if (!privateKey.contains('-----BEGIN PRIVATE KEY-----') || 
+        !privateKey.contains('-----END PRIVATE KEY-----')) {
+      AppLogger.error('Invalid private key format! Missing PEM markers.');
+      AppLogger.error('Private key must start with -----BEGIN PRIVATE KEY----- and end with -----END PRIVATE KEY-----');
+      AppLogger.error('Check FIREBASE_NOTIFICATION_FIX.md for proper format');
+      throw Exception('Invalid Firebase private key format - missing PEM markers');
+    }
+    
     AppLogger.success('Firebase Service Account credentials loaded from environment');
     
     final List<String> scopes = [

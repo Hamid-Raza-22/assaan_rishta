@@ -160,7 +160,7 @@ class EndPoints {
   getUserNumberUrl({required String email}) {
     return '${baseUrl}User/getUserNumber/%7Bemail%7D?email=$email';
   }
-
+  // https://thsolutionz.com/api/User/getUserNumber/%7Bemail%7D?email=$email
   ///pay fast
   getPaymentTokenUrl({basketId, amount}) {
     return '${baseUrl}PayFastController/GetToken/$basketId/$amount/PKR';

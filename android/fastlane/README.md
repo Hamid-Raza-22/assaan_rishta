@@ -31,6 +31,14 @@ Build APK for testing
 
 Build AAB (Android App Bundle) for Play Store
 
+### android build_apk_split
+
+```sh
+[bundle exec] fastlane android build_apk_split
+```
+
+Build APK with split per ABI
+
 ### android internal
 
 ```sh
@@ -55,29 +63,101 @@ Deploy to Play Store Alpha Track
 
 Deploy to Play Store Beta Track
 
-### android deploy
+### android production
 
 ```sh
-[bundle exec] fastlane android deploy
+[bundle exec] fastlane android production
 ```
 
 Deploy to Play Store Production
 
-### android deploy_with_notes
+### android production_with_notes
 
 ```sh
-[bundle exec] fastlane android deploy_with_notes
+[bundle exec] fastlane android production_with_notes
 ```
 
-Deploy to Production with Release Notes
+Deploy to Production with Release Notes (Urdu + English)
 
-### android promote_to_production
+### android promote_internal_to_alpha
 
 ```sh
-[bundle exec] fastlane android promote_to_production
+[bundle exec] fastlane android promote_internal_to_alpha
+```
+
+Promote from Internal to Alpha
+
+### android promote_alpha_to_beta
+
+```sh
+[bundle exec] fastlane android promote_alpha_to_beta
+```
+
+Promote from Alpha to Beta
+
+### android promote_beta_to_production
+
+```sh
+[bundle exec] fastlane android promote_beta_to_production
 ```
 
 Promote from Beta to Production
+
+### android test
+
+```sh
+[bundle exec] fastlane android test
+```
+
+Run Flutter tests
+
+### android analyze
+
+```sh
+[bundle exec] fastlane android analyze
+```
+
+Run Flutter analyze
+
+### android clean
+
+```sh
+[bundle exec] fastlane android clean
+```
+
+Clean Flutter project
+
+### android doctor
+
+```sh
+[bundle exec] fastlane android doctor
+```
+
+Check Flutter doctor
+
+### android deploy_full
+
+```sh
+[bundle exec] fastlane android deploy_full
+```
+
+Build and deploy to Production (Complete workflow)
+
+### android upload_metadata
+
+```sh
+[bundle exec] fastlane android upload_metadata
+```
+
+Upload metadata to Play Store
+
+### android upload_screenshots
+
+```sh
+[bundle exec] fastlane android upload_screenshots
+```
+
+Upload screenshots only
 
 ----
 
