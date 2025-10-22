@@ -588,6 +588,80 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       );
     }
   }
+
+  // Sync cached message status from Firestore
+  Future<void> _syncCachedMessageStatus() async {
+    debugPrint('🔄 Starting cached message status sync...');
+    try {
+      final conversationId = chatController.getConversationId(currentUID, user.id);
+      debugPrint('   Conversation ID: $conversationId');
+      debugPrint('   Cached messages count: ${cachedMessages.length}');
+      
+      // Get all messages from Firestore
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .get();
+      
+      debugPrint('   Firestore messages count: ${snapshot.docs.length}');
+      
+      bool hasChanges = false;
+      final updatedMessages = List<Message>.from(cachedMessages);
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final messageId = doc.id;
+        
+        // Find message in cached list
+        final index = updatedMessages.indexWhere((m) => m.sent == messageId);
+        if (index != -1) {
+          final message = updatedMessages[index];
+          
+          // Parse status from Firestore
+          final newStatus = _parseMessageStatus(data);
+          final newDelivered = data['delivered']?.toString() ?? '';
+          final newRead = data['read']?.toString() ?? '';
+          
+          // Check if status has changed
+          if (message.status != newStatus ||
+              message.read != newRead ||
+              message.delivered != newDelivered) {
+            
+            // Update message with new status
+            final updatedMessage = Message(
+              toId: message.toId,
+              msg: message.msg,
+              read: newRead,
+              type: message.type,
+              fromId: message.fromId,
+              sent: message.sent,
+              status: newStatus,
+              delivered: newDelivered,
+              isViewOnce: message.isViewOnce,
+              isViewed: message.isViewed,
+              reactions: message.reactions,
+            );
+            
+            updatedMessages[index] = updatedMessage;
+            hasChanges = true;
+            
+            debugPrint('🔄 Synced status for message $messageId: ${newStatus.name}');
+          }
+        }
+      }
+      
+      // Update if there were changes
+      if (hasChanges) {
+        cachedMessages.assignAll(updatedMessages);
+        chatController.cachedMessagesPerUser[user.id] = updatedMessages;
+        debugPrint('✅ Synced ${updatedMessages.length} messages with updated status');
+      }
+    } catch (e) {
+      debugPrint('❌ Error syncing cached message status: $e');
+    }
+  }
+
   void _listenForStatusUpdates() {
     final conversationId = chatController.getConversationId(
       currentUID,
@@ -597,6 +671,8 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     // Cancel previous subscription if exists
     _statusUpdateSubscription?.cancel();
 
+    debugPrint('🎧 Started listening for status updates in conversation: $conversationId');
+    
     _statusUpdateSubscription = FirebaseFirestore.instance
         .collection('Hamid_chats')
         .doc(conversationId)
@@ -604,6 +680,8 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         .snapshots()
         .listen((snapshot) {
 
+      debugPrint('📡 Status update received: ${snapshot.docChanges.length} changes');
+      
       bool hasChanges = false;
       final updatedMessages = List<Message>.from(cachedMessages);
 
@@ -612,12 +690,15 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         final data = change.doc.data()!;
         final messageId = change.doc.id;
 
+        debugPrint('📬 Change type: ${change.type.name} for message: $messageId');
+
         // Handle both added and modified messages
         if (change.type == DocumentChangeType.modified ||
             change.type == DocumentChangeType.added) {
 
           // Find message in local list
           final index = updatedMessages.indexWhere((m) => m.sent == messageId);
+          
           if (index != -1) {
             final message = updatedMessages[index];
 
@@ -625,6 +706,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             final newStatus = _parseMessageStatus(data);
             final newDelivered = data['delivered']?.toString() ?? '';
             final newRead = data['read']?.toString() ?? '';
+
+            debugPrint('🔍 Status check for message $messageId:');
+            debugPrint('   Old status: ${message.status.name}, New status: ${newStatus.name}');
+            debugPrint('   Old delivered: ${message.delivered}, New delivered: $newDelivered');
+            debugPrint('   Old read: ${message.read}, New read: $newRead');
 
             final hasChanged = message.status != newStatus ||
                 message.read != newRead ||
@@ -651,6 +737,17 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
               debugPrint('📊 Status updated for message $messageId: ${newStatus.name}');
             }
+          } else {
+            debugPrint('⚠️ Message $messageId not found in cached messages list (${updatedMessages.length} messages)');
+            // If message not in cache but it's from current user, schedule a retry
+            if (data['fromId'] == currentUID) {
+              debugPrint('📍 Message is from current user, will retry after delay');
+              Future.delayed(const Duration(milliseconds: 500), () {
+                // Trigger a refresh to pick up the message
+                debugPrint('🔄 Retrying status update after delay');
+                _listenForStatusUpdates();
+              });
+            }
           }
         }
       }
@@ -660,7 +757,13 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         cachedMessages.assignAll(updatedMessages);
         // Also update the cache in chatController
         chatController.cachedMessagesPerUser[user.id] = updatedMessages;
+        
+        // Notify listeners to rebuild UI
+        debugPrint('🔄 Notifying UI update for status changes');
+        cachedMessages.refresh();
       }
+    }, onError: (error) {
+      debugPrint('❌ Error in status listener: $error');
     });
   }
   MessageStatus _parseMessageStatus(Map<String, dynamic> data) {
@@ -951,6 +1054,8 @@ Future<void> showImageOptions() async {
     // Immediately show cached messages if available
     if (chatController.cachedMessagesPerUser.containsKey(user.id)) {
       cachedMessages.value = chatController.cachedMessagesPerUser[user.id]!;
+      // Sync status from Firestore for cached messages
+      _syncCachedMessageStatus();
     }
 
     // Set chat status first

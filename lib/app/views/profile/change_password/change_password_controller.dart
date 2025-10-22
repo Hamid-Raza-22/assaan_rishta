@@ -2,12 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/services/secure_storage_service.dart';
 import '../../../core/services/storage_services/export.dart';
 import '../../../domain/export.dart';
 import '../../../utils/exports.dart';
 
 class ChangePasswordController extends GetxController {
   final useCases = Get.find<UserManagementUseCase>();
+  final _secureStorage = SecureStorageService();
 
   final formKey = GlobalKey<FormState>();
   RxString oldPassword = "".obs;
@@ -23,8 +25,26 @@ class ChangePasswordController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    oldPassword.value = useCases.getUserPassword();
-    update();
+    _loadOldPassword();
+  }
+
+  Future<void> _loadOldPassword() async {
+    try {
+      // Try to get password from secure storage first
+      final securePassword = await _secureStorage.getUserPassword();
+      if (securePassword != null && securePassword.isNotEmpty) {
+        oldPassword.value = securePassword;
+      } else {
+        // Fallback to SharedPreferences if secure storage is empty
+        oldPassword.value = useCases.getUserPassword();
+      }
+      update();
+    } catch (e) {
+      debugPrint('❌ Error loading old password: $e');
+      // Fallback to SharedPreferences
+      oldPassword.value = useCases.getUserPassword();
+      update();
+    }
   }
 
   updatePassword({context}) async {
@@ -42,8 +62,18 @@ class ChangePasswordController extends GetxController {
           title: "Change Password",
           message: "Your password has been updated successfully. Please log in again for security purposes if required.",
         );
-        final pref = await SharedPreferences.getInstance();
-        pref.setString(StorageKeys.userPassword, confirmPasswordTEC.text);
+        
+        // Save to secure storage
+        try {
+          await _secureStorage.saveUserPassword(confirmPasswordTEC.text);
+          debugPrint('✅ Password saved to secure storage');
+        } catch (e) {
+          debugPrint('❌ Error saving to secure storage: $e');
+          // Fallback to SharedPreferences
+          final pref = await SharedPreferences.getInstance();
+          pref.setString(StorageKeys.userPassword, confirmPasswordTEC.text);
+        }
+        
         update();
         Navigator.of(context).pop();
       },

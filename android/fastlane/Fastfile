@@ -1,81 +1,267 @@
 # This file contains the fastlane.tools configuration
 # You can find the documentation at https://docs.fastlane.tools
+#
+# Asaan Rishta - Automated Play Store Deployment
+# Version: 1.0.0
 
 default_platform(:android)
 
 platform :android do
 
+  # ============================================
+  # BUILD LANES
+  # ============================================
+
   desc "Build APK for testing"
   lane :build_apk do
-    gradle(task: "clean assembleRelease")
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "apk", "--release")
+    end
   end
 
   desc "Build AAB (Android App Bundle) for Play Store"
   lane :build_aab do
-    gradle(task: "clean bundleRelease")
+    Dir.chdir("..") do
+#       
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
   end
+
+  desc "Build APK with split per ABI"
+  lane :build_apk_split do
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "apk", "--split-per-abi", "--release")
+    end
+  end
+
+  # ============================================
+  # DEPLOYMENT LANES
+  # ============================================
 
   desc "Deploy to Play Store Internal Testing Track"
   lane :internal do
-    # Build the app bundle
-    gradle(task: "clean bundleRelease")
+    # Build the app bundle using Flutter
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
 
     # Upload to internal testing track
     upload_to_play_store(
       track: 'internal',
-      aab: '../build/app/outputs/bundle/release/app-release.aab'
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
     )
   end
 
   desc "Deploy to Play Store Alpha Track"
   lane :alpha do
-    gradle(task: "clean bundleRelease")
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
 
     upload_to_play_store(
       track: 'alpha',
-      aab: '../build/app/outputs/bundle/release/app-release.aab'
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
     )
   end
 
   desc "Deploy to Play Store Beta Track"
   lane :beta do
-    gradle(task: "clean bundleRelease")
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
 
     upload_to_play_store(
       track: 'beta',
-      aab: '../build/app/outputs/bundle/release/app-release.aab'
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
     )
   end
 
   desc "Deploy to Play Store Production"
-  lane :deploy do
-    gradle(task: "clean bundleRelease")
-
-    upload_to_play_store(
-      track: 'production',
-      aab: '../build/app/outputs/bundle/release/app-release.aab'
-    )
-  end
-
-  desc "Deploy to Production with Release Notes"
-  lane :deploy_with_notes do |options|
-    gradle(task: "clean bundleRelease")
+  lane :production do
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
 
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
+    )
+  end
+
+  desc "Deploy to Production with Release Notes (Urdu + English)"
+  lane :production_with_notes do |options|
+    Dir.chdir("..") do
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
+
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true,
       release_notes: {
-        'en-US' => options[:notes] || 'Bug fixes and improvements'
+        'en-US' => options[:notes_en] || 'Bug fixes and improvements',
+        'ur-PK' => options[:notes_ur] || 'بہتری اور bug fixes'
       }
     )
   end
 
+  # ============================================
+  # PROMOTION LANES
+  # ============================================
+
+  desc "Promote from Internal to Alpha"
+  lane :promote_internal_to_alpha do
+    upload_to_play_store(
+      track: 'internal',
+      track_promote_to: 'alpha',
+      skip_upload_changelogs: true
+    )
+  end
+
+  desc "Promote from Alpha to Beta"
+  lane :promote_alpha_to_beta do
+    upload_to_play_store(
+      track: 'alpha',
+      track_promote_to: 'beta',
+      skip_upload_changelogs: true
+    )
+  end
+
   desc "Promote from Beta to Production"
-  lane :promote_to_production do
+  lane :promote_beta_to_production do
     upload_to_play_store(
       track: 'beta',
-      track_promote_to: 'production'
+      track_promote_to: 'production',
+      skip_upload_changelogs: true
     )
+  end
+
+  # ============================================
+  # UTILITY LANES
+  # ============================================
+
+  desc "Run Flutter tests"
+  lane :test do
+    Dir.chdir("..") do
+      sh("flutter", "test")
+    end
+  end
+
+  desc "Run Flutter analyze"
+  lane :analyze do
+    Dir.chdir("..") do
+      sh("flutter", "analyze")
+    end
+  end
+
+  desc "Clean Flutter project"
+  lane :clean do
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+    end
+  end
+
+  desc "Check Flutter doctor"
+  lane :doctor do
+    Dir.chdir("..") do
+      sh("flutter", "doctor", "-v")
+    end
+  end
+
+  desc "Build and deploy to Production (Complete workflow)"
+  lane :deploy_full do |options|
+    # Run tests
+    test
+
+    # Run analyze
+    analyze
+
+    # Build AAB
+    Dir.chdir("..") do
+      
+      sh("flutter", "pub", "get")
+      sh("flutter", "build", "appbundle", "--release")
+    end
+
+    # Deploy to production
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true,
+      release_notes: {
+        'en-US' => options[:notes_en] || 'Bug fixes and improvements',
+        'ur-PK' => options[:notes_ur] || 'بہتری اور bug fixes'
+      }
+    )
+
+    # Success notification
+    puts "✅ Successfully deployed to Play Store Production!"
+  end
+
+  # ============================================
+  # METADATA MANAGEMENT
+  # ============================================
+
+  desc "Upload metadata to Play Store"
+  lane :upload_metadata do
+    upload_to_play_store(
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_screenshots: false,
+      skip_upload_images: false,
+      skip_upload_metadata: false
+    )
+  end
+
+  desc "Upload screenshots only"
+  lane :upload_screenshots do
+    upload_to_play_store(
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_screenshots: false,
+      skip_upload_images: true,
+      skip_upload_metadata: true
+    )
+  end
+
+  # ============================================
+  # ERROR HANDLING
+  # ============================================
+
+  error do |lane, exception|
+    puts "❌ Error in lane '#{lane}': #{exception.message}"
+    # You can add Slack/Discord notifications here
   end
 
 end

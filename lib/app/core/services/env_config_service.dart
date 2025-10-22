@@ -45,8 +45,11 @@ class EnvConfig {
       dotenv.env['FIREBASE_SERVICE_ACCOUNT_PROJECT_ID'] ?? '';
   static String get firebaseServiceAccountPrivateKeyId => 
       dotenv.env['FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY_ID'] ?? '';
-  static String get firebaseServiceAccountPrivateKey => 
-      dotenv.env['FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY'] ?? '';
+  static String get firebaseServiceAccountPrivateKey {
+    final key = dotenv.env['FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY'] ?? '';
+    // Replace literal \n with actual newlines for PEM format
+    return key.replaceAll('\\n', '\n');
+  }
   static String get firebaseServiceAccountClientEmail => 
       dotenv.env['FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL'] ?? '';
   static String get firebaseServiceAccountClientId => 

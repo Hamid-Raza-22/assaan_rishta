@@ -1,3 +1,17 @@
 source "https://rubygems.org"
 
-gem "fastlane"
+# Minimal Gemfile for Fastlane
+ruby '3.4.7'  # Match your installed Ruby version
+
+gem 'fastlane', '2.228.0'  # Use the version you have installed
+
+# Required dependencies for Ruby 3.4+
+gem 'rexml', '3.4.3'  # Using the exact version available
+gem 'abbrev', '~> 0.1.0'
+gem 'fiddle', '~> 1.1.0'
+
+# Development dependencies
+group :development do
+  gem 'bundler', '>= 2.4.0'  # More flexible version requirement
+  gem 'rake', '~> 13.0.0'
+end
