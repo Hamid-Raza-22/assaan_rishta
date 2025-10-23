@@ -56,7 +56,7 @@ platform :android do
     upload_to_play_store(
       track: 'internal',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -74,7 +74,7 @@ platform :android do
     upload_to_play_store(
       track: 'alpha',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -92,7 +92,7 @@ platform :android do
     upload_to_play_store(
       track: 'beta',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -110,7 +110,7 @@ platform :android do
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -132,7 +132,7 @@ platform :android do
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true,
@@ -149,7 +149,7 @@ platform :android do
     upload_to_play_store(
       track: 'internal',
       track_promote_to: 'alpha',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_changelogs: true
     )
   end
@@ -159,7 +159,7 @@ platform :android do
     upload_to_play_store(
       track: 'alpha',
       track_promote_to: 'beta',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_changelogs: true
     )
   end
@@ -169,7 +169,7 @@ platform :android do
     upload_to_play_store(
       track: 'beta',
       track_promote_to: 'production',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_changelogs: true
     )
   end
@@ -226,7 +226,7 @@ platform :android do
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true,
@@ -247,7 +247,7 @@ platform :android do
   desc "Upload metadata to Play Store"
   lane :upload_metadata do
     upload_to_play_store(
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_apk: true,
       skip_upload_aab: true,
       skip_upload_screenshots: false,
@@ -259,7 +259,7 @@ platform :android do
   desc "Upload screenshots only"
   lane :upload_screenshots do
     upload_to_play_store(
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
+      json_key: 'asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_apk: true,
       skip_upload_aab: true,
       skip_upload_screenshots: false,
