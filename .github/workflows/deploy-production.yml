@@ -57,10 +57,14 @@ jobs:
         run: |
           echo "${{ secrets.UPLOAD_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
 
-      # 9. Create key.properties
+      # 9. Create key.properties with relative path
       - name: Create key.properties
         run: |
-          echo "${{ secrets.KEY_PROPERTIES }}" > android/key.properties
+          # Replace absolute Windows path with relative path
+          KEY_PROPS="${{ secrets.KEY_PROPERTIES }}"
+          KEY_PROPS=$(echo "$KEY_PROPS" | sed 's|C:/flutterdev/projects/assaan_rishta/||g')
+          KEY_PROPS=$(echo "$KEY_PROPS" | sed 's|storeFile=.*\.jks|storeFile=upload-keystore.jks|g')
+          echo "$KEY_PROPS" > android/key.properties
 
       # 10. Setup Ruby for Fastlane
       - name: Set up Ruby
