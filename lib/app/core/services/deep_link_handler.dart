@@ -18,6 +18,7 @@ class DeepLinkHandler {
   static String? _pendingDeepLinkVendorId;
   static String? _pendingDeepLinkType;
 
+
   // Cache for vendor data to avoid repeated API calls
   static final Map<String, VendorsList> _vendorCache = {};
   static DateTime? _cacheTime;
