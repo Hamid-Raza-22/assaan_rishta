@@ -314,6 +314,7 @@ class ContactUsView extends GetView<ContactUsController> {
                                        Icons.phone,
                                        color: AppColors.secondaryColor,
                                        size: 20,
+
                                      ),
                                      SizedBox(width: 8),
                                      Expanded(
