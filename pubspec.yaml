@@ -41,6 +41,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # - Android mein isko `versionCode` aur iOS mein `CFBundleVersion` kehte hain.
 version: 1.10.22+40
 
+
 environment:
   sdk: ^3.8.1
 
