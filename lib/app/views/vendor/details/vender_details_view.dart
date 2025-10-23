@@ -267,7 +267,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                         ),
                         SizedBox(height: 10),
                         AppText(
-                          text: "+92-307-4052552  +92-306-4727345",
+                          text: "+92-309-4014024  +92-306-4727345",
                           fontWeight: FontWeight.w400,
                           fontSize: 16,
                           color: AppColors.primaryColor,
