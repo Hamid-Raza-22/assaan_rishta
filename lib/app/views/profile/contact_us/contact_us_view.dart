@@ -206,57 +206,136 @@ class ContactUsView extends GetView<ContactUsController> {
 
                        const SizedBox(height: 12),
 
-                       // WhatsApp Card
-                       InkWell(
-                         onTap: () => controller.openWhatsApp(phone: '+923064727345'),
-                         borderRadius: BorderRadius.circular(12),
-                         child: Container(
-                           padding: const EdgeInsets.all(16),
-                           decoration: BoxDecoration(
-                             color: AppColors.fillFieldColor,
-                             borderRadius: BorderRadius.circular(12),
-                             border: Border.all(
-                               color: AppColors.borderColor.withOpacity(0.5),
-                             ),
+                       // WhatsApp Card with 2 Numbers
+                       Container(
+                         padding: const EdgeInsets.all(16),
+                         decoration: BoxDecoration(
+                           color: AppColors.fillFieldColor,
+                           borderRadius: BorderRadius.circular(12),
+                           border: Border.all(
+                             color: AppColors.borderColor.withOpacity(0.5),
                            ),
-                           child: Row(
-                             children: [
-                               Container(
-                                 padding: const EdgeInsets.all(10),
+                         ),
+                         child: Column(
+                           crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                             Row(
+                               children: [
+                                 Container(
+                                   padding: const EdgeInsets.all(10),
+                                   decoration: BoxDecoration(
+                                     color: AppColors.secondaryColor.withOpacity(0.1),
+                                     borderRadius: BorderRadius.circular(10),
+                                   ),
+                                   child: const Icon(
+                                     Icons.phone,
+                                     color: AppColors.secondaryColor,
+                                     size: 24,
+                                   ),
+                                 ),
+                                 const SizedBox(width: 16),
+                                 const Expanded(
+                                   child: Column(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                       AppText(
+                                         text: 'WhatsApp Support',
+                                         fontSize: 14,
+                                         fontWeight: FontWeight.w600,
+                                         color: AppColors.blackColor,
+                                       ),
+                                       SizedBox(height: 4),
+                                       AppText(
+                                         text: 'Tap any number to chat',
+                                         fontSize: 12,
+                                         color: AppColors.greyColor,
+                                       ),
+                                     ],
+                                   ),
+                                 ),
+                               ],
+                             ),
+                             const SizedBox(height: 16),
+                             // Number 1
+                             InkWell(
+                               onTap: () => controller.openWhatsApp(phone: '+923064727345'),
+                               borderRadius: BorderRadius.circular(8),
+                               child: Container(
+                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                  decoration: BoxDecoration(
                                    color: AppColors.secondaryColor.withOpacity(0.1),
-                                   borderRadius: BorderRadius.circular(10),
+                                   borderRadius: BorderRadius.circular(8),
+                                   border: Border.all(
+                                     color: AppColors.secondaryColor.withOpacity(0.3),
+                                   ),
                                  ),
-                                 child: const Icon(
-                                   Icons.phone,
-                                   color: AppColors.secondaryColor,
-                                   size: 24,
-                                 ),
-                               ),
-                               const SizedBox(width: 16),
-                               const Expanded(
-                                 child: Column(
-                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                 child: const Row(
                                    children: [
-                                     AppText(
-                                       text: 'WhatsApp (Support)',
-                                       fontSize: 14,
-                                       fontWeight: FontWeight.w600,
-                                       color: AppColors.blackColor,
+                                     Icon(
+                                       Icons.phone,
+                                       color: AppColors.secondaryColor,
+                                       size: 20,
                                      ),
-                                     SizedBox(height: 4),
-                                     AppText(
-                                       text: '+92 306 4727345',
-                                       fontSize: 13,
+                                     SizedBox(width: 8),
+                                     Expanded(
+                                       child: AppText(
+                                         text: '+92 306 4727345',
+                                         fontSize: 13,
+                                         fontWeight: FontWeight.w500,
+                                         color: AppColors.secondaryColor,
+                                       ),
+                                     ),
+                                     Icon(
+                                       Icons.arrow_forward_ios,
+                                       size: 14,
                                        color: AppColors.secondaryColor,
                                      ),
                                    ],
                                  ),
                                ),
-                             ],
-                           ),
+                             ),
+                             const SizedBox(height: 10),
+                             // Number 2
+                             InkWell(
+                               onTap: () => controller.openWhatsApp(phone: '+923094014024'),
+                               borderRadius: BorderRadius.circular(8),
+                               child: Container(
+                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                 decoration: BoxDecoration(
+                                   color: AppColors.secondaryColor.withOpacity(0.1),
+                                   borderRadius: BorderRadius.circular(8),
+                                   border: Border.all(
+                                     color: AppColors.secondaryColor.withOpacity(0.3),
+                                   ),
+                                 ),
+                                 child: const Row(
+                                   children: [
+                                     Icon(
+                                       Icons.phone,
+                                       color: AppColors.secondaryColor,
+                                       size: 20,
+                                     ),
+                                     SizedBox(width: 8),
+                                     Expanded(
+                                       child: AppText(
+                                         text: '+92 309 4014024',
+                                         fontSize: 13,
+                                         fontWeight: FontWeight.w500,
+                                         color: AppColors.secondaryColor,
+                                       ),
+                                     ),
+                                     Icon(
+                                       Icons.arrow_forward_ios,
+                                       size: 14,
+                                       color: AppColors.secondaryColor,
+                                     ),
+                                   ],
+                                 ),
+                               ),
+                             ),
+                           ],
                          ),
-                        ),
+                       ),
                        ],
                   ),
                 ),
