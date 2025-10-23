@@ -298,6 +298,7 @@ class ContactUsView extends GetView<ContactUsController> {
                              // Number 2
                              InkWell(
                                onTap: () => controller.openWhatsApp(phone: '+923094014024'),
+
                                borderRadius: BorderRadius.circular(8),
                                child: Container(
                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
