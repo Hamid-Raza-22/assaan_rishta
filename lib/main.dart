@@ -155,6 +155,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         debugPrint('⚠️ Direct update failed: $e');
       }
 
+
       // Step 2: If direct update failed, try cloud function
       if (!deliveryConfirmed) {
         try {
