@@ -56,3 +56,18 @@ app.*.map.json
 !google-services.json
 !firebase.json
 !build.json
+
+# Fastlane and Ruby gems
+android/vendor/
+android/Gemfile.lock
+android/.bundle/
+android/fastlane/report.xml
+android/fastlane/Preview.html
+android/fastlane/screenshots/
+android/fastlane/test_output/
+
+# Ruby
+.ruby-version
+.ruby-gemset
+.gems
+Gemfile.lock
