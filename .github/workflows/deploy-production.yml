@@ -50,12 +50,16 @@ jobs:
       # 7. Create service account JSON from secrets
       - name: Create service account JSON
         run: |
-          echo "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}" > android/asaan-rishta-chat-d848bdbc2a5e.json
+          cat > android/asaan-rishta-chat-d848bdbc2a5e.json << 'EOF'
+          ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+          EOF
 
       # 8. Create upload keystore from secrets
       - name: Create upload keystore
         run: |
+          mkdir -p android/app
           echo "${{ secrets.UPLOAD_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          ls -lh android/app/upload-keystore.jks
 
       # 9. Create key.properties with relative path
       - name: Create key.properties
