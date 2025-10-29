@@ -39,6 +39,10 @@ class SecureStorageService {
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyLastLoginTime = 'last_login_time';
   static const String _keyFCMToken = 'fcm_token';
+  
+  // App preferences keys
+  static const String _keyHasSeenOnboarding = 'has_seen_onboarding';
+  static const String _keyFirstInstall = 'first_install';
 
   // ==================== Auth Token Methods ====================
   
@@ -455,6 +459,69 @@ class SecureStorageService {
     } catch (e) {
       debugPrint('❌ Error reading all data: $e');
       return {};
+    }
+  }
+
+  // ==================== App Preferences Methods ====================
+  
+  /// Save onboarding completion status
+  Future<void> setHasSeenOnboarding(bool hasSeen) async {
+    try {
+      await _storage.write(
+        key: _keyHasSeenOnboarding,
+        value: hasSeen.toString(),
+      );
+      debugPrint('✅ Onboarding status saved: $hasSeen');
+    } catch (e) {
+      debugPrint('❌ Error saving onboarding status: $e');
+    }
+  }
+
+  /// Get onboarding completion status
+  Future<bool> hasSeenOnboarding() async {
+    try {
+      final value = await _storage.read(key: _keyHasSeenOnboarding);
+      return value == 'true';
+    } catch (e) {
+      debugPrint('❌ Error reading onboarding status: $e');
+      return false;
+    }
+  }
+
+  /// Save first install flag
+  Future<void> setFirstInstall(bool isFirst) async {
+    try {
+      await _storage.write(
+        key: _keyFirstInstall,
+        value: isFirst.toString(),
+      );
+      debugPrint('✅ First install flag saved: $isFirst');
+    } catch (e) {
+      debugPrint('❌ Error saving first install flag: $e');
+    }
+  }
+
+  /// Get first install flag
+  Future<bool> isFirstInstall() async {
+    try {
+      final value = await _storage.read(key: _keyFirstInstall);
+      // Default to true if not set (actual first install)
+      if (value == null) return true;
+      return value == 'true';
+    } catch (e) {
+      debugPrint('❌ Error reading first install flag: $e');
+      return true; // Default to true on error
+    }
+  }
+
+  /// Clear app preferences only (keep user data)
+  Future<void> clearAppPreferences() async {
+    try {
+      await _storage.delete(key: _keyHasSeenOnboarding);
+      await _storage.delete(key: _keyFirstInstall);
+      debugPrint('🗑️ App preferences cleared');
+    } catch (e) {
+      debugPrint('❌ Error clearing app preferences: $e');
     }
   }
 }

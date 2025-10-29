@@ -25,7 +25,7 @@ class OnboardingView extends StatelessWidget {
             return CustomOnboardingPage(
               video: data["video"]!,
               title: data["title"]!,
-              subtitle: data["subtitle"]!,
+              // subtitle: data["subtitle"],
               index: index,
             );
           },

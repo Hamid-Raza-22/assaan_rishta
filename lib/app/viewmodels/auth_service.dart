@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/routes/app_routes.dart';
 import '../core/services/firebase_service/export.dart';
@@ -172,23 +171,19 @@ class AuthService extends GetxController {
       // 2. Remove FCM token from Firestore
       await _removeFCMToken();
 
-      // 3. Clear secure storage and local data BUT preserve onboarding flag
+      // 3. Clear secure storage BUT preserve onboarding flags
       final secureStorage = SecureStorageService();
-      await secureStorage.clearAll();
       
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-
       // Save the onboarding status before clearing
-      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
-      final isFirstInstall = prefs.getBool('first_install') ?? false;
+      final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
+      final isFirstInstall = await secureStorage.isFirstInstall();
 
       // Clear all data
-      await prefs.clear();
+      await secureStorage.clearAll();
 
       // Restore the onboarding flags
-      await prefs.setBool('has_seen_onboarding', hasSeenOnboarding);
-      await prefs.setBool('first_install', isFirstInstall);
+      await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
+      await secureStorage.setFirstInstall(isFirstInstall);
 
       // 4. Reset local variables
       _userId = null;
@@ -216,22 +211,18 @@ class AuthService extends GetxController {
       NotificationServices.clearSession();
       AppLogger.error('Error during logout: $e');
 
-      // Even if there's an error, clear secure storage and local data
+      // Even if there's an error, clear secure storage
       final secureStorage = SecureStorageService();
-      await secureStorage.clearAll();
       
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-
       // Save flags before clearing
-      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
-      final isFirstInstall = prefs.getBool('first_install') ?? false;
+      final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
+      final isFirstInstall = await secureStorage.isFirstInstall();
 
-      await prefs.clear();
+      await secureStorage.clearAll();
 
       // Restore flags
-      await prefs.setBool('has_seen_onboarding', hasSeenOnboarding);
-      await prefs.setBool('first_install', isFirstInstall);
+      await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
+      await secureStorage.setFirstInstall(isFirstInstall);
 
       isUserLoggedIn.value = false;
       currentUser.value = null;
@@ -394,23 +385,19 @@ class AuthService extends GetxController {
         debugPrint('⚠️ Error removing FCM token: $e');
       }
 
-      // Clear secure storage and local data BUT preserve onboarding flag
+      // Clear secure storage BUT preserve onboarding flags
       final secureStorage = SecureStorageService();
-      await secureStorage.clearAll();
       
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-
       // Save the onboarding status before clearing
-      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
-      final isFirstInstall = prefs.getBool('first_install') ?? false;
+      final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
+      final isFirstInstall = await secureStorage.isFirstInstall();
 
       // Clear all data
-      await prefs.clear();
+      await secureStorage.clearAll();
 
       // Restore the onboarding flags
-      await prefs.setBool('has_seen_onboarding', hasSeenOnboarding);
-      await prefs.setBool('first_install', isFirstInstall);
+      await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
+      await secureStorage.setFirstInstall(isFirstInstall);
 
       // Reset local variables
       _userId = null;

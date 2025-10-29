@@ -25,6 +25,9 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   bool isNotificationInitialized = false;
   bool _isInitialized = false;
 
+  // Cache login status for sync getters
+  final RxBool isLoggedIn = false.obs;
+
   // Debouncing for status updates
   Timer? _statusUpdateTimer;
   bool _lastKnownStatus = true;
@@ -38,9 +41,15 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     super.onInit();
     useCase = Get.find<UserManagementUseCase>(); // Initialize useCase
     _initializePages();
+    _loadLoginStatus();
     WidgetsBinding.instance.addObserver(this);
     _initializeApp();
     manualVersionCheck();
+  }
+
+  // Load login status from secure storage
+  void _loadLoginStatus()  {
+    isLoggedIn.value =  useCase.getUserLoggedInStatus();
   }
 
   void _initializePages() {
@@ -62,8 +71,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
   // Get current pages based on login status
   List<Widget> get currentPages {
-    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
-    return isLoggedIn ? pages : guestPages;
+    return isLoggedIn.value ? pages : guestPages;
   }
 
   // Get current page count based on login status
@@ -89,16 +97,16 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     if (selectedTab.value == index) return;
     // Ensure index is within valid range
     if (index >= pageCount) return;
-    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
 
     selectedTab.value = index;
 
     _performVersionCheck();
     // Only set chat state if user is logged in and on chat tab
-    if (isLoggedIn) {
+    if (isLoggedIn.value) {
       FirebaseService.setAppState(isInChat: index == 2); // Chat is at index 2 for logged in users
     }
   }
+
   void _performVersionCheck() {
     if (Get.context != null) {
       debugPrint('🔍 Performing version check...');
@@ -110,6 +118,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   void manualVersionCheck() {
     _performVersionCheck();
   }
+
   Future<void> _initializeApp() async {
     if (_isInitialized) return;
 
@@ -117,9 +126,10 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
     try {
       // Only initialize Firebase if user is logged in
-      bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
+      bool loginStatus = await useCase.getUserLoggedInStatus();
+      isLoggedIn.value = loginStatus; // Update cached value
 
-      if (isLoggedIn) {
+      if (loginStatus) {
         await _initializeFirebaseUser();
         FirebaseService.setAppState(isInForeground: true, isInChat: false);
         await _updateStatusImmediate(true);
@@ -136,8 +146,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_isInitialized) return;
     // Only handle lifecycle for logged in users
-    bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
-    if (!isLoggedIn) return;
+    if (!isLoggedIn.value) return;
     debugPrint('📱 App lifecycle changed: $state');
 
     switch (state) {
@@ -190,7 +199,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   }
   Future<void> _processAllPendingDeliveries() async {
     try {
-      final currentUserId = useCase.getUserId().toString();
+      final currentUserId = (await useCase.getUserId()).toString();
 
       // Get all conversations
       final myUsersSnapshot = await FirebaseFirestore.instance

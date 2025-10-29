@@ -475,8 +475,8 @@ class ForgotPasswordController extends BaseController{
             (success) async {
           AppUtils.successData(title: 'Success', message: 'Password updated successfully');
 
-          final pref = await SharedPreferences.getInstance();
-          await pref.setString(StorageKeys.userPassword, confirmPasswordTEC.text);
+          // Save password to secure storage
+          await secureStorage.saveUserPassword(confirmPasswordTEC.text);
 
           phoneTEC.clear();
           otpTEC.clear();
