@@ -30,18 +30,18 @@ class ChangePasswordController extends GetxController {
 
   Future<void> _loadOldPassword() async {
     try {
-      // Try to get password from secure storage first
+      // Get password from secure storage
       final securePassword = await _secureStorage.getUserPassword();
       if (securePassword != null && securePassword.isNotEmpty) {
         oldPassword.value = securePassword;
       } else {
-        // Fallback to SharedPreferences if secure storage is empty
+        // Fallback to use case if secure storage is empty
         oldPassword.value = useCases.getUserPassword();
       }
       update();
     } catch (e) {
       debugPrint('❌ Error loading old password: $e');
-      // Fallback to SharedPreferences
+      // Fallback to use case
       oldPassword.value = useCases.getUserPassword();
       update();
     }
@@ -64,15 +64,8 @@ class ChangePasswordController extends GetxController {
         );
         
         // Save to secure storage
-        try {
-          await _secureStorage.saveUserPassword(confirmPasswordTEC.text);
-          debugPrint('✅ Password saved to secure storage');
-        } catch (e) {
-          debugPrint('❌ Error saving to secure storage: $e');
-          // Fallback to SharedPreferences
-          final pref = await SharedPreferences.getInstance();
-          pref.setString(StorageKeys.userPassword, confirmPasswordTEC.text);
-        }
+        await _secureStorage.saveUserPassword(confirmPasswordTEC.text);
+        debugPrint('✅ Password saved to secure storage');
         
         update();
         Navigator.of(context).pop();

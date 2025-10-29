@@ -14,11 +14,11 @@ class UserManagementRepoImpl implements UserManagementRepo {
   final SharedPreferences sharedPreferences;
 
   UserManagementRepoImpl(
-    this._storageRepo,
-    this._networkHelper,
-    this._endPoints,
-    this.sharedPreferences,
-  );
+      this._storageRepo,
+      this._networkHelper,
+      this._endPoints,
+      this.sharedPreferences,
+      );
 
   @override
   bool getUserLoggedInStatus() {

@@ -5,8 +5,8 @@ class StorageRepoImpl implements StorageRepo {
   final SharedPreferences sharedPreferences;
 
   StorageRepoImpl(
-    this.sharedPreferences,
-  );
+      this.sharedPreferences,
+      );
 
   @override
   bool contains(String key) => sharedPreferences.containsKey(key);

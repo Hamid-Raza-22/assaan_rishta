@@ -7,14 +7,14 @@ import '../../widgets/app_text.dart';
 class CustomOnboardingPage extends StatefulWidget {
   final String video;
   final String title;
-  final String subtitle;
+  // final String? subtitle;
   final int index;
 
   const CustomOnboardingPage({
     super.key,
     required this.video,
     required this.title,
-    required this.subtitle,
+    // this.subtitle,
     required this.index,
   });
 
@@ -71,16 +71,16 @@ class _CustomOnboardingPageState extends State<CustomOnboardingPage> {
             color: Colors.black,
             maxLines: 3,
           ),
-          const SizedBox(height: 8),
+          // const SizedBox(height: 8),
 
           // 🟦 Subtitle
-          AppText(
-            text: widget.subtitle,
-            textAlign: TextAlign.center,
-            fontSize: 16,
-            color: Colors.black54,
-            maxLines: 5,
-          ),
+          // AppText(
+          //   text: widget.subtitle,
+          //   textAlign: TextAlign.center,
+          //   fontSize: 16,
+          //   color: Colors.black54,
+          //   maxLines: 5,
+          // ),
 
           const SizedBox(height: 20),
 
@@ -131,6 +131,37 @@ class _CustomOnboardingPageState extends State<CustomOnboardingPage> {
               ),
             ),
           ),
+
+          // 🔹 Skip Button at the bottom
+          const SizedBox(height: 20),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () {
+                  onboardingController.onSkipPressed();
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  backgroundColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    side: BorderSide(color: Colors.grey.shade400, width: 1.5),
+                  ),
+                ),
+                child: AppText(
+                  text: widget.index < onboardingController.onboardingData.length - 1
+                      ? "Skip"
+                      : "Skip",
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+           const SizedBox(height: 1),
         ],
       ),
     );

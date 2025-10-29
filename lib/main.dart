@@ -27,13 +27,10 @@ import 'app/utils/app_colors.dart';
 import 'app/viewmodels/chat_list_viewmodel.dart';
 import 'app/viewmodels/chat_viewmodel.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
 
 Future<bool> isFirstInstall() async {
-  final prefs = await SharedPreferences.getInstance();
-  bool isFirstTime = prefs.getBool('first_install') ?? true;
-
-  // Don't set the flag here - set it after clearing data
+  final secureStorage = SecureStorageService();
+  bool isFirstTime = await secureStorage.isFirstInstall();
   return isFirstTime;
 }
 
@@ -67,12 +64,9 @@ Future<void> main() async {
 
   if (firstTime) {
     // Clear all data on first install
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    // Clear secure storage as well
     await SecureStorageService().clearAll();
     // NOW set the flag after clearing everything else
-    await prefs.setBool('first_install', false);
+    await SecureStorageService().setFirstInstall(false);
   }
 
   HttpOverrides.global = MyHttpOverrides();
@@ -98,11 +92,12 @@ Future<void> main() async {
   // Initialize deep links
   await DeepLinkHandler.initDeepLinks();
   // Decide initial route based on onboarding completion
-  final prefs = await SharedPreferences.getInstance();
-  final bool hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+  final secureStorage = SecureStorageService();
+  final bool hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
   final String initialRoute = (firstTime || !hasSeenOnboarding)
       ? AppRoutes.ONBOARDING
-      : AppRoutes.SPLASH;
+      : AppRoutes.ONBOARDING;
+      // : AppRoutes.SPLASH;
 
   runApp(AsanRishtaApp(initialRoute: initialRoute));
 }

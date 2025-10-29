@@ -20,11 +20,11 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
   final SharedPreferences sharedPreferences;
 
   SystemConfigRepoImpl(
-    this._storageRepo,
-    this._networkHelper,
-    this._endPoints,
-    this.sharedPreferences,
-  );
+      this._storageRepo,
+      this._networkHelper,
+      this._endPoints,
+      this.sharedPreferences,
+      );
 
   @override
   Future<Either<AppError, AllCast>> getAllCasts() async {
@@ -62,7 +62,7 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
   Future<Either<AppError, AllOccupations>> getAllOccupations() async {
     try {
       final response =
-          await _networkHelper.get(_endPoints.getAllOccupationsUrl());
+      await _networkHelper.get(_endPoints.getAllOccupationsUrl());
       AllOccupations model = AllOccupations();
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         List<dynamic> jsonResponse = json.decode(response.body);
@@ -127,7 +127,7 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
   Future<Either<AppError, List<AllCountries>>> getAllCountries() async {
     try {
       final response =
-          await _networkHelper.get(_endPoints.getAllCountriesUrl());
+      await _networkHelper.get(_endPoints.getAllCountriesUrl());
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         List<dynamic> jsonResponse = json.decode(response.body);
         if (jsonResponse.isNotEmpty) {
@@ -412,7 +412,7 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
 
   @override
   Future<Either<AppError, List<TransactionHistory>>>
-      transactionHistory() async {
+  transactionHistory() async {
     try {
       final response = await _networkHelper.get(
         _endPoints.transactionHistoryUrl(
@@ -444,8 +444,8 @@ class SystemConfigRepoImpl implements SystemConfigRepo {
       );
     }
   }
- Future<Either<AppError, List<ConnectsHistory>>>
-      connectsHistory() async {
+  Future<Either<AppError, List<ConnectsHistory>>>
+  connectsHistory() async {
     try {
       final response = await _networkHelper.get(
         _endPoints.connectsHistoryUrl(

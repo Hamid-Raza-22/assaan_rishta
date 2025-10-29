@@ -19,21 +19,23 @@ class RepoDependencies {
 
   initializeRepoDependencies() {
     Get.lazyPut<UserManagementRepo>(
-      () => UserManagementRepoImpl(
-        _storageRepo,
-        _networkHelper,
-        _artistEndPoints,
-        sharedPreferences,
-      ),
+          () =>
+          UserManagementRepoImpl(
+            _storageRepo,
+            _networkHelper,
+            _artistEndPoints,
+            sharedPreferences,
+          ),
       fenix: true,
     );
     Get.lazyPut<SystemConfigRepo>(
-      () => SystemConfigRepoImpl(
-        _storageRepo,
-        _networkHelper,
-        _artistEndPoints,
-        sharedPreferences,
-      ),
+          () =>
+          SystemConfigRepoImpl(
+            _storageRepo,
+            _networkHelper,
+            _artistEndPoints,
+            sharedPreferences,
+          ),
       fenix: true,
     );
   }

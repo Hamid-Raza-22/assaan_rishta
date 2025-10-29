@@ -222,7 +222,7 @@ SignupView({super.key});
                     context,
                     showTitleActions: true,
                     minTime: DateTime(1900, 3, 5),
-                    maxTime: DateTime(2006, 12, 31),
+                    maxTime: DateTime(DateTime.now().year - 18, 12, 31),
                     onConfirm: (date) {
                       controller.dobController.value = date;
                       controller.dobTEC.text = DateFormat(
