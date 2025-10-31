@@ -118,6 +118,7 @@ Future<void> main() async {
   runApp(AsanRishtaApp(initialRoute: initialRoute));
 }
 
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase first
