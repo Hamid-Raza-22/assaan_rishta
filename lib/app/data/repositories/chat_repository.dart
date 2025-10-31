@@ -423,6 +423,39 @@ class ChatRepository {
     }
   }
 
+  // PERFORMANCE: Batch mark multiple specific messages as read
+  Future<void> markMultipleMessagesAsRead(String senderId, List<String> messageIds) async {
+    if (messageIds.isEmpty) return;
+    
+    try {
+      final currentUserId = Get.find<UserManagementUseCase>().getUserId().toString();
+      final conversationId = getConversationId(currentUserId, senderId);
+      final readTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      final batch = FirebaseFirestore.instance.batch();
+      
+      for (var messageId in messageIds) {
+        final docRef = FirebaseFirestore.instance
+            .collection('Hamid_chats')
+            .doc(conversationId)
+            .collection('messages')
+            .doc(messageId);
+        
+        batch.update(docRef, {
+          'read': readTime,
+          'status': MessageStatus.read.name,
+          'delivered': readTime,
+          'deliveryPending': false,
+        });
+      }
+
+      await batch.commit();
+      debugPrint('✅ Batch marked ${messageIds.length} messages as read');
+    } catch (e) {
+      debugPrint('❌ Error batch marking messages as read: $e');
+    }
+  }
+
   // Batch mark messages as read
   Future<void> markMessagesAsRead(String senderId) async {
     try {

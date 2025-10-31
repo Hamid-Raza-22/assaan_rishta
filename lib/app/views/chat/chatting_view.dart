@@ -91,6 +91,10 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
   // FIXED: Track the current chat user ID properly
   String? _currentChatUserId;
+  
+  // PERFORMANCE: Throttle read receipts to prevent cascade
+  DateTime? _lastReadReceiptTime;
+  Timer? _readReceiptBatchTimer;
   // Typing status
   final RxBool isOtherUserTyping = false.obs;
   StreamSubscription? _typingStatusSubscription;
@@ -594,8 +598,14 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     debugPrint('🔄 Starting cached message status sync...');
     try {
       final conversationId = chatController.getConversationId(currentUID, user.id);
+      
+      // Get deletion timestamp for filtering
+      final deletionTime = chatController.currentChatDeletionTime.value;
+      final deletionTimestamp = deletionTime != null ? int.tryParse(deletionTime) : null;
+      
       debugPrint('   Conversation ID: $conversationId');
       debugPrint('   Cached messages count: ${cachedMessages.length}');
+      debugPrint('   Deletion filter: $deletionTimestamp');
       
       // Get all messages from Firestore
       final snapshot = await FirebaseFirestore.instance
@@ -608,10 +618,24 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       
       bool hasChanges = false;
       final updatedMessages = List<Message>.from(cachedMessages);
+      int filteredCount = 0;
+      int processedCount = 0;
       
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final messageId = doc.id;
+        
+        // IMPORTANT: Filter out messages before deletion timestamp
+        if (deletionTimestamp != null) {
+          final messageTimestamp = int.tryParse(messageId);
+          if (messageTimestamp != null && messageTimestamp <= deletionTimestamp) {
+            // Skip this message - it was deleted
+            filteredCount++;
+            continue;
+          }
+        }
+        
+        processedCount++;
         
         // Find message in cached list
         final index = updatedMessages.indexWhere((m) => m.sent == messageId);
@@ -623,10 +647,12 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
           final newDelivered = data['delivered']?.toString() ?? '';
           final newRead = data['read']?.toString() ?? '';
           
-          // Check if status has changed
-          if (message.status != newStatus ||
-              message.read != newRead ||
-              message.delivered != newDelivered) {
+          // IMPORTANT: Only sync if the actual STATUS changes (sent -> delivered -> read)
+          // Ignore minor timestamp fluctuations to avoid excessive Hive writes
+          final hasStatusChanged = message.status != newStatus;
+          
+          if (hasStatusChanged) {
+            debugPrint('🔄 Syncing status change for message $messageId: ${message.status.name} → ${newStatus.name}');
             
             // Update message with new status
             final updatedMessage = Message(
@@ -645,17 +671,18 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             
             updatedMessages[index] = updatedMessage;
             hasChanges = true;
-            
-            debugPrint('🔄 Synced status for message $messageId: ${newStatus.name}');
           }
         }
       }
       
+      // Log summary
+      debugPrint('📊 Sync summary: ${snapshot.docs.length} total messages, $filteredCount filtered (deleted), $processedCount processed');
+      
       // Update if there were changes
       if (hasChanges) {
         cachedMessages.assignAll(updatedMessages);
-        chatController.cachedMessagesPerUser[user.id] = updatedMessages;
-        debugPrint('✅ Synced ${updatedMessages.length} messages with updated status');
+        await chatController.cacheMessages(user.id, updatedMessages);
+        debugPrint('✅ Synced ${updatedMessages.length} messages with updated status to Hive');
       }
     } catch (e) {
       debugPrint('❌ Error syncing cached message status: $e');
@@ -680,17 +707,31 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         .snapshots()
         .listen((snapshot) {
 
-      debugPrint('📡 Status update received: ${snapshot.docChanges.length} changes');
+      // Get deletion timestamp for filtering
+      final deletionTime = chatController.currentChatDeletionTime.value;
+      final deletionTimestamp = deletionTime != null ? int.tryParse(deletionTime) : null;
       
       bool hasChanges = false;
       final updatedMessages = List<Message>.from(cachedMessages);
+      int filteredCount = 0;
+      int processedCount = 0;
 
       for (var change in snapshot.docChanges) {
         if (change.doc.data() == null) continue;
         final data = change.doc.data()!;
         final messageId = change.doc.id;
 
-        debugPrint('📬 Change type: ${change.type.name} for message: $messageId');
+        // IMPORTANT: Filter out messages before deletion timestamp
+        if (deletionTimestamp != null) {
+          final messageTimestamp = int.tryParse(messageId);
+          if (messageTimestamp != null && messageTimestamp <= deletionTimestamp) {
+            // Skip this message - it was deleted
+            filteredCount++;
+            continue;
+          }
+        }
+        
+        processedCount++;
 
         // Handle both added and modified messages
         if (change.type == DocumentChangeType.modified ||
@@ -707,16 +748,15 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             final newDelivered = data['delivered']?.toString() ?? '';
             final newRead = data['read']?.toString() ?? '';
 
-            debugPrint('🔍 Status check for message $messageId:');
-            debugPrint('   Old status: ${message.status.name}, New status: ${newStatus.name}');
-            debugPrint('   Old delivered: ${message.delivered}, New delivered: $newDelivered');
-            debugPrint('   Old read: ${message.read}, New read: $newRead');
+            // IMPORTANT: Only update if the actual STATUS changes (sent -> delivered -> read)
+            // Ignore minor timestamp fluctuations to avoid excessive Hive writes
+            final hasStatusChanged = message.status != newStatus;
 
-            final hasChanged = message.status != newStatus ||
-                message.read != newRead ||
-                message.delivered != newDelivered;
-
-            if (hasChanged) {
+            if (hasStatusChanged) {
+              debugPrint('🔍 Status CHANGED for message $messageId:');
+              debugPrint('   ${message.status.name} → ${newStatus.name}');
+              debugPrint('   Delivered: ${message.delivered} → $newDelivered');
+              debugPrint('   Read: ${message.read} → $newRead');
               // Create updated message with new status
               final updatedMessage = Message(
                 toId: message.toId,
@@ -752,14 +792,18 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         }
       }
 
+      // Log summary
+      debugPrint('📊 Status update summary: ${snapshot.docChanges.length} total changes, $filteredCount filtered (deleted), $processedCount processed');
+
       // Only update if there were actual changes
       if (hasChanges) {
         cachedMessages.assignAll(updatedMessages);
-        // Also update the cache in chatController
-        chatController.cachedMessagesPerUser[user.id] = updatedMessages;
+        
+        // NOTE: Don't save to Hive here - the main stream already handles persistence
+        // This listener only updates the UI for immediate visual feedback
         
         // Notify listeners to rebuild UI
-        debugPrint('🔄 Notifying UI update for status changes');
+        debugPrint('🔄 Notifying UI update for status changes (UI only, no Hive save)');
         cachedMessages.refresh();
       }
     }, onError: (error) {
@@ -998,6 +1042,9 @@ Future<void> showImageOptions() async {
       // Small delay to ensure proper cleanup
       Future.delayed(const Duration(milliseconds: 200), () {
         listController.ensureStreamsActive();
+        _typingStatusSubscription?.cancel();
+        _typingDebounceTimer?.cancel();
+        _readReceiptBatchTimer?.cancel();
       });
     }
 
@@ -1051,9 +1098,11 @@ Future<void> showImageOptions() async {
     debugPrint('✅ Selected user set to: ${user.name} (${user.id})');
 
 
-    // Immediately show cached messages if available
-    if (chatController.cachedMessagesPerUser.containsKey(user.id)) {
-      cachedMessages.value = chatController.cachedMessagesPerUser[user.id]!;
+    // Immediately show cached messages if available (from memory or Hive)
+    final cached = await chatController.getCachedMessages(user.id);
+    if (cached != null && cached.isNotEmpty) {
+      cachedMessages.value = cached;
+      debugPrint('📦 Loaded ${cached.length} messages from cache (Hive)');
       // Sync status from Firestore for cached messages
       _syncCachedMessageStatus();
     }
@@ -1112,16 +1161,12 @@ Future<void> showImageOptions() async {
     }
   }
 
-  void _initializeMessagesStream() {
+  Future<void> _initializeMessagesStream() async {
     try {
-      if (chatController.cachedMessagesPerUser.containsKey(user.id)) {
-        cachedMessages.value = chatController.cachedMessagesPerUser[user.id]!;
-        isInitialLoading.value = false;
-      }
-
-      _messagesSubscription = chatController
-          .getFilteredMessagesStream(user)
-          .listen((messages) {
+      // Cache is already loaded in _initializeChat from Hive
+      // Start stream subscription
+      final stream = await chatController.getFilteredMessagesStream(user);
+      _messagesSubscription = stream.listen((messages) {
         // FIXED: Check if this controller is still active
         if (!_isActiveController) {
           _messagesSubscription?.cancel();
@@ -1130,8 +1175,8 @@ Future<void> showImageOptions() async {
 
         cachedMessages.value = messages;
 
-        // Save in controller-level cache
-        chatController.cachedMessagesPerUser[user.id] = messages;
+        // Cache is automatically saved in getFilteredMessagesStream via cacheMessages()
+        // No need to manually update here
 
         if (isInitialLoading.value) {
           debugPrint('✅ Message stream delivered. Turning off loading.');
@@ -1165,7 +1210,7 @@ Future<void> showImageOptions() async {
     }
 
     // Use a single batch operation for better performance
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 300), () async {
       // FIXED: Final check before marking as read
       if (!_isActiveController || chatController.selectedUser.value?.id != user.id) {
         return;
@@ -1175,13 +1220,35 @@ Future<void> showImageOptions() async {
           .where((msg) => msg.fromId != currentUID && msg.read.isEmpty)
           .toList();
 
-      debugPrint('📖 Marking ${unreadMessages.length} messages as read for user: ${user.id}');
+      if (unreadMessages.isEmpty) return;
 
-      for (var message in unreadMessages) {
-        // FIXED: Only mark if still the active chat
-        if (_isActiveController && chatController.selectedUser.value?.id == user.id) {
-          chatController.markMessageAsRead(message);
+      // PERFORMANCE: Batch read receipts with 500ms throttle
+      final now = DateTime.now();
+      if (_lastReadReceiptTime != null && 
+          now.difference(_lastReadReceiptTime!).inMilliseconds < 500) {
+        debugPrint('⏭️ Throttled read receipt (${unreadMessages.length} messages, ${now.difference(_lastReadReceiptTime!).inMilliseconds}ms since last)');
+        return;
+      }
+
+      _lastReadReceiptTime = now;
+      debugPrint('📖 Batch marking ${unreadMessages.length} messages as read for user: ${user.id}');
+
+      // FIXED: Batch mark all at once instead of loop
+      if (_isActiveController && chatController.selectedUser.value?.id == user.id) {
+        final messageIds = unreadMessages.map((m) => m.sent).toList();
+        final readTime = DateTime.now().millisecondsSinceEpoch.toString();
+        
+        // PERFORMANCE: Update local cache IMMEDIATELY to prevent message_card duplicate marking
+        for (var message in unreadMessages) {
+          message.read = readTime;
+          message.status = MessageStatus.read;
+          // Track as recently marked to prevent duplicates
+          chatController.markAsRecentlyMarked(message.sent);
         }
+        cachedMessages.refresh();
+        
+        // Then update Firestore (async, UI already updated)
+        await chatController.chatRepo.markMultipleMessagesAsRead(user.id, messageIds);
       }
     });
   }

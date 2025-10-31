@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'app/config/firebase_options.dart';
 import 'app/core/di/export.dart';
@@ -17,6 +19,7 @@ import 'app/core/routes/app_routes.dart';
 import 'app/core/services/deep_link_handler.dart';
 import 'app/core/services/env_config_service.dart';
 import 'app/core/services/secure_storage_service.dart';
+import 'app/core/models/chat_model/message_adapter.dart';
 
 import 'app/core/services/firebase_service/delivery_confirmation_service.dart';
 import 'app/core/services/firebase_service/export.dart';
@@ -71,6 +74,19 @@ Future<void> main() async {
 
   HttpOverrides.global = MyHttpOverrides();
 
+  // Initialize Hive for local message storage
+  try {
+    final appDocumentDir = await getApplicationDocumentsDirectory();
+    await Hive.initFlutter(appDocumentDir.path);
+    
+    // Register the Message adapter
+    Hive.registerAdapter(MessageAdapter());
+    
+    debugPrint('✅ Hive initialized successfully for message storage');
+  } catch (e) {
+    debugPrint('❌ Failed to initialize Hive: $e');
+  }
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -96,8 +112,8 @@ Future<void> main() async {
   final bool hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
   final String initialRoute = (firstTime || !hasSeenOnboarding)
       ? AppRoutes.ONBOARDING
-      : AppRoutes.ONBOARDING;
-      // : AppRoutes.SPLASH;
+      // : AppRoutes.ONBOARDING;
+       : AppRoutes.SPLASH;
 
   runApp(AsanRishtaApp(initialRoute: initialRoute));
 }
