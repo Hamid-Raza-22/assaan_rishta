@@ -668,6 +668,14 @@ class ChatListController extends GetxController {
             }
           }
 
+          // AUTO-MARK AS DELIVERED (even in background)
+          // Mark incoming messages as delivered if they're sent TO current user
+          if (message.toId == currentUserId &&
+              message.fromId == user.id &&
+              message.delivered!.isEmpty) {
+            _autoMarkAsDelivered(user.id, message.sent);
+          }
+
           _lastMessages[user.id]!.value = message;
           _lastMessageTimes[user.id]!.value = message.sent;
           _updateUserPositionIfNeeded(user.id, message.sent);
@@ -677,7 +685,7 @@ class ChatListController extends GetxController {
         debugPrint('❌ Error listening to messages: $error');
       },
     );
-  }
+    }
 
   void _updateUserPositionIfNeeded(String userId, String messageTime) {
     final currentIndex = chatUsers.indexWhere((u) => u.id == userId);
@@ -700,6 +708,29 @@ class ChatListController extends GetxController {
     if (needsMove) {
       final user = chatUsers.removeAt(currentIndex);
       chatUsers.insert(targetIndex, user);
+    }
+  }
+
+  // Auto-mark message as delivered (works even in background)
+  Future<void> _autoMarkAsDelivered(String senderId, String messageId) async {
+    try {
+      final conversationId = getConversationId(currentUserId, senderId);
+      final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
+
+      await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId)
+          .update({
+        'delivered': deliveredTime,
+        'status': MessageStatus.delivered.name,
+        'deliveryPending': false,
+      });
+
+      debugPrint('✅ Auto-marked message $messageId as delivered (background delivery)');
+    } catch (e) {
+      debugPrint('❌ Error auto-marking message as delivered: $e');
     }
   }
 

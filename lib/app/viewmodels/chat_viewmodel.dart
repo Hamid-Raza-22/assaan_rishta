@@ -5,8 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:rxdart/rxdart.dart';
 import '../core/export.dart';
 import '../core/services/firebase_service/export.dart';
+import '../core/services/hive_message_service.dart';
 import '../data/repositories/chat_repository.dart';
 import 'dart:io';
 import '../views/chat/chatting_view.dart';
@@ -14,6 +16,16 @@ import '../views/chat/export.dart';
 import 'chat_list_viewmodel.dart';
 
 class ChatViewModel extends GetxController with WidgetsBindingObserver {
+  // Hive service for persistent storage
+  final _hiveService = HiveMessageService();
+  
+  // Deduplication tracking for Hive saves
+  final Map<String, ({int messageCount, DateTime timestamp})> _lastHiveSave = {};
+  
+  // PERFORMANCE: Track recently marked messages to prevent duplicate marking
+  final Set<String> _recentlyMarkedAsRead = {};
+  Timer? _markAsReadCleanupTimer;
+  
   // FIXED: Persistent cache that survives app restarts
   final RxBool isOtherUserTyping = false.obs;
   StreamSubscription? _typingStatusSubscription;
@@ -54,6 +66,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   // Observable for tracking current sending message status
   final currentMessageStatus = MessageStatus.pending.obs;
   final ChatRepository _repo = ChatRepository();
+  ChatRepository get chatRepo => _repo; // Expose for batch operations
   String? get currentChatUserId => selectedUser.value?.id;
 
   var chatUsers = <ChatUser>[].obs;
@@ -200,39 +213,57 @@ _clearImageFromCache(String imageUrl) {
   }
 
   // FIXED: Initialize persistent cache on app start
-  void _initializePersistentCache() {
-    // Load any existing cache data
-    cachedMessagesPerUser.addAll(_persistentMessageCache);
-    debugPrint('📦 Initialized persistent cache with ${_persistentMessageCache.length} conversations');
+  void _initializePersistentCache() async {
+    // Hive will automatically load data when boxes are opened
+    // No need to manually load data here
+    debugPrint('📦 Hive-based persistent cache ready');
   }
 
-  // FIXED: Smart cache retrieval
-  List<Message>? getCachedMessages(String userId) {
+  // FIXED: Smart cache retrieval from Hive
+  Future<List<Message>?> getCachedMessages(String userId) async {
     // First check reactive cache
     if (cachedMessagesPerUser.containsKey(userId)) {
       return cachedMessagesPerUser[userId];
     }
 
-    // Then check persistent cache
-    if (_persistentMessageCache.containsKey(userId)) {
-      cachedMessagesPerUser[userId] = _persistentMessageCache[userId]!;
-      return _persistentMessageCache[userId];
+    // Then load from Hive
+    final hiveMessages = await _hiveService.getMessages(userId);
+    if (hiveMessages.isNotEmpty) {
+      cachedMessagesPerUser[userId] = hiveMessages;
+      return hiveMessages;
     }
 
     return null;
   }
 
-  // FIXED: Professional cache management
-  void cacheMessages(String userId, List<Message> messages) {
-    // Update both caches
+  // FIXED: Professional cache management with Hive (Incremental saves)
+  Future<void> cacheMessages(String userId, List<Message> messages) async {
+    // Update reactive cache (always update memory)
     cachedMessagesPerUser[userId] = messages;
-    _persistentMessageCache[userId] = messages;
+    
+    // PERFORMANCE: Throttle Hive saves (500ms cooldown)
+    // Note: HiveMessageService now does incremental saves internally
+    // So we only throttle the frequency, not the content
+    final now = DateTime.now();
+    final lastSave = _lastHiveSave[userId];
+    
+    if (lastSave != null && 
+        now.difference(lastSave.timestamp).inMilliseconds < 500) {
+      debugPrint('⏭️ Throttled Hive save for user $userId (${now.difference(lastSave.timestamp).inMilliseconds}ms since last save)');
+      return;
+    }
+    
+    // Save to Hive (incremental - only new/changed messages saved internally)
+    await _hiveService.saveMessages(userId, messages);
+    
+    // Track this save
+    _lastHiveSave[userId] = (messageCount: messages.length, timestamp: now);
 
-    debugPrint('💾 Cached ${messages.length} messages for user $userId');
+    debugPrint('✅ Cache sync complete for user $userId (${messages.length} total messages)');
   }
 
   // FIXED: Optimized message stream with proper cache handling
-  Stream<List<Message>> getFilteredMessagesStream(ChatUser user) {
+  Future<Stream<List<Message>>> getFilteredMessagesStream(ChatUser user) async {
     selectedUser.value = user;
     debugPrint('📌 Setting selected user in stream: ${user.name} (${user.id})');
 
@@ -246,15 +277,15 @@ _clearImageFromCache(String imageUrl) {
       currentChatDeletionTime.value = _persistentDeletionCache[user.id];
     }
 
-    // Check if we have cached messages
-    final cachedMessages = getCachedMessages(user.id);
+    // Check if we have cached messages from Hive
+    final cachedMessages = await getCachedMessages(user.id);
     if (cachedMessages != null && cachedMessages.isNotEmpty) {
       hasCachedMessages.value = true;
       messages.assignAll(cachedMessages);
-      debugPrint('⚡ Using cached messages (${cachedMessages.length}) for ${user.name}');
+      debugPrint('⚡ Using cached messages from Hive (${cachedMessages.length}) for ${user.name}');
     }
 
-    return _repo.getAllMessages(user).map((snapshot) {
+    return _repo.getAllMessages(user).asyncMap((snapshot) async {
       final allMessages = snapshot.docs
           .map((doc) {
             final data = doc.data();
@@ -291,7 +322,7 @@ _clearImageFromCache(String imageUrl) {
 
       // Update UI and cache
       messages.assignAll(filteredMessages);
-      cacheMessages(user.id, filteredMessages);
+      await cacheMessages(user.id, filteredMessages);
       hasCachedMessages.value = filteredMessages.isNotEmpty;
 
       return filteredMessages;
@@ -361,20 +392,29 @@ _clearImageFromCache(String imageUrl) {
     }
   }
 
-  // FIXED: Load deletion record only once per chat
+  // FIXED: Load deletion record from Hive and Firestore
   Future<void> _loadDeletionRecord(String userId) async {
     try {
-      final deletionDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
-          .doc(_repo.currentUserId)
-          .collection('deleted_chats')
-          .doc(userId)
-          .get();
+      // First check Hive for locally stored deletion time
+      String? deletionTime = await _hiveService.getDeletionTime(userId);
+      
+      // If not in Hive, check Firestore
+      if (deletionTime == null) {
+        final deletionDoc = await FirebaseFirestore.instance
+            .collection('Hamid_users')
+            .doc(_repo.currentUserId)
+            .collection('deleted_chats')
+            .doc(userId)
+            .get();
 
-      String? deletionTime;
-      if (deletionDoc.exists) {
-        deletionTime = deletionDoc.data()!['deleted_at'] as String;
-        debugPrint('📌 Found deletion record for $userId: $deletionTime');
+        if (deletionDoc.exists) {
+          deletionTime = deletionDoc.data()!['deleted_at'] as String;
+          // Store in Hive for future access
+          await _hiveService.saveDeletionTime(userId, deletionTime);
+          debugPrint('📌 Found deletion record for $userId: $deletionTime');
+        }
+      } else {
+        debugPrint('📌 Loaded deletion record from Hive for $userId: $deletionTime');
       }
 
       // Cache the result (even if null)
@@ -419,7 +459,7 @@ _clearImageFromCache(String imageUrl) {
     await _loadDeletionRecord(userId);
   }
 
-  // FIXED: Clear deletion record and update cache
+  // FIXED: Clear deletion record from Hive, Firestore and cache
   Future<void> clearDeletionRecord() async {
     if (selectedUser.value == null) return;
 
@@ -434,11 +474,14 @@ _clearImageFromCache(String imageUrl) {
           .doc(userId)
           .delete();
 
-      // Clear from cache
+      // Clear from Hive
+      await _hiveService.clearDeletionTime(userId);
+
+      // Clear from memory cache
       _persistentDeletionCache[userId] = null;
       currentChatDeletionTime.value = null;
 
-      debugPrint('✅ Deletion record cleared for $userId');
+      debugPrint('✅ Deletion record cleared for $userId (Firestore + Hive)');
 
       // Refresh messages to show all history
       messages.refresh();
@@ -571,7 +614,7 @@ _clearImageFromCache(String imageUrl) {
     final currentMessages = List<Message>.from(messages);
     currentMessages.insert(0, optimisticMessage);
     messages.assignAll(currentMessages);
-    cacheMessages(user.id, currentMessages);
+    await cacheMessages(user.id, currentMessages);
 
     try {
       await _repo.sendMessageWithStatus(
@@ -582,7 +625,7 @@ _clearImageFromCache(String imageUrl) {
         onMessageCreated: (message) {
           debugPrint('✅ Message created with status: ${message.status}');
         },
-        onStatusUpdate: (status) {
+        onStatusUpdate: (status) async {
           // Update the message status in the list
           final index = messages.indexWhere((m) => m.sent == time);
           if (index != -1) {
@@ -611,7 +654,7 @@ _clearImageFromCache(String imageUrl) {
             
             // Update cache
             if (selectedUser.value != null) {
-              cacheMessages(selectedUser.value!.id, updatedMessages);
+              await cacheMessages(selectedUser.value!.id, updatedMessages);
             }
           }
           debugPrint('📊 Message status updated to: $status');
@@ -645,7 +688,7 @@ _clearImageFromCache(String imageUrl) {
         messages.assignAll(updatedMessages);
         
         if (selectedUser.value != null) {
-          cacheMessages(selectedUser.value!.id, updatedMessages);
+          await cacheMessages(selectedUser.value!.id, updatedMessages);
         }
       }
 
@@ -696,7 +739,7 @@ _clearImageFromCache(String imageUrl) {
     final currentMessages = List<Message>.from(messages);
     currentMessages.insert(0, optimisticMessage);
     messages.assignAll(currentMessages);
-    cacheMessages(user.id, currentMessages);
+    await cacheMessages(user.id, currentMessages);
 
     try {
       // Send the first message with status tracking
@@ -705,7 +748,7 @@ _clearImageFromCache(String imageUrl) {
         text.trim(),
         Type.text,
         messageId: time,
-        onStatusUpdate: (status) {
+        onStatusUpdate: (status) async {
           // Update the message status in the list
           final index = messages.indexWhere((m) => m.sent == time);
           if (index != -1) {
@@ -733,7 +776,7 @@ _clearImageFromCache(String imageUrl) {
             
             // Update cache
             if (selectedUser.value != null) {
-              cacheMessages(selectedUser.value!.id, updatedMessages);
+              await cacheMessages(selectedUser.value!.id, updatedMessages);
             }
           }
           debugPrint('📊 First message status updated to: $status');
@@ -773,7 +816,7 @@ _clearImageFromCache(String imageUrl) {
         messages.assignAll(updatedMessages);
         
         if (selectedUser.value != null) {
-          cacheMessages(selectedUser.value!.id, updatedMessages);
+          await cacheMessages(selectedUser.value!.id, updatedMessages);
         }
       }
 
@@ -975,12 +1018,32 @@ _clearImageFromCache(String imageUrl) {
       await _repo.sendChatImage(currentUID, selectedUser.value!, imageFile);
     }
   }
+  // PERFORMANCE: Public method to mark messages as recently marked (for batch operations)
+  void markAsRecentlyMarked(String messageId) {
+    _recentlyMarkedAsRead.add(messageId);
+    
+    // Auto-cleanup after 3 seconds
+    _markAsReadCleanupTimer?.cancel();
+    _markAsReadCleanupTimer = Timer(const Duration(seconds: 3), () {
+      _recentlyMarkedAsRead.clear();
+    });
+  }
+
 // Enhanced mark as read with sync
   @override
   Future<void> markMessageAsRead(Message message) async {
     try {
       if (message.fromId == _repo.currentUserId) return;
       if (message.read.isNotEmpty) return;
+      
+      // PERFORMANCE: Prevent duplicate marking within 3 seconds
+      if (_recentlyMarkedAsRead.contains(message.sent)) {
+        debugPrint('⏭️ Skipped duplicate mark-as-read for message ${message.sent} (already marked recently)');
+        return;
+      }
+      
+      // Track this message as recently marked
+      markAsRecentlyMarked(message.sent);
 
       // Mark as read in repository
       await _repo.markMessageAsRead(message.fromId, message.sent);
