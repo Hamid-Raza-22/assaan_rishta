@@ -74,6 +74,7 @@ class NotificationServices {
     }
   }
 
+
   // NEW: Validate if notification belongs to current user
   static Future<bool> _validateNotificationForCurrentUser(RemoteMessage message) async {
     try {
