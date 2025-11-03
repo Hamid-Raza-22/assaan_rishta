@@ -50,12 +50,12 @@ app.*.map.json
 !.env.example
 
 # Sensitive files
-*.jks
-*.keystore
-*.json
-!google-services.json
-!firebase.json
-!build.json
+#*.jks
+#*.keystore
+#*.json
+#!google-services.json
+#!firebase.json
+#!build.json
 
 # Fastlane and Ruby gems
 android/vendor/
