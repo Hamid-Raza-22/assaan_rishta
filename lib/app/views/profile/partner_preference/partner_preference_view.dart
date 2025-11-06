@@ -23,10 +23,11 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         Get.delete<PartnerPreferenceController>();
       },
       builder: (_) {
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: _appBar(),
-          body: SafeArea(
+        return
+          Scaffold(
+            backgroundColor: Colors.white,
+            appBar: _appBar(),
+            body: SafeArea(
             child: controller.isLoading.isFalse
                 ? ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -77,23 +78,50 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                               }
                             : null,
                       )),
-                      const SizedBox(height: 90),
+                      const SizedBox(height: 10),
+                      // CustomButton(
+                      //   text: "Skip for Now",
+                      //   fontColor: AppColors.primaryColor,
+                      //   isGradient: false,
+                      //   backgroundColor: AppColors.whiteColor,
+                      //   borderColor: AppColors.primaryColor,
+                      //   onTap: () {
+                      //     controller.skipPartnerPreference();
+                      //   },
+                      // ),
+                       const SizedBox(height: 50),
                     ],
                   )
                 : profileShimmer(context),
-          ),
+            ),
+          // ),
         );
       },
     );
   }
 
   _appBar() {
-    return const PreferredSize(
-      preferredSize: Size(double.infinity, 40),
-      child: CustomAppBar(
+    return PreferredSize(
+      preferredSize: const Size(double.infinity, 40),
+      child: Obx(() => CustomAppBar2(
         isBack: true,
         title: "Partner Preference",
-      ),
+        actions: controller.showSkipButton.value
+            ? [
+                TextButton(
+                  onPressed: () {
+                    controller.skipPartnerPreference();
+                  },
+                  child: const AppText(
+                    text: "Skip",
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ]
+            : null,
+      )),
     );
   }
   getAgeFromAndAgeTo({context}) {

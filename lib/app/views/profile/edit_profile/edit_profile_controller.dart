@@ -183,6 +183,38 @@ class EditProfileController extends GetxController {
     'AU': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'Australia'),
   };
 
+  // Map dial codes to ISO country codes
+  final Map<String, String> dialCodeToISO = {
+    '92': 'PK',   // Pakistan
+    '91': 'IN',   // India
+    '1': 'US',    // US/Canada (ambiguous, defaulting to US)
+    '44': 'GB',   // United Kingdom
+    '966': 'SA',  // Saudi Arabia
+    '971': 'AE',  // UAE
+    '61': 'AU',   // Australia
+    '86': 'CN',   // China
+    '81': 'JP',   // Japan
+    '82': 'KR',   // South Korea
+    '33': 'FR',   // France
+    '49': 'DE',   // Germany
+    '39': 'IT',   // Italy
+    '34': 'ES',   // Spain
+    '7': 'RU',    // Russia
+    '55': 'BR',   // Brazil
+    '52': 'MX',   // Mexico
+    '90': 'TR',   // Turkey
+    '62': 'ID',   // Indonesia
+    '63': 'PH',   // Philippines
+    '60': 'MY',   // Malaysia
+    '65': 'SG',   // Singapore
+    '66': 'TH',   // Thailand
+    '880': 'BD',  // Bangladesh
+    '20': 'EG',   // Egypt
+    '234': 'NG',  // Nigeria
+    '27': 'ZA',   // South Africa
+    '254': 'KE',  // Kenya
+  };
+
   @override
   void onInit() {
     _generateHeightList();
@@ -927,19 +959,51 @@ class EditProfileController extends GetxController {
     gender.value = '${profileDetails.value.gender}';
     caste = profileDetails.value.cast ?? "";
     
-    // Parse mobile number - remove country code if present
-    String mobileNo = '${profileDetails.value.mobileNo}';
-    if (mobileNo.startsWith('+')) {
-      // Extract just the number part (without country code)
-      // IntlPhoneField will handle country code display
-      mobileNo = mobileNo.replaceAll(RegExp(r'[^\d]'), '');
-      // For Pakistan numbers, typically 12 digits total (92 + 10 digits)
-      // We want just the 10 digit local number
-      if (mobileNo.length > 10) {
-        mobileNo = mobileNo.substring(mobileNo.length - 10);
+    // Parse mobile number and extract country code
+    String fullMobileNo = '${profileDetails.value.mobileNo}';
+    String localNumber = '';
+    
+    if (fullMobileNo.startsWith('+')) {
+      // Extract digits only
+      String digitsOnly = fullMobileNo.replaceAll(RegExp(r'[^\d]'), '');
+      
+      // Try to match dial code and extract country ISO code
+      String? detectedISO;
+      String dialCode = '';
+      
+      // Try matching from longest to shortest dial codes (3, 2, 1 digits)
+      for (int length = 3; length >= 1; length--) {
+        if (digitsOnly.length > length) {
+          String potentialDialCode = digitsOnly.substring(0, length);
+          if (dialCodeToISO.containsKey(potentialDialCode)) {
+            dialCode = potentialDialCode;
+            detectedISO = dialCodeToISO[potentialDialCode];
+            localNumber = digitsOnly.substring(length);
+            break;
+          }
+        }
       }
+      
+      // Set country code if detected, otherwise default to PK
+      if (detectedISO != null) {
+        countryCode.value = detectedISO;
+      } else {
+        countryCode.value = 'PK';
+        localNumber = digitsOnly;
+      }
+      
+      debugPrint('📱 Mobile: $fullMobileNo');
+      debugPrint('📱 Dial Code: $dialCode');
+      debugPrint('📱 ISO Code: ${countryCode.value}');
+      debugPrint('📱 Local Number: $localNumber');
+      
+    } else {
+      // No country code prefix, assume it's just local number
+      localNumber = fullMobileNo.replaceAll(RegExp(r'[^\d]'), '');
+      countryCode.value = 'PK'; // Default to Pakistan
     }
-    mobileTEC.text = mobileNo;
+    
+    mobileTEC.text = localNumber;
     
     DateTime dateTime = DateTime.parse('${profileDetails.value.dateOfBirth}');
     dobTEC.text = DateFormat('dd/MM/yyyy').format(dateTime);

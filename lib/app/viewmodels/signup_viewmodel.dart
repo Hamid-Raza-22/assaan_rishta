@@ -26,6 +26,7 @@ class SignupViewModel extends GetxController {
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   RxString countryCode = '+92'.obs;
+  RxString countryISOCode = 'PK'.obs; // Store ISO code for validation
 
   final dobTEC = TextEditingController();
   final passwordController = TextEditingController();
@@ -433,9 +434,9 @@ class SignupViewModel extends GetxController {
       return 'Phone number is required';
     }
 
-    // Get validation rule for current country
-    final rule = phoneValidationRules[countryCode.value] ??
-        PhoneValidationRule(minLength: 7, maxLength: 15, countryName: 'Default');
+    // Get validation rule for current country (using ISO code)
+    final rule = phoneValidationRules[countryISOCode.value] ??
+        PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'Pakistan');
 
     // Clean the phone number (remove spaces, dashes, etc.)
     final cleanNumber = phone.number.replaceAll(RegExp(r'\D'), '');
@@ -449,7 +450,7 @@ class SignupViewModel extends GetxController {
     }
 
     // Additional format validation for specific countries
-    if (!_isValidPhoneFormat(cleanNumber, countryCode.value)) {
+    if (!_isValidPhoneFormat(cleanNumber, countryISOCode.value)) {
       return 'Invalid phone number format for ${rule.countryName}';
     }
 
@@ -694,8 +695,8 @@ class SignupViewModel extends GetxController {
     // Get clean phone number
     final cleanPhone = phoneController.text.replaceAll(RegExp(r'\D'), '');
 
-    // Get validation rule for current country
-    final rule = phoneValidationRules[countryCode.value];
+    // Get validation rule for current country (using ISO code)
+    final rule = phoneValidationRules[countryISOCode.value];
     final isPhoneValid = rule != null
         ? (cleanPhone.length >= rule.minLength && cleanPhone.length <= rule.maxLength)
         : cleanPhone.length >= 7;

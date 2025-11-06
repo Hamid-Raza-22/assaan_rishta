@@ -151,13 +151,13 @@ SignupView({super.key});
                 disableLengthCheck: true, // Important: We handle validation ourselves
                 validator: controller.validatePhone,
                 onCountryChanged: (country) {
-                  // Update country code and ISO when country changes
+                  // Update country code (dial code) and ISO code separately
                   controller.countryCode.value = "+${country.dialCode}";
-                  controller.countryCode.value = country.code;
+                  controller.countryISOCode.value = country.code;
 
                   // Get validation rule for the new country
                   final rule = controller.phoneValidationRules[country.code];
-                  final maxLength = rule?.maxLength ?? 15;
+                  final maxLength = rule?.maxLength ?? 10;
 
                   // Clear phone field when country changes for better UX
                   controller.phoneController.clear();
@@ -184,7 +184,7 @@ SignupView({super.key});
                 onChanged: (phone) {
                   // Get validation rule for current country
                   final rule = controller.phoneValidationRules[controller.countryCode.value];
-                  final maxLength = rule?.maxLength ?? 15;
+                  final maxLength = rule?.maxLength ?? 10;
 
                   // Limit input based on country's maximum length
                   if (phone.number.length > maxLength) {
@@ -268,6 +268,8 @@ SignupView({super.key});
                   text: "Next",
                   isLoading: controller.isLoading.value,
                   onPressed: () {
+                    debugPrint("Mobile Number: ${controller.phoneController.text}");
+                    debugPrint("Mobile Number: ${controller.countryCode}${controller.phoneController.text.trim()}");
                     // sendOtpOnWhatsApp("+923486255887", "123456");
                     //
                       if (controller.formKey.currentState!.validate()) {
