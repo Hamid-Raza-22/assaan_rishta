@@ -14,6 +14,7 @@ class PartnerPreferenceController extends GetxController {
   final useCases = Get.find<UserManagementUseCase>();
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   RxBool isLoading = false.obs;
+  RxBool showSkipButton = false.obs; // Show skip button only when is_preference_updated is false
 
   List<String> ageFromList =
       List.generate(33, (index) => (18 + index).toString());
@@ -85,6 +86,32 @@ class PartnerPreferenceController extends GetxController {
     userDiWohtiKaTarufTEC.addListener(validateForm);
     super.onInit();
     validateForm();
+    // Check if user needs to fill preferences (first time)
+    _checkPreferenceStatus();
+  }
+
+  // Check if is_preference_updated is false to show skip button
+  void _checkPreferenceStatus() async {
+    try {
+      final uid = useCases.getUserId();
+      final doc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(uid.toString())
+          .get();
+
+      final data = doc.data();
+      final bool isPreferenceUpdated =
+          data != null && (data['is_preference_updated'] == true);
+
+      // Show skip button only if preference is not updated
+      showSkipButton.value = !isPreferenceUpdated;
+      
+      debugPrint('🔍 is_preference_updated: $isPreferenceUpdated');
+      debugPrint('🔘 showSkipButton: ${showSkipButton.value}');
+    } catch (e) {
+      debugPrint('❌ Error checking preference status: $e');
+      showSkipButton.value = false;
+    }
   }
 
   @override
@@ -367,6 +394,25 @@ class PartnerPreferenceController extends GetxController {
         Get.offAllNamed(AppRoutes.BOTTOM_NAV);
       },
     );
+  }
+
+  // Skip partner preference and navigate to home
+  void skipPartnerPreference() async {
+    // Mark preference as updated in Firestore so user won't be forced to fill it again
+    try {
+      final uid = useCases.getUserId();
+      await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(uid.toString())
+          .set({'is_preference_updated': true}, SetOptions(merge: true));
+      
+      debugPrint('✅ Skipped partner preference, marked as updated');
+    } catch (e) {
+      debugPrint('❌ Error setting preference flag: $e');
+    }
+    
+    // Navigate to home
+    Get.offAllNamed(AppRoutes.BOTTOM_NAV);
   }
 
   ///set all data to controllers and variable
