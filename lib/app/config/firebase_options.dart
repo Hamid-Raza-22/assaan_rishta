@@ -60,4 +60,13 @@ class DefaultFirebaseOptions {
     projectId: EnvConfig.firebaseProjectId,
     storageBucket: EnvConfig.firebaseStorageBucket,
   );
+  static FirebaseOptions get iOS => FirebaseOptions(
+    apiKey: EnvConfig.firebaseIosApiKey,
+    appId: EnvConfig.firebaseIosAppId,
+    messagingSenderId: EnvConfig.firebaseMessagingSenderId,
+    iosBundleId: EnvConfig.firebaseIOSBundleId,
+    storageBucket: EnvConfig.firebaseStorageBucket,
+    projectId: EnvConfig.firebaseProjectId,
+  );
+
 }
