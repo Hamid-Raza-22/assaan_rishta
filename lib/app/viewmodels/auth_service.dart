@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/routes/app_routes.dart';
 import '../core/services/firebase_service/export.dart';
@@ -158,6 +159,7 @@ class AuthService extends GetxController {
 
   // FIXED: Logout method with proper notification handling
   Future<void> logout(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     try {
       AppLogger.lifecycle('Waiting for auth verification to complete...');
       NotificationServices.clearSession();
@@ -180,6 +182,9 @@ class AuthService extends GetxController {
 
       // Clear all data
       await secureStorage.clearAll();
+      await prefs.reload();
+      await prefs.clear();
+
 
       // Restore the onboarding flags
       await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
