@@ -131,6 +131,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # Testing dependencies
+  mockito: ^5.4.4
+  mocktail: ^1.0.4
+  fake_cloud_firestore: ^3.0.3
+  firebase_auth_mocks: ^0.14.2
+  network_image_mock: ^2.1.1
+  integration_test:
+    sdk: flutter
 
 icons_launcher:
   image_path: "assets/ic_logo.png"
