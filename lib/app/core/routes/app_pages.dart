@@ -22,6 +22,8 @@ import '../../views/signup/signup_view.dart';
 import '../../views/user_details/user_details_view.dart';
 import '../../views/vendor/export.dart';
 import '../bindings/app_bindings.dart';
+import '../bindings/user_details_binding.dart';
+import '../bindings/vendor_detail_binding.dart';
 import '../../widgets/export.dart';
 import '../export.dart';
 import 'app_routes.dart';
@@ -209,6 +211,7 @@ class AppPages {
     GetPage(
       name: AppRoutes.USER_DETAILS_VIEW,
       page: () => const UserDetailsView(),
+      binding: UserDetailsBinding(),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),
@@ -220,7 +223,8 @@ class AppPages {
     ),
     GetPage(
       name: AppRoutes.VENDER_DETAILS_VIEW,
-      page: () => VendorDetailView(),
+      page: () => const VendorDetailView(),
+      binding: VendorDetailBinding(),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),

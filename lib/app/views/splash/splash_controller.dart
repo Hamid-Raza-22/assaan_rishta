@@ -27,9 +27,9 @@ class SplashController extends BaseController {
     await Future.delayed(const Duration(seconds: 2));
 
     // CRITICAL: Check Developer Mode FIRST - Block app if enabled
-    if (kReleaseMode || kProfileMode) {
-      await _checkDeveloperModeBlocking();
-    }
+    // if (kReleaseMode || kProfileMode) {
+    //   await _checkDeveloperModeBlocking();
+    // }
     // CRITICAL: Wait for AuthService to complete email verification
     // AuthService is already running in parallel since app start (Get.put in AppBindings)
     final authService = Get.find<AuthService>();
