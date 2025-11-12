@@ -66,8 +66,9 @@ class AppBindings extends Bindings {
       Get.lazyPut(() => HomeController(), fenix: true);
       debugPrint('✅ HomeController registered');
 
-      Get.lazyPut(() => UserDetailsController(), fenix: true);
-      debugPrint('✅ UserDetailsController registered');
+      // UserDetailsController is now managed by route-specific binding
+      // Get.lazyPut(() => UserDetailsController(), fenix: true);
+      // debugPrint('✅ UserDetailsController registered');
 
       Get.lazyPut(() => ProfileController(), fenix: true);
       debugPrint('✅ ProfileController registered');
@@ -102,8 +103,9 @@ class AppBindings extends Bindings {
       Get.lazyPut(() => VendorListingController(), fenix: true);
       debugPrint('✅ VendorListingController registered');
 
-      Get.lazyPut(() => VendorDetailController(), fenix: true);
-      debugPrint('✅ VendorDetailController registered');
+      // VendorDetailController is now managed by route-specific binding
+      // Get.lazyPut(() => VendorDetailController(), fenix: true);
+      // debugPrint('✅ VendorDetailController registered');
 
       Get.lazyPut(() => PartnerPreferenceController(), fenix: true);
       debugPrint('✅ PartnerPreferenceController registered');

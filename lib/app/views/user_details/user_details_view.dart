@@ -25,52 +25,44 @@ class UserDetailsView extends GetView<UserDetailsController> {
   @override
   Widget build(BuildContext context) {
     debugPrint("Building UserDetailsView with arguments: ${Get.arguments}");
-    debugPrint("rebuildinngggggggggggggggggggggggggggggggggggggggggggggggggg");
-    return GetBuilder<UserDetailsController>(
-      // FIXED: Don't create new instance, just initialize if needed
-      init: UserDetailsController(),
-      builder: (controller) {
-        return Scaffold(
-          backgroundColor: AppColors.whiteColor,
-          appBar: const PreferredSize(
-            preferredSize: Size(double.infinity, 40),
-            child: CustomAppBar2(isBack: true),
-          ),
-          body: Obx(() {
-            if (controller.isLoading.value) {
-              return userDetailsShimmer(context);
-            }
+    
+    return Scaffold(
+      backgroundColor: AppColors.whiteColor,
+      appBar: const PreferredSize(
+        preferredSize: Size(double.infinity, 40),
+        child: CustomAppBar2(isBack: true),
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return userDetailsShimmer(context);
+        }
 
-            // ADDED: Check if user details are valid
-            if (controller.profileDetails.value.firstName == null || controller.profileDetails.value.lastName == null) {
-              return const Center(
-                child: AppText(
-                  text: "User not found",
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.greyColor,
-                ),
-              );
-            }
+        // Check if user details are valid
+        if (controller.profileDetails.value.firstName == null || controller.profileDetails.value.lastName == null) {
+          return const Center(
+            child: AppText(
+              text: "User not found",
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: AppColors.greyColor,
+            ),
+          );
+        }
 
-
-
-            return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              children: [
-                getProfileImage(context),
-                const SizedBox(height: 10),
-                getVideoInfo(),
-                const SizedBox(height: 10),
-                getProfileInfo(),
-                const SizedBox(height: 10),
-                getPartnerPreferences(),
-                const SizedBox(height: 20),
-              ],
-            );
-          }),
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          children: [
+            getProfileImage(context),
+            const SizedBox(height: 10),
+            getVideoInfo(),
+            const SizedBox(height: 10),
+            getProfileInfo(),
+            const SizedBox(height: 10),
+            getPartnerPreferences(),
+            const SizedBox(height: 20),
+          ],
         );
-      },
+      }),
     );
   }
 
@@ -395,6 +387,9 @@ class UserDetailsView extends GetView<UserDetailsController> {
     final occupation = controller.profileDetails.value.occupation ?? '--';
     final profileId = controller.profileDetails.value.userId;
 
+    // Replace spaces with hyphens for URL-friendly name
+    final urlFriendlyName = profileName.replaceAll(' ', '-');
+
     // Show loading indicator
     Get.dialog(
       const Center(
@@ -421,7 +416,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
       shareText += '''
 
 📱 Open Profile in App:
-https://asaanrishta.com/rishta/$profileName/$profileId
+https://asaanrishta.com/rishta/$urlFriendlyName/$profileId
 ''';
     }
 

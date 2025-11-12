@@ -24,7 +24,7 @@ class UserDetailsController extends GetxController {
 
   // Make receiverId reactive and handle it properly
   var receiverId = ''.obs;
-  RxBool isLoading = false.obs;
+  RxBool isLoading = true.obs; // Start with true to show loading immediately
   RxInt totalConnects = 0.obs;
   VideoPlayerController? videoController;
 
@@ -117,7 +117,7 @@ class UserDetailsController extends GetxController {
     // Reset state
     receiverId.value = newProfileId;
     profileDetails.value = ProfileDetails();
-    isLoading.value = false;
+    isLoading.value = true; // Show loading while fetching new profile
 
     // Reinitialize chat controller if needed
     _initializeChatController();

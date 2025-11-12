@@ -634,6 +634,7 @@ class DeepLinkHandler {
               );
               controller.receiverId.value = profileId;
               controller.profileDetails.value = ProfileDetails(); // Reset profile data
+              controller.isLoading.value = true; // Show loading while fetching new profile
               controller.videoController?.dispose(); // Dispose video if exists
               controller.videoController = null;
               controller.getProfileDetails(); // Reload with new ID

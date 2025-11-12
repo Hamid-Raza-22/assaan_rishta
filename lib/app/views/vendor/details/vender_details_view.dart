@@ -19,54 +19,13 @@ class VendorDetailView extends GetView<VendorDetailController> {
 
   @override
   Widget build(BuildContext context) {
-
-
-    // Add debug logging
     debugPrint('🔍 VendorDetailView build called');
-    debugPrint('🔍 Get.arguments type: ${Get.arguments.runtimeType}');
-    debugPrint('🔍 Get.arguments value: ${Get.arguments}');
-
-
+    
     return GetBuilder<VendorDetailController>(
-      initState: (_) {
-        debugPrint('🔍 VendorDetailView initState called');
-        debugPrint('🔍 Arguments in initState: ${Get.arguments}');
-
-        // Defer any controller updates to after the build
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Check if controller already exists
-          if (Get.isRegistered<VendorDetailController>()) {
-            debugPrint('🔍 VendorDetailController already registered');
-
-            // Get the existing controller
-            final existingController = Get.find<VendorDetailController>();
-            debugPrint('🔍 Existing controller vendor ID: ${existingController.vendorsItem.venderID}');
-
-            // Check if we have new vendor data in arguments
-            final arguments = Get.arguments;
-            if (arguments != null && arguments is VendorsList) {
-              debugPrint('🔄 New vendor data found in arguments, updating controller...');
-
-              // Update the existing controller with new vendor data
-              existingController.updateVendorData(arguments);
-              debugPrint('✅ Controller updated with vendor: ${arguments.venderBusinessName}');
-            } else {
-              debugPrint('⚠️ No new vendor data in arguments');
-            }
-          } else {
-            debugPrint('🔍 Creating new VendorDetailController');
-            Get.put(VendorDetailController());
-          }
-        });
-      },
-      builder: (_) {
-        debugPrint('🔍 VendorDetailView builder called');
-        debugPrint('🔍 Controller vendor ID: ${controller.vendorsItem.venderID}');
-        debugPrint('🔍 Controller vendor name: ${controller.vendorsItem.venderBusinessName}');
-
+      builder: (ctrl) {
         // Check if vendor data is available
-        if (controller.vendorsItem.venderID == null) {
-          // Show loading or error state
+        if (ctrl.vendorsItem.venderID == null) {
+          // Show loading state
           return Scaffold(
             backgroundColor: Colors.white,
             appBar: const PreferredSize(
@@ -76,15 +35,15 @@ class VendorDetailView extends GetView<VendorDetailController> {
                 title: "Loading...",
               ),
             ),
-            // body: const Center(
-            //   child: CircularProgressIndicator(
-            //     color: AppColors.primaryColor,
-            //   ),
-            // ),
+            body: const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primaryColor,
+              ),
+            ),
           );
         }
 
-        // Rest of your existing build method...
+        // Vendor data is available, show the details
         return Scaffold(
 
           backgroundColor: Colors.white,
@@ -92,7 +51,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
             preferredSize: const Size(double.infinity, 40),
             child: CustomAppBar2(
               isBack: true,
-              title: controller.vendorsItem.vendorCategoryName,
+              title: ctrl.vendorsItem.vendorCategoryName,
               actions: [
                 // Add share button in app bar
                 IconButton(
@@ -116,7 +75,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     children: [
                       Center(
                         child: ImageHelper(
-                          image: controller.vendorsItem.logo ?? AppAssets.userImage,
+                          image: ctrl.vendorsItem.logo ?? AppAssets.userImage,
                           imageType: ImageType.network,
                           height: 110,
                           width: 110,
@@ -159,7 +118,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     child: SizedBox(
                       width: double.infinity,
                       child: AppText(
-                        text: controller.vendorsItem.venderBusinessName,
+                        text: ctrl.vendorsItem.venderBusinessName,
                         fontSize: 24,
                         fontWeight: FontWeight.w500,
                         textAlign: TextAlign.center,
@@ -192,7 +151,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                       ),
                       const SizedBox(width: 4),
                       AppText(
-                        text: controller.vendorsItem.vendorCategoryName,
+                        text: ctrl.vendorsItem.vendorCategoryName,
                         fontSize: 16,
                         fontWeight: FontWeight.w300,
                       ),
@@ -209,7 +168,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                       ),
                       const SizedBox(width: 4),
                       AppText(
-                        text: controller.vendorsItem.venderEmail,
+                        text: ctrl.vendorsItem.venderEmail,
                         fontSize: 16,
                         fontWeight: FontWeight.w300,
                       ),
@@ -217,20 +176,20 @@ class VendorDetailView extends GetView<VendorDetailController> {
                   ),
                   const SizedBox(height: 16),
                   Obx(
-                        () => controller.isClicked.isFalse
+                        () => ctrl.isClicked.isFalse
                         ? CustomButton(
                       text: "View Number",
                       margin: const EdgeInsets.symmetric(horizontal: 40),
                       backgroundColor: AppColors.primaryColor,
                       fontColor: AppColors.whiteColor,
                       onTap: () {
-                        controller.startTimer();
+                        ctrl.startTimer();
                       },
                     )
                         : const SizedBox.shrink(),
                   ),
                   Obx(
-                        () => controller.isClicked.isTrue
+                        () => ctrl.isClicked.isTrue
                         ? getVendorInformation()
                         : const SizedBox.shrink(),
                   ),
@@ -244,7 +203,7 @@ class VendorDetailView extends GetView<VendorDetailController> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: Text(
-                      controller.vendorsItem.aboutCompany ?? '',
+                      ctrl.vendorsItem.aboutCompany ?? '',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w400,
@@ -293,15 +252,15 @@ class VendorDetailView extends GetView<VendorDetailController> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  if (controller.selectedIndex == 0)
+                  if (ctrl.selectedIndex == 0)
                     getServiceTab()
-                  else if (controller.selectedIndex == 1)
+                  else if (ctrl.selectedIndex == 1)
                     getQuestionTab()
-                  else if (controller.selectedIndex == 2)
+                  else if (ctrl.selectedIndex == 2)
                       getAlbumTab()
-                    else if (controller.selectedIndex == 3)
+                    else if (ctrl.selectedIndex == 3)
                         getVideoTab()
-                      else if (controller.selectedIndex == 4)
+                      else if (ctrl.selectedIndex == 4)
                           getPackageTab(),
                   const SizedBox(height: 20),
                 ],
@@ -312,9 +271,6 @@ class VendorDetailView extends GetView<VendorDetailController> {
       },
     );
   }
-
-  // Add share vendor method
-// Add this method to your VendorDetailView class
 
   void _shareVendor() async {
     try {
