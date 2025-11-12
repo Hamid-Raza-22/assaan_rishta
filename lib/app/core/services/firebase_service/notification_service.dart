@@ -378,14 +378,16 @@ class NotificationServices {
           );
         }
       }
+      // Initialize local notifications for both platforms
+      initLocalNotifications(context, message);
+      
       if (Platform.isIOS) {
+        // Set foreground presentation options for iOS
         forGroundMessage();
       }
-
-      if (Platform.isAndroid) {
-        initLocalNotifications(context, message);
-        showNotification(message);
-      }
+      
+      // Show notification for both platforms
+      showNotification(message);
     });
   }
 
