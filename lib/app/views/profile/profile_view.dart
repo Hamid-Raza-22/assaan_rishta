@@ -212,6 +212,45 @@ class ProfileView extends GetView<ProfileController> {
               // );
             },
           ),
+          // Blur Profile Toggle - Only for Female Users
+          if (controller.profileDetails.value.gender?.toLowerCase() == 'female')
+            InkWell(
+              onTap: () {
+                // Toggle on tap of entire tile
+                final currentValue = controller.profileDetails.value.blurProfileImage ?? false;
+                controller.toggleBlurProfileImage(!currentValue);
+              },
+              child: ListTile(
+                leading: const Icon(
+                  Icons.blur_on,
+                  color: AppColors.greyColor,
+                  size: 25,
+                ),
+                title: Text(
+                  'Blur Profile Picture',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w400,
+                    fontSize: 14,
+                    color: AppColors.blackColor,
+                  ),
+                ),
+                subtitle: Text(
+                  'Hide your photo from others',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                trailing: CupertinoSwitch(
+                  value: controller.profileDetails.value.blurProfileImage ?? false,
+                  onChanged: (value) {
+                    controller.toggleBlurProfileImage(value);
+                  },
+                  activeColor: AppColors.primaryColor,
+                ),
+              ),
+            ),
           ClickableListTile(
             text: 'Edit Profile',
             icon: Icons.edit_outlined,

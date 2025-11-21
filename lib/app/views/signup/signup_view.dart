@@ -1,6 +1,7 @@
 import 'package:assaan_rishta/app/views/signup/widgets/custom_button.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/custom_text_field.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/gender_selector.dart';
+import 'package:assaan_rishta/app/views/signup/widgets/profile_photo_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_datetime_picker_bdaya/flutter_datetime_picker_bdaya.dart';
@@ -62,9 +63,16 @@ SignupView({super.key});
                     color: Colors.grey[600],
                     height: 1.4,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              SizedBox(height: 10),
+              SizedBox(height: 25),
+
+              // Profile Photo Picker
+              Center(
+                child: ProfilePhotoPicker(controller: controller),
+              ),
+              SizedBox(height: 20),
 
               Row(
                 children: [

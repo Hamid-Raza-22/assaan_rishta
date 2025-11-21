@@ -1,9 +1,12 @@
 // lib/app/viewmodels/signup_viewmodel.dart
+import 'dart:convert';
+import 'dart:io';
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import '../core/export.dart';
 
@@ -42,6 +45,11 @@ class SignupViewModel extends GetxController {
   var selectedGender = 'Male'.obs;
   var isFormValid = false.obs;
   RxBool isTermsAgree = true.obs;
+  
+  // Photo picker
+  final ImagePicker _picker = ImagePicker();
+  Rx<File?> profilePhoto = Rx<File?>(null);
+  RxString photoError = ''.obs;
 
   // Lists (these stay populated)
   final maritalStatusList = ['Single', 'Married', 'Divorced', 'Widow/Widower'];
@@ -94,6 +102,136 @@ class SignupViewModel extends GetxController {
     }
   }
 
+  // Photo picker methods
+  Future<void> pickImageFromGallery() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1080,
+        maxHeight: 1080,
+      );
+      
+      if (pickedFile != null) {
+        profilePhoto.value = File(pickedFile.path);
+        photoError.value = '';
+      }
+    } catch (e) {
+      photoError.value = 'Failed to pick image';
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  Future<void> pickImageFromCamera() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        maxWidth: 1080,
+        maxHeight: 1080,
+      );
+      
+      if (pickedFile != null) {
+        profilePhoto.value = File(pickedFile.path);
+        photoError.value = '';
+      }
+    } catch (e) {
+      photoError.value = 'Failed to capture image';
+      debugPrint('Error capturing image: $e');
+    }
+  }
+
+  void removePhoto() {
+    profilePhoto.value = null;
+    photoError.value = '';
+  }
+
+  void showPhotoOptions(BuildContext context) {
+    Get.bottomSheet(
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Add Profile Photo',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.camera_alt, color: AppColors.primaryColor),
+              ),
+              title: Text('Take Photo'),
+              onTap: () {
+                Get.back();
+                pickImageFromCamera();
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.photo_library, color: AppColors.secondaryColor),
+              ),
+              title: Text('Choose from Gallery'),
+              onTap: () {
+                Get.back();
+                pickImageFromGallery();
+              },
+            ),
+            if (profilePhoto.value != null)
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.delete, color: Colors.red),
+                ),
+                title: Text('Remove Photo'),
+                onTap: () {
+                  Get.back();
+                  removePhoto();
+                },
+              ),
+            SizedBox(height: 10),
+          ],
+        ),
+      ),
+      isDismissible: true,
+      enableDrag: true,
+    );
+  }
+
   // Call this method to clear form data for a new signup
   void clearFormData() {
     // Clear text controllers
@@ -121,6 +259,10 @@ class SignupViewModel extends GetxController {
     isTermsAgree.value = true;
     isFormValid.value = false;
     dobController.value = DateTime.now();
+    
+    // Clear photo
+    profilePhoto.value = null;
+    photoError.value = '';
 
     // Clear dependent lists
     stateList.clear();
@@ -797,6 +939,19 @@ class SignupViewModel extends GetxController {
     debugPrint("DOB: ${dobTEC.text}");
     debugPrint("Gender: ${selectedGender.value}");
 
+    // Convert profile photo to base64 if available
+    String? photoBase64;
+    if (profilePhoto.value != null) {
+      try {
+        List<int> imageBytes = await profilePhoto.value!.readAsBytes();
+        photoBase64 = base64Encode(imageBytes);
+        debugPrint("Profile photo converted to base64");
+      } catch (e) {
+        debugPrint("Error converting photo to base64: $e");
+        photoError.value = 'Failed to process image';
+      }
+    }
+
     final model = SignUpModel(
       firstName: firstNameController.text.trim(),
       lastName: lastNameController.text.trim(),
@@ -817,6 +972,8 @@ class SignupViewModel extends GetxController {
       userKaTaruf: aboutYourSelfTEC.text,
       userDiWohtiKaTaruf: aboutYourPartnerTEC.text,
       roleId: 2,
+      profilePhotoPath: profilePhoto.value?.path, // Include photo path if available
+      profilePhotoBase64: photoBase64, // Include base64 photo for server upload
     );
 
     final response = await userManagementUseCase.signUp(signUpModel: model);

@@ -17,6 +17,7 @@ class FavoritesProfiles {
   String? stateName;
   String? occupation;
   String? callStatus;
+  bool? blurProfileImage;
 
   FavoritesProfiles(
       {this.userId,
@@ -36,7 +37,8 @@ class FavoritesProfiles {
         this.countryName,
         this.stateName,
         this.occupation,
-        this.callStatus});
+        this.callStatus,
+        this.blurProfileImage});
 
   FavoritesProfiles.fromJson(Map<String, dynamic> json) {
     userId = json['user_id'];
@@ -57,6 +59,7 @@ class FavoritesProfiles {
     stateName = json['StateName'];
     occupation = json['occupation'];
     callStatus = json['call_status'];
+    blurProfileImage = json['blur_toggle'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -79,6 +82,7 @@ class FavoritesProfiles {
     data['StateName'] = stateName;
     data['occupation'] = occupation;
     data['call_status'] = callStatus;
+    data['blur_toggle'] = blurProfileImage;
     return data;
   }
 

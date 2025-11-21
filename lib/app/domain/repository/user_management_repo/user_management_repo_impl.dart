@@ -776,4 +776,34 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+
+  @override
+  Future<Either<AppError, String>> updateBlurProfileImage({required bool blur}) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.updateBlurProfileImageUrl(),
+        body: {
+          'user_id': _storageRepo.getInt(StorageKeys.userId),
+          'blur_toggle': blur ? 1 : 0,
+        },
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        isEncode: false,
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+          description: response.body,
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
 }

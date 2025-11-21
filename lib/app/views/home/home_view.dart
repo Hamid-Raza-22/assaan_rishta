@@ -25,27 +25,27 @@ class HomeView extends GetView<HomeController> {
             child: Column(
               children: [
                 Obx(
-                  () => Flexible(
+                      () => Flexible(
                     child: controller.isLoading.isFalse
                         ? Swiper(
-                            controller: controller.swiperController,
-                            itemCount: controller.profileList.length,
-                            layout: SwiperLayout.STACK,
-                            itemWidth: Get.width * 0.90,
-                            itemHeight: Get.height,
-                            control: const SwiperControl(
-                              color: AppColors.primaryColor,
-                              size: 0,
-                            ),
-                            autoplay: false,
-                            loop: false,
-                            onIndexChanged: (index) {
-                              controller.handleIndexChanged(index);
-                            },
-                            itemBuilder: (context, index) {
-                              return getCartItem(context, index);
-                            },
-                          )
+                      controller: controller.swiperController,
+                      itemCount: controller.profileList.length,
+                      layout: SwiperLayout.STACK,
+                      itemWidth: Get.width * 0.90,
+                      itemHeight: Get.height,
+                      control: const SwiperControl(
+                        color: AppColors.primaryColor,
+                        size: 0,
+                      ),
+                      autoplay: false,
+                      loop: false,
+                      onIndexChanged: (index) {
+                        controller.handleIndexChanged(index);
+                      },
+                      itemBuilder: (context, index) {
+                        return getCartItem(context, index);
+                      },
+                    )
                         : homeShimmer(context),
                   ),
                 ),
@@ -105,10 +105,10 @@ class HomeView extends GetView<HomeController> {
             image: user.profileImage != null && user.profileImage!.isNotEmpty
                 ? NetworkImage(user.profileImage!) as ImageProvider
                 : AssetImage(
-                    user.gender!.toLowerCase() == "male"
-                        ? AppAssets.malePlaceholder
-                        : AppAssets.femalePlaceholder,
-                  ) as ImageProvider,
+              user.gender!.toLowerCase() == "male"
+                  ? AppAssets.malePlaceholder
+                  : AppAssets.femalePlaceholder,
+            ) as ImageProvider,
             fit: BoxFit.cover,
           ),
           boxShadow: [
@@ -177,7 +177,7 @@ class HomeView extends GetView<HomeController> {
                         fit: FlexFit.tight,
                         child: AppText(
                           text:
-                              '${user.cityName}, ${user.stateName}, ${user.countryName}',
+                          '${user.cityName}, ${user.stateName}, ${user.countryName}',
                           overflow: TextOverflow.visible,
                           color: AppColors.whiteColor,
                           fontSize: 17,

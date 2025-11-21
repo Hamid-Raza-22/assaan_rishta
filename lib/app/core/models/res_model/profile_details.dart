@@ -135,6 +135,7 @@ class ProfileDetails {
   dynamic aboutCountryId;
   dynamic aboutParentCityId;
   String? tiktokLink;
+  bool? blurProfileImage;
 
   ProfileDetails(
       {this.profileId,
@@ -272,7 +273,8 @@ class ProfileDetails {
       this.aboutStateId,
       this.aboutCountryId,
       this.aboutParentCityId,
-      this.tiktokLink});
+      this.tiktokLink,
+      this.blurProfileImage});
 
   ProfileDetails.fromJson(Map<String, dynamic> json) {
     profileId = json['profile_id'];
@@ -417,6 +419,7 @@ class ProfileDetails {
       tiktokLink = 'https://www.tiktok.com/@asaanrishtaofficial0/video/7561825639393742102?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
       // tiktokLink = 'https://www.tiktok.com/@islamicvibes599/video/7421592716967955744?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
     }
+    blurProfileImage = json['blur_toggle'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -557,6 +560,7 @@ class ProfileDetails {
     data['aboutCountryId'] = aboutCountryId;
     data['aboutParentCityId'] = aboutParentCityId;
     data['tiktokLink'] = tiktokLink;
+    data['blur_toggle'] = blurProfileImage;
     return data;
   }
 }

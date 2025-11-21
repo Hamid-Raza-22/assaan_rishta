@@ -6,7 +6,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2372,26 +2372,26 @@ class _ChattingViewState extends State<ChattingView> {
     return Obx(() => controller.showEmoji.value
         ? SizedBox(
       height: chatMq.height * .35,
-      child: EmojiPicker(
+      child: emoji.EmojiPicker(
         textEditingController: controller.textController,
-        config: Config(
-          bottomActionBarConfig: const BottomActionBarConfig(
+        config: emoji.Config(
+          bottomActionBarConfig: const emoji.BottomActionBarConfig(
             showBackspaceButton: false,
             backgroundColor: Color(0xFFEBEFF2),
             buttonColor: Color(0xFFEBEFF2),
             buttonIconColor: Colors.blue,
           ),
-          searchViewConfig: SearchViewConfig(
+          searchViewConfig: emoji.SearchViewConfig(
             backgroundColor: Colors.grey.shade100,
             buttonIconColor: Colors.black,
           ),
-          categoryViewConfig: const CategoryViewConfig(
+          categoryViewConfig: const emoji.CategoryViewConfig(
             tabBarHeight: 50,
           ),
           emojiTextStyle: const TextStyle(
             color: Colors.black,
           ),
-          emojiViewConfig: EmojiViewConfig(
+          emojiViewConfig: emoji.EmojiViewConfig(
             columns: 9,
             recentsLimit: 50,
             verticalSpacing: 1,

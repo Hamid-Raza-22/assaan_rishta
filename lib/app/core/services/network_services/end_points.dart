@@ -165,4 +165,8 @@ class EndPoints {
   getPaymentTokenUrl({basketId, amount}) {
     return '${baseUrl}PayFastController/GetToken/$basketId/$amount/PKR';
   }
+
+  String updateBlurProfileImageUrl() {
+    return '${baseUrl}user/update_blur_profile_image';
+  }
 }

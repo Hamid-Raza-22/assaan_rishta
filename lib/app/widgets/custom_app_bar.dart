@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' as getx;
 
 import '../core/routes/app_routes.dart';
 import '../utils/exports.dart';
@@ -30,7 +30,7 @@ class CustomAppBar extends StatelessWidget {
       leading: isBack
           ? IconButton(
               onPressed: () {
-                Get.back();
+              getx.Get.back();
               },
               icon: Icon(
                 Icons.arrow_back_ios,
@@ -101,11 +101,11 @@ class CustomAppBar2 extends StatelessWidget {
 
     // Small delay for smooth transition
     // Future.delayed(const Duration(milliseconds: 100), () {
-    if (Navigator.of(Get.context!).canPop()) {
+    if (Navigator.of(getx.Get.context!).canPop()) {
       // Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
-      Get.back();
+      getx.Get.back();
     } else {
-      Get.offNamed(AppRoutes.BOTTOM_NAV2);
+      getx.Get.offNamed(AppRoutes.BOTTOM_NAV2);
       //Get.to(() => const BottomNavView(index: 2));
     }
     // });

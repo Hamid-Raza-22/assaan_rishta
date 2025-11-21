@@ -1,16 +1,18 @@
 import 'dart:io';
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class DisplayImage extends StatelessWidget {
   final String imagePath;
   final VoidCallback onPressed;
+  final bool shouldBlur;
 
   // Constructor
   const DisplayImage({
     super.key,
     required this.imagePath,
     required this.onPressed,
+    this.shouldBlur = false,
   });
 
   @override
@@ -36,13 +38,40 @@ class DisplayImage extends StatelessWidget {
         ? NetworkImage(imagePath)
         : FileImage(File(imagePath));
 
+    Widget avatarWidget = CircleAvatar(
+      backgroundImage: image as ImageProvider,
+      radius: radius - 2,
+    );
+
+    if (shouldBlur) {
+      avatarWidget = ClipOval(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image(
+              image: image as ImageProvider,
+              fit: BoxFit.cover,
+            ),
+            BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: 10.0,
+                sigmaY: 10.0,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return CircleAvatar(
       radius: radius,
       backgroundColor: color,
-      child: CircleAvatar(
-        backgroundImage: image as ImageProvider,
-        radius: radius - 2,
-      ),
+      child: avatarWidget,
     );
   }
 }
