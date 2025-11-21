@@ -26,7 +26,7 @@ platform :android do
     Dir.chdir("..") do
       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
   end
 
@@ -49,7 +49,7 @@ platform :android do
     Dir.chdir("..") do
       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
 
     # Upload to internal testing track
@@ -67,7 +67,7 @@ platform :android do
     Dir.chdir("..") do
       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
 
     upload_to_play_store(
@@ -84,7 +84,7 @@ platform :android do
     Dir.chdir("..") do
       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
 
     upload_to_play_store(
@@ -101,7 +101,7 @@ platform :android do
     Dir.chdir("..") do
       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
 
     upload_to_play_store(
@@ -118,7 +118,7 @@ platform :android do
     Dir.chdir("..") do
       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
 
     upload_to_play_store(
@@ -210,7 +210,7 @@ platform :android do
     Dir.chdir("..") do
       # # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--obfuscate", "--split-debug-info=build/app/outputs/symbols", "--release")
     end
 
     # Deploy to production
