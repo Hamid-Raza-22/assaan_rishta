@@ -17,11 +17,11 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
         Get.put(AccountTypeViewModel());
       },
       builder: (controller) => PopScope(
-        canPop: true, // Allow back navigation
+        canPop: false, // Disable back navigation
         onPopInvoked: (didPop) {
-          if (didPop) {
-            // User can go back - this will take them to previous page
-            debugPrint('🔙 User navigated back from Account Type');
+          if (!didPop) {
+            // Back button pressed but navigation blocked
+            debugPrint('� Back navigation disabled on Account Type screen');
           }
         },
         child: Scaffold(
