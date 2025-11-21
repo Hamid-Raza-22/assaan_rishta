@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -274,17 +275,39 @@ class FilterView extends GetView<FilterController> {
                       ),
                     ],
                   ),
-                  child: ImageHelper(
-                    image: user.profileImage != null
-                        ? user.profileImage!
-                        : AppAssets.imagePlaceholder,
-                    imageType: user.profileImage != null
-                        ? ImageType.network
-                        : ImageType.asset,
-                    imageShape: ImageShape.circle,
-                    boxFit: BoxFit.cover,
-                    height: 90,
-                    width: 90,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ImageHelper(
+                        image: user.profileImage != null
+                            ? user.profileImage!
+                            : AppAssets.imagePlaceholder,
+                        imageType: user.profileImage != null
+                            ? ImageType.network
+                            : ImageType.asset,
+                        imageShape: ImageShape.circle,
+                        boxFit: BoxFit.cover,
+                        height: 90,
+                        width: 90,
+                      ),
+                      // Apply blur if enabled
+                      if (user.blurProfileImage == true)
+                        ClipOval(
+                          child: SizedBox(
+                            width: 90,
+                            height: 90,
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],

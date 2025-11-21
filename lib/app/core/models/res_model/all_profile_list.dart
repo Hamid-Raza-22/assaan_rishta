@@ -43,6 +43,7 @@ class ProfilesList {
   String? stateName;
   String? occupation;
   String? callStatus;
+  bool? blurProfileImage;
 
   ProfilesList(
       {this.userId,
@@ -62,7 +63,8 @@ class ProfilesList {
       this.countryName,
       this.stateName,
       this.occupation,
-      this.callStatus});
+      this.callStatus,
+      this.blurProfileImage});
 
   ProfilesList.fromJson(Map<String, dynamic> json) {
     userId = json['user_id'];
@@ -83,6 +85,7 @@ class ProfilesList {
     stateName = json['StateName'];
     occupation = json['occupation'];
     callStatus = json['call_status'];
+    blurProfileImage = json['blur_toggle'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -105,6 +108,7 @@ class ProfilesList {
     data['StateName'] = stateName;
     data['occupation'] = occupation;
     data['call_status'] = callStatus;
+    data['blur_toggle'] = blurProfileImage;
     return data;
   }
 }

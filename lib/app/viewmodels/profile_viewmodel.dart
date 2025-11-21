@@ -494,4 +494,44 @@ class ProfileController extends GetxController {
       }, SetOptions(merge: true));
     }
   }
+
+  // Toggle blur profile image setting
+  Future<void> toggleBlurProfileImage(bool value) async {
+    try {
+      debugPrint('🔄 Toggling blur profile image to: $value');
+      
+      final response = await userManagementUseCases.updateBlurProfileImage(value);
+      
+      return response.fold(
+        (error) {
+          debugPrint('❌ Error updating blur setting: $error');
+          // AppUtils.failedData(
+          //   title: "Update Failed",
+          //   message: "Failed to update blur setting",
+          // );
+          AppUtils.failedData(
+            title: "Coming Soon",
+            message: "This feature is not available yet.",
+          );
+        },
+        (success) {
+          debugPrint('✅ Blur setting updated successfully');
+          profileDetails.value.blurProfileImage = value;
+          update();
+          AppUtils.successData(
+            title: "Setting Updated",
+            message: value 
+              ? "Your profile picture is now blurred for others"
+              : "Your profile picture blur has been removed",
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Error in toggleBlurProfileImage: $e');
+      AppUtils.failedData(
+        title: "Error",
+        message: "An error occurred while updating blur setting",
+      );
+    }
+  }
 }

@@ -39,7 +39,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # - Jab aap app store (Google Play Store ya Apple App Store) par naya version upload karte hain, toh build number pichhle upload se zyada hona chahiye, bhale hi version name wahi ho.
 # - Agar aap `1.0.0+1` release karte hain aur phir usi version (`1.0.0`) mein kuch chota sa fix karke dobara upload karna chahte hain, toh aap `1.0.0+2` use karenge.
 # - Android mein isko `versionCode` aur iOS mein `CFBundleVersion` kehte hain.
-version: 1.17.30+48
+version: 1.18.31+49
 
 
 environment:
@@ -60,7 +60,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   get: ^4.7.2
-  google_fonts: ^6.2.1
+  google_fonts: ^6.3.2
   animated_custom_dropdown: ^3.1.1
   card_swiper: ^3.0.1
   dartz: ^0.10.1

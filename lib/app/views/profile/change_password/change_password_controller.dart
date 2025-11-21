@@ -9,7 +9,8 @@ import '../../../utils/exports.dart';
 
 class ChangePasswordController extends GetxController {
   final useCases = Get.find<UserManagementUseCase>();
-  final _secureStorage = SecureStorageService();
+  final systemConfigUseCases = Get.find<SystemConfigUseCase>();
+  final secureStorage = SecureStorageService();
 
   final formKey = GlobalKey<FormState>();
   RxString oldPassword = "".obs;
@@ -21,6 +22,7 @@ class ChangePasswordController extends GetxController {
   RxBool showNewPassword = true.obs;
   RxBool showConfPassword = true.obs;
   RxBool isLoading = false.obs;
+  RxBool forgotPasswordLoading = false.obs;
 
   @override
   void onInit() {
@@ -31,7 +33,7 @@ class ChangePasswordController extends GetxController {
   Future<void> _loadOldPassword() async {
     try {
       // Get password from secure storage
-      final securePassword = await _secureStorage.getUserPassword();
+      final securePassword = await secureStorage.getUserPassword();
       if (securePassword != null && securePassword.isNotEmpty) {
         oldPassword.value = securePassword;
       } else {
@@ -64,7 +66,7 @@ class ChangePasswordController extends GetxController {
         );
         
         // Save to secure storage
-        await _secureStorage.saveUserPassword(confirmPasswordTEC.text);
+        await secureStorage.saveUserPassword(confirmPasswordTEC.text);
         debugPrint('✅ Password saved to secure storage');
         
         update();

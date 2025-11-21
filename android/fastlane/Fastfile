@@ -15,7 +15,7 @@ platform :android do
   desc "Build APK for testing"
   lane :build_apk do
     Dir.chdir("..") do
-      
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
       sh("flutter", "build", "apk", "--release")
     end
@@ -24,16 +24,16 @@ platform :android do
   desc "Build AAB (Android App Bundle) for Play Store"
   lane :build_aab do
     Dir.chdir("..") do
-#       
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
   end
 
   desc "Build APK with split per ABI"
   lane :build_apk_split do
     Dir.chdir("..") do
-      
+#       # sh("flutter", "clean")
       sh("flutter", "pub", "get")
       sh("flutter", "build", "apk", "--split-per-abi", "--release")
     end
@@ -47,16 +47,15 @@ platform :android do
   lane :internal do
     # Build the app bundle using Flutter
     Dir.chdir("..") do
-      
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
 
     # Upload to internal testing track
     upload_to_play_store(
       track: 'internal',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -66,15 +65,14 @@ platform :android do
   desc "Deploy to Play Store Alpha Track"
   lane :alpha do
     Dir.chdir("..") do
-      
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
 
     upload_to_play_store(
       track: 'alpha',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -84,15 +82,14 @@ platform :android do
   desc "Deploy to Play Store Beta Track"
   lane :beta do
     Dir.chdir("..") do
-      
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
 
     upload_to_play_store(
       track: 'beta',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -102,15 +99,14 @@ platform :android do
   desc "Deploy to Play Store Production"
   lane :production do
     Dir.chdir("..") do
-      
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
 
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -120,23 +116,21 @@ platform :android do
   desc "Deploy to Production with Release Notes (Urdu + English)"
   lane :production_with_notes do |options|
     Dir.chdir("..") do
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
-
-    release_notes_hash = {
-      'en-US' => options[:notes_en] || 'Bug fixes and improvements',
-      'ur-PK' => options[:notes_ur] || 'بہتری اور bug fixes'
-    }
 
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true,
-      release_notes: release_notes_hash
+      release_notes: {
+        'en-US' => options[:notes_en] || 'Bug fixes and improvements',
+        'ur-PK' => options[:notes_ur] || 'بہتری اور bug fixes'
+      }
     )
   end
 
@@ -149,7 +143,6 @@ platform :android do
     upload_to_play_store(
       track: 'internal',
       track_promote_to: 'alpha',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_changelogs: true
     )
   end
@@ -159,7 +152,6 @@ platform :android do
     upload_to_play_store(
       track: 'alpha',
       track_promote_to: 'beta',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_changelogs: true
     )
   end
@@ -169,7 +161,6 @@ platform :android do
     upload_to_play_store(
       track: 'beta',
       track_promote_to: 'production',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_changelogs: true
     )
   end
@@ -195,7 +186,7 @@ platform :android do
   desc "Clean Flutter project"
   lane :clean do
     Dir.chdir("..") do
-      
+      # sh("flutter", "clean")
       sh("flutter", "pub", "get")
     end
   end
@@ -217,16 +208,15 @@ platform :android do
 
     # Build AAB
     Dir.chdir("..") do
-      
+      # # sh("flutter", "clean")
       sh("flutter", "pub", "get")
-      sh("flutter", "build", "appbundle", "--release", "--obfuscate", "--split-debug-info=build/app/outputs/symbols")
+      sh("flutter", "build", "appbundle", "--release")
     end
 
     # Deploy to production
     upload_to_play_store(
       track: 'production',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true,
@@ -247,7 +237,6 @@ platform :android do
   desc "Upload metadata to Play Store"
   lane :upload_metadata do
     upload_to_play_store(
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_apk: true,
       skip_upload_aab: true,
       skip_upload_screenshots: false,
@@ -259,7 +248,6 @@ platform :android do
   desc "Upload screenshots only"
   lane :upload_screenshots do
     upload_to_play_store(
-      json_key: '../asaan-rishta-chat-d848bdbc2a5e.json',
       skip_upload_apk: true,
       skip_upload_aab: true,
       skip_upload_screenshots: false,

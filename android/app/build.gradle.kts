@@ -20,7 +20,8 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.asan.rishta.matrimonial.asan_rishta"
     compileSdk = 36  // Updated from 36 to 34 (stable version)
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
+//    ndkVersion = "27.0.12077973"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true

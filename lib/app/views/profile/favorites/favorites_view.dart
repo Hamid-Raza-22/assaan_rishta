@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
@@ -79,13 +80,35 @@ class FavoritesView extends GetView<FavoritesController> {
           //   arguments: favItem.userId,
           // );
         },
-        leading: ImageHelper(
-          image: favItem.profileImage!,
-          imageType: ImageType.network,
-          height: 50,
-          width: 50,
-          boxFit: BoxFit.cover,
-          imageShape: ImageShape.circle,
+        leading: Stack(
+          alignment: Alignment.center,
+          children: [
+            ImageHelper(
+              image: favItem.profileImage!,
+              imageType: ImageType.network,
+              height: 50,
+              width: 50,
+              boxFit: BoxFit.cover,
+              imageShape: ImageShape.circle,
+            ),
+            // Apply blur if enabled
+            if (favItem.blurProfileImage == true)
+              ClipOval(
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         title: AppText(
           text: favItem.name,

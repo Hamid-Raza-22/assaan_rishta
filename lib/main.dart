@@ -327,10 +327,12 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
       debugPrint('❌ Error handling app pause: $e');
     }
   }
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Asaan Rishta',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

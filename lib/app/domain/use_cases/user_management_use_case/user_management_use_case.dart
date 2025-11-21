@@ -414,4 +414,16 @@ class UserManagementUseCase {
       },
     );
   }
+
+  Future<Either<AppError, String>> updateBlurProfileImage(bool blur) async {
+    final response = await userManagementRepo.updateBlurProfileImage(blur: blur);
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
 }

@@ -115,6 +115,7 @@ class CurrentUserProfile {
   int? userStateId;
   int? userCountryId;
   String? subscribtionStatus;
+  bool? blurProfileImage;
 
   CurrentUserProfile(
       {this.profileId,
@@ -232,7 +233,8 @@ class CurrentUserProfile {
       this.aboutParentCityId,
       this.userStateId,
       this.userCountryId,
-      this.subscribtionStatus});
+      this.subscribtionStatus,
+      this.blurProfileImage});
 
   CurrentUserProfile.fromJson(Map<String, dynamic> json) {
     profileId = json['profile_id'];
@@ -351,6 +353,7 @@ class CurrentUserProfile {
     userStateId = json['userStateId'];
     userCountryId = json['userCountryId'];
     subscribtionStatus = json['subscribtionStatus'];
+    blurProfileImage = json['blur_toggle'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -471,6 +474,7 @@ class CurrentUserProfile {
     data['userStateId'] = userStateId;
     data['userCountryId'] = userCountryId;
     data['subscribtionStatus'] = subscribtionStatus;
+    data['blur_toggle'] = blurProfileImage;
     return data;
   }
 }

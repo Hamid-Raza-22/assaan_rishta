@@ -18,6 +18,8 @@ class SignUpModel {
   String userKaTaruf;
   String userDiWohtiKaTaruf;
   int roleId;
+  String? profilePhotoPath; // Optional photo file path (for local reference)
+  String? profilePhotoBase64; // Optional photo base64 data (for server upload)
 
   SignUpModel({
     required this.catename,
@@ -39,6 +41,8 @@ class SignUpModel {
     required this.userKaTaruf,
     required this.userDiWohtiKaTaruf,
     required this.roleId,
+    this.profilePhotoPath, // Optional parameter
+    this.profilePhotoBase64, // Optional parameter
   });
 
   factory SignUpModel.fromJson(Map<String, dynamic> json) {
@@ -86,6 +90,8 @@ class SignUpModel {
       'userKaTaruf': userKaTaruf,
       'userDiWohtiKaTaruf': userDiWohtiKaTaruf,
       'role_id': roleId,
+      if (profilePhotoBase64 != null && profilePhotoBase64!.isNotEmpty)
+        'user_image': profilePhotoBase64,
     };
   }
 }

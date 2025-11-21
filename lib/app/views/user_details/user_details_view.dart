@@ -1,4 +1,5 @@
 // Updated user_details_view.dart
+import 'dart:ui';
 import 'package:flutter/services.dart'; // For Clipboard
 // Optional: import 'package:share_plus/share_plus.dart'; // If you fix the plugin
 import 'package:flutter/material.dart';
@@ -323,17 +324,39 @@ class UserDetailsView extends GetView<UserDetailsController> {
           left: 0,
           right: 0,
           top: 0,
-          child: ImageHelper(
-            image: controller.profileDetails.value.profileImage != null
-                ? controller.profileDetails.value.profileImage!
-                : AppAssets.imagePlaceholder,
-            imageType: controller.profileDetails.value.profileImage != null
-                ? ImageType.network
-                : ImageType.asset,
-            imageShape: ImageShape.circle,
-            boxFit: BoxFit.contain,
-            height: 90,
-            width: 90,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ImageHelper(
+                image: controller.profileDetails.value.profileImage != null
+                    ? controller.profileDetails.value.profileImage!
+                    : AppAssets.imagePlaceholder,
+                imageType: controller.profileDetails.value.profileImage != null
+                    ? ImageType.network
+                    : ImageType.asset,
+                imageShape: ImageShape.circle,
+                boxFit: BoxFit.contain,
+                height: 90,
+                width: 90,
+              ),
+              // Apply blur if enabled
+              if (controller.profileDetails.value.blurProfileImage == true)
+                ClipOval(
+                  child: SizedBox(
+                    width: 90,
+                    height: 90,
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],

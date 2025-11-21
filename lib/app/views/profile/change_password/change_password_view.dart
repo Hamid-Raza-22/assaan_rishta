@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/export.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../utils/exports.dart';
 import '../../../widgets/export.dart';
 import 'export.dart';
@@ -21,6 +22,7 @@ class ChangePasswordView extends GetView<ChangePasswordController> {
           appBar: const PreferredSize(
             preferredSize: Size(double.infinity, 40),
             child: CustomAppBar(
+              title: "Change Password",
               isBack: true,
             ),
           ),
@@ -39,7 +41,7 @@ class ChangePasswordView extends GetView<ChangePasswordController> {
                         const AppText(
                           text: "Change Password",
                           color: AppColors.blackColor,
-                          fontSize: 32,
+                          fontSize:28,
                           fontWeight: FontWeight.w500,
                         ),
                         const SizedBox(height: 05),
@@ -147,6 +149,70 @@ class ChangePasswordView extends GetView<ChangePasswordController> {
                             }
                             return null;
                           },
+                        ),
+                        const SizedBox(height: 12),
+                        // Forgot Password Text Button
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Obx(() => GestureDetector(
+                            onTap: controller.forgotPasswordLoading.value ? null : () async {
+                              // Get email from secure storage
+                              final email = await controller.secureStorage.getUserEmail();
+                              
+                              if (email == null || email.isEmpty) {
+                                Get.snackbar(
+                                  'Error',
+                                  'Unable to retrieve email. Please login again.',
+                                  snackPosition: SnackPosition.BOTTOM,
+                                  colorText: Colors.white,
+                                  backgroundColor: Colors.red,
+                                );
+                                return;
+                              }
+                              
+                              controller.forgotPasswordLoading.value = true;
+                              try {
+                                final response = await controller.systemConfigUseCases
+                                    .getUserNumber(email);
+                                if (response.isRight()) {
+                                  final result = response.getOrElse(() => '');
+                                  debugPrint('Response Body: $result');
+                                  // Save phone number to secure storage
+                                  await controller.secureStorage.saveUserPhone(result);
+                                  await controller.secureStorage.saveUserEmail(email);
+                                  debugPrint('✅ Phone and email saved securely');
+                                  Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW,
+                                      arguments: email);
+                                } else {
+                                  Get.snackbar(
+                                    'Not Found',
+                                    "Email is not Registered",
+                                    snackPosition: SnackPosition.BOTTOM,
+                                    colorText: Colors.white,
+                                    backgroundColor: Colors.red,
+                                  );
+                                }
+                              } finally {
+                                controller.forgotPasswordLoading.value = false;
+                              }
+                            },
+                            child: controller.forgotPasswordLoading.value
+                                ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.0,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                              ),
+                            )
+                                : const Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                          )),
                         ),
                         const SizedBox(height: 16),
                         Obx(()=>

@@ -104,4 +104,6 @@ mixin UserManagementRepo {
   });
 
   Future<Either<AppError, List<FavoritesProfiles>>> getAllFavorites();
+
+  Future<Either<AppError, String>> updateBlurProfileImage({required bool blur});
 }
