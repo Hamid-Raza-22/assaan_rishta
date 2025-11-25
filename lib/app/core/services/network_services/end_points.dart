@@ -24,6 +24,10 @@ class EndPoints {
     return '${baseUrl}Users/DeleteUser/$uid';
   }
 
+  String deactivateUserProfile({required uid, required String byWho}) {
+    return '${baseUrl}Users/DeActivateUser/$uid/$byWho';
+  }
+
   String getCurrentUserProfileUrl({required uid}) {
     return '${baseUrl}User/GetUserProfile/$uid';
   }
@@ -85,6 +89,7 @@ class EndPoints {
   }
 
   getProfilesDetailsUrl({uid}) {
+    return '${baseUrl}User/GetConectionDetail/$uid';
     return '${baseUrl}User/GetConectionDetail/$uid';
   }
 
@@ -167,6 +172,6 @@ class EndPoints {
   }
 
   String updateBlurProfileImageUrl() {
-    return '${baseUrl}user/update_blur_profile_image';
+    return '${baseUrl}Users/update_blur_profile_image';
   }
 }

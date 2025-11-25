@@ -44,26 +44,31 @@ class DisplayImage extends StatelessWidget {
     );
 
     if (shouldBlur) {
+      final diameter = (radius - 2) * 2;
       avatarWidget = ClipOval(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image(
-              image: image as ImageProvider,
-              fit: BoxFit.cover,
-            ),
-            BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: 10.0,
-                sigmaY: 10.0,
+        child: SizedBox(
+          width: diameter,
+          height: diameter,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image(
+                image: image as ImageProvider,
+                fit: BoxFit.cover,
               ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+              BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 10.0,
+                  sigmaY: 10.0,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }

@@ -85,7 +85,7 @@ class ProfilesList {
     stateName = json['StateName'];
     occupation = json['occupation'];
     callStatus = json['call_status'];
-    blurProfileImage = json['blur_toggle'] ?? false;
+    blurProfileImage = json['is_blur'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -108,7 +108,7 @@ class ProfilesList {
     data['StateName'] = stateName;
     data['occupation'] = occupation;
     data['call_status'] = callStatus;
-    data['blur_toggle'] = blurProfileImage;
+    data['is_blur'] = blurProfileImage;
     return data;
   }
 }

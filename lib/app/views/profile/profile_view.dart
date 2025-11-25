@@ -107,6 +107,7 @@ class ProfileView extends GetView<ProfileController> {
               imagePath: controller.profileDetails.value.profileImage != null
                   ? controller.profileDetails.value.profileImage!
                   : AppAssets.imagePlaceholder,
+              shouldBlur: controller.profileDetails.value.blurProfileImage ?? false,
               onPressed: () {
                 _showCupertinoSheet(context);
               },
@@ -214,7 +215,7 @@ class ProfileView extends GetView<ProfileController> {
           ),
           // Blur Profile Toggle - Only for Female Users
           if (controller.profileDetails.value.gender?.toLowerCase() == 'female')
-            InkWell(
+            Obx(() => InkWell(
               onTap: () {
                 // Toggle on tap of entire tile
                 final currentValue = controller.profileDetails.value.blurProfileImage ?? false;
@@ -250,7 +251,7 @@ class ProfileView extends GetView<ProfileController> {
                   activeColor: AppColors.primaryColor,
                 ),
               ),
-            ),
+            )),
           ClickableListTile(
             text: 'Edit Profile',
             icon: Icons.edit_outlined,
@@ -403,12 +404,20 @@ class ProfileView extends GetView<ProfileController> {
               Get.toNamed(AppRoutes.USER_GUIDE_VIEW);
             },
           ),
+          // ClickableListTile(
+          //   text: 'Delete Profile',
+          //   textColor: AppColors.redColor,
+          //   icon: Icons.delete_outline,
+          //   onTap: () {
+          //     onDeleteProfile(context);
+          //   },
+          // ),
           ClickableListTile(
-            text: 'Delete Profile',
+            text: 'Deactivate Profile',
             textColor: AppColors.redColor,
-            icon: Icons.delete_outline,
+            icon: Icons.power_settings_new,
             onTap: () {
-              onDeleteProfile(context);
+              onDeactivateProfile(context);
             },
           ),
           ClickableListTile(
@@ -424,6 +433,105 @@ class ProfileView extends GetView<ProfileController> {
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Future<void> onDeactivateProfile(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          surfaceTintColor: Colors.white,
+          title: Text(
+            "Deactivate Profile?",
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            "Are you sure you want to deactivate your profile? You can reactivate it anytime by logging in again.",
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Get.back();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Card(
+                        elevation: 0.5,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(35)),
+                        ),
+                        child: Container(
+                          alignment: Alignment.center,
+                          height: MediaQuery.of(context).size.height * 0.065,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(35),
+                            border: Border.all(color: AppColors.primaryColor),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () async {
+                      Get.back();
+                      controller.deactivateProfile();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Card(
+                        elevation: 0.5,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(35)),
+                        ),
+                        child: Container(
+                          alignment: Alignment.center,
+                          height: MediaQuery.of(context).size.height * 0.065,
+                          decoration: BoxDecoration(
+                            color: AppColors.redColor,
+                            borderRadius: BorderRadius.circular(35),
+                            border: Border.all(color: AppColors.redColor),
+                          ),
+                          child: Text(
+                            'Deactivate',
+                            style: GoogleFonts.poppins(
+                              color: AppColors.whiteColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../core/export.dart';
 import '../../../domain/export.dart';
+import '../../../utils/exports.dart';
 import '../../../viewmodels/home_viewmodel.dart';
 
 class FavoritesController extends GetxController {
@@ -56,6 +57,24 @@ class FavoritesController extends GetxController {
         update();
       },
     );
+  }
+
+  /// Get gender-based placeholder image
+  /// Returns male/female placeholder based on user's gender
+  String getGenderBasedPlaceholder(String? gender) {
+    if (gender == null || gender.isEmpty) {
+      return AppAssets.imagePlaceholder;
+    }
+    
+    // Check gender (case-insensitive)
+    final genderLower = gender.toLowerCase();
+    if (genderLower == 'male') {
+      return AppAssets.malePlaceholder;
+    } else if (genderLower == 'female') {
+      return AppAssets.femalePlaceholder;
+    } else {
+      return AppAssets.imagePlaceholder;
+    }
   }
 
 }

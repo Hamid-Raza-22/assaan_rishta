@@ -96,21 +96,10 @@ class HomeView extends GetView<HomeController> {
       child:
       Container(
         clipBehavior: Clip.hardEdge,
-        padding: const EdgeInsets.all(20),
         margin: const EdgeInsets.symmetric(horizontal: 00),
         decoration: BoxDecoration(
           borderRadius: const BorderRadius.all(Radius.circular(40)),
           color: AppColors.blackColor,
-          image: DecorationImage(
-            image: user.profileImage != null && user.profileImage!.isNotEmpty
-                ? NetworkImage(user.profileImage!) as ImageProvider
-                : AssetImage(
-              user.gender!.toLowerCase() == "male"
-                  ? AppAssets.malePlaceholder
-                  : AppAssets.femalePlaceholder,
-            ) as ImageProvider,
-            fit: BoxFit.cover,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withValues(alpha: 0.2),
@@ -121,9 +110,29 @@ class HomeView extends GetView<HomeController> {
           ],
         ),
         alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(40)),
+              child: BlurredProfileImage(
+                imageProvider: user.profileImage != null && user.profileImage!.isNotEmpty
+                    ? NetworkImage(user.profileImage!) as ImageProvider
+                    : AssetImage(
+                  user.gender!.toLowerCase() == "male"
+                      ? AppAssets.malePlaceholder
+                      : AppAssets.femalePlaceholder,
+                ) as ImageProvider,
+                shouldBlur: user.blurProfileImage ?? false,
+                boxFit: BoxFit.cover,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child:
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -188,6 +197,9 @@ class HomeView extends GetView<HomeController> {
                   ),
                 ],
               ),
+            ),
+            ],
+          ),
             ),
           ],
         ),

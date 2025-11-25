@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/viewmodels/chat_viewmodel.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
@@ -192,6 +193,7 @@ class UserDetailsController extends GetxController {
         },
             (success) {
           debugPrint('✅ Profile loaded successfully: ${success.firstName} ${success.lastName}');
+          debugPrint('🔵 Blur status from API: ${success.blurProfileImage} (User ID: ${success.userId})');
           profileDetails.value = success;
           isLoading.value = false;
           update(); // Force UI update
@@ -308,6 +310,22 @@ class UserDetailsController extends GetxController {
     pauseVideoPlayback();
 
     String receiverIdStr = '${profileDetails.value.userId}';
+    
+    // Check if user is deactivated
+    bool isDeactivated = await _checkIfUserIsDeactivated(receiverIdStr);
+    if (isDeactivated) {
+      if (!Get.isSnackbarOpen) {
+        Get.snackbar(
+          'User Unavailable',
+          'This user has deactivated their profile',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.redColor,
+          colorText: AppColors.whiteColor,
+          duration: const Duration(seconds: 3),
+        );
+      }
+      return;
+    }
     String receiverName = '${profileDetails.value.firstName} ${profileDetails.value.lastName}';
     String receiverEmail = '${profileDetails.value.email}';
     String userImage = profileDetails.value.profileImage ?? AppConstants.profileImg;
@@ -328,8 +346,7 @@ class UserDetailsController extends GetxController {
       isWebOnline: false,
       id: receiverIdStr,
       pushToken: "",
-      email: receiverEmail,
-    );
+      email: receiverEmail);
 
     await chatController!.userExists(receiverIdStr).then((exist) async {
       if (exist) {
@@ -539,6 +556,45 @@ class UserDetailsController extends GetxController {
     return videoExtensions.any((ext) => lowerUrl.contains(ext)) ||
         lowerUrl.contains('blob:') ||
         lowerUrl.contains('.m3u8');
+  }
+
+  /// Get gender-based placeholder image
+  /// Returns male/female placeholder based on user's gender
+  String getGenderBasedPlaceholder(String? gender) {
+    if (gender == null || gender.isEmpty) {
+      return AppAssets.imagePlaceholder;
+    }
+    
+    // Check gender (case-insensitive)
+    final genderLower = gender.toLowerCase();
+    if (genderLower == 'male') {
+      return AppAssets.malePlaceholder;
+    } else if (genderLower == 'female') {
+      return AppAssets.femalePlaceholder;
+    } else {
+      return AppAssets.imagePlaceholder;
+    }
+  }
+
+  /// Check if user is deactivated in Firebase
+  Future<bool> _checkIfUserIsDeactivated(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(userId)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final isDeactivated = data?['is_deactivated'] ?? false;
+        debugPrint('🔍 User $userId deactivation status: $isDeactivated');
+        return isDeactivated;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error checking deactivation status: $e');
+      return false;
+    }
   }
 
   @override

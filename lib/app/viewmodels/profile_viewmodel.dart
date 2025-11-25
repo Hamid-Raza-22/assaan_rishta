@@ -32,6 +32,77 @@ class ProfileController extends GetxController {
     return "${profileDetails.value.firstName} ${profileDetails.value.lastName}";
   }
 
+  // Deactivate profile
+  deactivateProfile() async {
+    AppUtils.onLoading(Get.context!);
+
+    try {
+      final userId = userManagementUseCases.getUserId().toString();
+      debugPrint('🔄 Starting profile deactivation for user: $userId');
+
+      final response = await userManagementUseCases.deactivateUserProfile();
+
+      await response.fold(
+            (error) {
+          AppUtils.dismissLoader(Get.context!);
+          debugPrint("❌ Error deactivating profile: $error");
+          AppUtils.failedData(
+            title: "Deactivation Failed",
+            message: "Failed to deactivate profile",
+          );
+          throw Exception("Deactivation failed");
+        },
+            (success) async {
+          debugPrint("✅ Profile deactivated successfully");
+
+          // Update Firebase to mark user as deactivated
+          // await _markUserAsDeactivatedInFirebase(userId);
+          // Step 2: Complete Firebase cleanup
+          await _performCompleteFirebaseCleanup(userId);
+          AppUtils.dismissLoader(Get.context!);
+
+          AppUtils.successData(
+            title: "Profile Deactivated",
+            message: "Your profile has been deactivated successfully",
+          );
+
+          // Logout user after short delay
+          await Future.delayed(const Duration(seconds: 2));
+          handleLogout(Get.context!);
+        },
+      );
+
+    } catch (e) {
+      AppUtils.dismissLoader(Get.context!);
+      debugPrint("❌ Error in profile deactivation: $e");
+      AppUtils.failedData(
+        title: "Deactivation Failed",
+        message: "Failed to deactivate profile. Please try again.",
+      );
+    }
+  }
+
+  // Mark user as deactivated in Firebase (user not deleted, just marked)
+  Future<void> _markUserAsDeactivatedInFirebase(String userId) async {
+    try {
+      debugPrint('🔥 Marking user as deactivated in Firebase: $userId');
+
+      final userRef = FirebaseFirestore.instance.collection('Hamid_users').doc(userId);
+      
+      await userRef.set({
+        'is_deactivated': true,
+        'deactivated_at': DateTime.now().millisecondsSinceEpoch.toString(),
+        'is_online': false,
+        'is_mobile_online': false,
+        'is_web_online': false,
+      }, SetOptions(merge: true));
+
+      debugPrint('✅ User marked as deactivated in Firebase');
+    } catch (e) {
+      debugPrint('❌ Error marking user as deactivated in Firebase: $e');
+    }
+  }
+
   // ENHANCED: Complete profile deletion with Firebase cleanup
   deleteProfile(context) async {
     AppUtils.onLoading(context);
@@ -42,6 +113,7 @@ class ProfileController extends GetxController {
 
       // Step 1: Delete from backend API first
       final response = await userManagementUseCases.deleteUserProfile();
+
 
       await response.fold(
             (error) {
@@ -495,39 +567,38 @@ class ProfileController extends GetxController {
     }
   }
 
-  // Toggle blur profile image setting
+  // Toggle blur profile image setting (optimistic update)
   Future<void> toggleBlurProfileImage(bool value) async {
     try {
       debugPrint('🔄 Toggling blur profile image to: $value');
       
+      // Update UI immediately (optimistic update)
+      profileDetails.value.blurProfileImage = value;
+      update();
+      
+      // Make API call in background
       final response = await userManagementUseCases.updateBlurProfileImage(value);
       
-      return response.fold(
+      response.fold(
         (error) {
           debugPrint('❌ Error updating blur setting: $error');
-          // AppUtils.failedData(
-          //   title: "Update Failed",
-          //   message: "Failed to update blur setting",
-          // );
+          // Revert on error
+          profileDetails.value.blurProfileImage = !value;
+          update();
           AppUtils.failedData(
-            title: "Coming Soon",
-            message: "This feature is not available yet.",
+            title: error.title.isNotEmpty ? error.title : "Update Failed",
+            message: error.description.isNotEmpty ? error.description : "Failed to update blur setting",
           );
         },
         (success) {
           debugPrint('✅ Blur setting updated successfully');
-          profileDetails.value.blurProfileImage = value;
-          update();
-          AppUtils.successData(
-            title: "Setting Updated",
-            message: value 
-              ? "Your profile picture is now blurred for others"
-              : "Your profile picture blur has been removed",
-          );
         },
       );
     } catch (e) {
       debugPrint('❌ Error in toggleBlurProfileImage: $e');
+      // Revert on error
+      profileDetails.value.blurProfileImage = !value;
+      update();
       AppUtils.failedData(
         title: "Error",
         message: "An error occurred while updating blur setting",

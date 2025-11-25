@@ -34,6 +34,8 @@ mixin UserManagementRepo {
 
   Future<Either<AppError, dynamic>> deleteUserProfile();
 
+  Future<Either<AppError, dynamic>> deactivateUserProfile();
+
   Future<Either<AppError, CurrentUserProfile>> getCurrentUserProfile();
 
   Future<Either<AppError, String>> updateProfilePic({required String picData});

@@ -103,6 +103,18 @@ class UserManagementUseCase {
     );
   }
 
+  Future<Either<AppError, dynamic>> deactivateUserProfile() async {
+    final response = await userManagementRepo.deactivateUserProfile();
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
+
   Future<Either<AppError, CurrentUserProfile>> getCurrentUserProfile() async {
     final response = await userManagementRepo.getCurrentUserProfile();
     return response.fold(

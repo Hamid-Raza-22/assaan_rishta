@@ -229,6 +229,33 @@ class UserManagementRepoImpl implements UserManagementRepo {
   }
 
   @override
+  Future<Either<AppError, dynamic>> deactivateUserProfile() async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.deactivateUserProfile(
+          uid: _storageRepo.getInt(StorageKeys.userId),
+          byWho: 'by user',
+        ),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Either<AppError, CurrentUserProfile>> getCurrentUserProfile() async {
     try {
       final response = await _networkHelper.get(
@@ -783,11 +810,11 @@ class UserManagementRepoImpl implements UserManagementRepo {
       final response = await _networkHelper.post(
         _endPoints.updateBlurProfileImageUrl(),
         body: {
-          'user_id': _storageRepo.getInt(StorageKeys.userId),
-          'blur_toggle': blur ? 1 : 0,
+          'user_id': _storageRepo.getInt(StorageKeys.userId),  // int value
+          'is_blur': blur,  // bool value (not string)
         },
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        isEncode: false,
+        headers: {"Content-Type": "application/json"},
+        isEncode: true,  // JSON encoding enabled
       );
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         return Right(response.body.toString());

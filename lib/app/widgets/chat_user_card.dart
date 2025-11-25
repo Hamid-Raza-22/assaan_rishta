@@ -37,6 +37,9 @@ class ChatUserCardController extends GetxController {
   final RxBool isUserDeleted = false.obs;
   final RxString userDeletionTime = ''.obs;
   final RxBool isDeletionStatusLoaded = false.obs;
+  
+  // Deactivation detection
+  final RxBool isUserDeactivated = false.obs;
 
   // Real-time user data with better reactivity
   final Rx<ChatUser> realtimeUserData = Rx<ChatUser>(ChatUser(
@@ -328,12 +331,18 @@ class ChatUserCardController extends GetxController {
         try {
           final userData = snapshot.data()!;
           final accountDeleted = userData['account_deleted'] == true;
+          final accountDeactivated = userData['is_deactivated'] == true;
 
           if (accountDeleted != isUserDeleted.value) {
             isUserDeleted.value = accountDeleted;
             userDeletionTime.value = userData['deleted_at'] as String? ?? '';
 
             debugPrint('🔄 Deletion status changed for $userId: $accountDeleted');
+          }
+          
+          if (accountDeactivated != isUserDeactivated.value) {
+            isUserDeactivated.value = accountDeactivated;
+            debugPrint('🔄 Deactivation status changed for $userId: $accountDeactivated');
           }
 
           if (accountDeleted) {
@@ -346,13 +355,22 @@ class ChatUserCardController extends GetxController {
               'is_mobile_online': false,
               'is_web_online': false,
             });
+          } else if (accountDeactivated) {
+            realtimeUserData.value = ChatUser.fromJson({
+              ...userData,
+              'name': userData['name'] ?? 'Deactivated User',
+              'about': 'This account is deactivated',
+              'is_online': false,
+              'is_mobile_online': false,
+              'is_web_online': false,
+            });
           } else {
             final updatedUser = ChatUser.fromJson(userData);
             _preloadUserImage(updatedUser.image);
             realtimeUserData.value = updatedUser;
           }
 
-          debugPrint('🔄 REAL-TIME UPDATE: ${realtimeUserData.value.name} | Deleted: $accountDeleted | Online: ${realtimeUserData.value.isOnline}');
+          debugPrint('🔄 REAL-TIME UPDATE: ${realtimeUserData.value.name} | Deleted: $accountDeleted | Deactivated: $accountDeactivated | Online: ${realtimeUserData.value.isOnline}');
 
           update(['user_data_$userId']);
 
@@ -495,7 +513,8 @@ class ChatUserCardController extends GetxController {
   // Helper getters
   bool get isCurrentlyBlocked => hasBlockedThem.value || isBlockedByOther.value;
   bool get isCurrentlyDeleted => isUserDeleted.value;
-  bool get canChat => !isCurrentlyBlocked && !isCurrentlyDeleted;
+  bool get isCurrentlyDeactivated => isUserDeactivated.value;
+  bool get canChat => !isCurrentlyBlocked && !isCurrentlyDeleted && !isCurrentlyDeactivated;
   ChatUser get currentUserData => realtimeUserData.value;
 
   String get displayDeletionTime {
@@ -593,21 +612,22 @@ class EnhancedChatUserCard extends StatelessWidget {
           final displayUser = ctrl.currentUserData;
           final isBlocked = ctrl.isCurrentlyBlocked;
           final isDeleted = ctrl.isCurrentlyDeleted;
+          final isDeactivated = ctrl.isCurrentlyDeactivated;
 
-          debugPrint('🎨 Building card UI for: ${displayUser.name} (${displayUser.id}) - Deleted: $isDeleted');
+          debugPrint('🎨 Building card UI for: ${displayUser.name} (${displayUser.id}) - Deleted: $isDeleted - Deactivated: $isDeactivated');
 
           return ListTile(
-            leading: _buildAvatar(isBlocked, isDeleted, displayUser),
-            title: _buildTitle(isDeleted, displayUser, ctrl),
-            subtitle: _buildSubtitle(ctrl, isBlocked, isDeleted, displayUser),
-            trailing: _buildTrailing(context, ctrl, isBlocked, isDeleted),
+            leading: _buildAvatar(isBlocked, isDeleted, isDeactivated, displayUser),
+            title: _buildTitle(isDeleted, isDeactivated, displayUser, ctrl),
+            subtitle: _buildSubtitle(ctrl, isBlocked, isDeleted, isDeactivated, displayUser),
+            trailing: _buildTrailing(context, ctrl, isBlocked, isDeleted, isDeactivated),
           );
         });
       },
     );
   }
 
-  Widget _buildAvatar(bool isBlocked, bool isDeleted, ChatUser displayUser) {
+  Widget _buildAvatar(bool isBlocked, bool isDeleted, bool isDeactivated, ChatUser displayUser) {
     if (isDeleted) {
       return Stack(
         children: [
@@ -633,6 +653,40 @@ class EnhancedChatUserCard extends StatelessWidget {
               ),
               child: const Icon(
                 Icons.close,
+                color: Colors.white,
+                size: 8,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    
+    if (isDeactivated) {
+      return Stack(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: Colors.grey[200],
+            child: Icon(
+              Icons.person_off_outlined,
+              color: Colors.grey[500],
+              size: 30,
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 12,
+              width: 12,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.orange,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.pause,
                 color: Colors.white,
                 size: 8,
               ),
@@ -694,7 +748,7 @@ class EnhancedChatUserCard extends StatelessWidget {
             fadeOutDuration: const Duration(milliseconds: 200),
           ),
         ),
-        if (!isBlocked && !isDeleted && displayUser.isOnline)
+        if (!isBlocked && !isDeleted && !isDeactivated && displayUser.isOnline)
           Positioned(
             right: 0,
             bottom: 0,
@@ -712,7 +766,7 @@ class EnhancedChatUserCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTitle(bool isDeleted, ChatUser displayUser, ChatUserCardController controller) {
+  Widget _buildTitle(bool isDeleted, bool isDeactivated, ChatUser displayUser, ChatUserCardController controller) {
     if (isDeleted) {
       return Row(
         children: [
@@ -747,6 +801,40 @@ class EnhancedChatUserCard extends StatelessWidget {
         ],
       );
     }
+    
+    if (isDeactivated) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              displayUser.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: const Text(
+              'DEACTIVATED',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Text(
       displayUser.name,
@@ -759,12 +847,20 @@ class EnhancedChatUserCard extends StatelessWidget {
   }
 
   // ENHANCED: Subtitle with real-time status
-  Widget _buildSubtitle(ChatUserCardController controller, bool isBlocked, bool isDeleted,
+  Widget _buildSubtitle(ChatUserCardController controller, bool isBlocked, bool isDeleted, bool isDeactivated,
       ChatUser displayUser) {
     if (isDeleted) {
       return Text(
         'Account deleted ${controller.displayDeletionTime}',
         style: const TextStyle(fontSize: 14, color: Colors.red, fontStyle: FontStyle.italic),
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    
+    if (isDeactivated) {
+      return const Text(
+        'This account is deactivated',
+        style: TextStyle(fontSize: 14, color: Colors.orange, fontStyle: FontStyle.italic),
         overflow: TextOverflow.ellipsis,
       );
     }
@@ -877,7 +973,7 @@ class EnhancedChatUserCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTrailing(BuildContext context, ChatUserCardController controller, bool isBlocked, bool isDeleted) {
+  Widget _buildTrailing(BuildContext context, ChatUserCardController controller, bool isBlocked, bool isDeleted, bool isDeactivated) {
     if (isDeleted) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -890,6 +986,25 @@ class EnhancedChatUserCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               color: Colors.grey[500],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
+    }
+    
+    if (isDeactivated) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Icon(Icons.pause_circle_outline, color: Colors.orange[400], size: 20),
+          const SizedBox(height: 2),
+          Text(
+            'Paused',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.orange[500],
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1046,6 +1161,11 @@ class EnhancedChatUserCard extends StatelessWidget {
       _showDeletedUserDialog(context, controller);
       return;
     }
+    
+    if (controller.isCurrentlyDeactivated) {
+      _showDeactivatedUserDialog(context, controller);
+      return;
+    }
 
     final chatController = Get.find<ChatViewModel>();
     final isBlocked = await chatController.isUserBlocked(user.id);
@@ -1118,6 +1238,70 @@ class EnhancedChatUserCard extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Remove Chat', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  void _showDeactivatedUserDialog(BuildContext context, ChatUserCardController controller) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.pause_circle_outline, color: Colors.orange, size: 28),
+              SizedBox(width: 10),
+              Text('Account Deactivated'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This user has temporarily deactivated their account.',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'The user can reactivate their account at any time.',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'You cannot send messages while the account is deactivated.',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Okay', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Optionally delete this chat from list
+                _showDeleteConfirmDialog(context, controller).then((shouldDelete) {
+                  if (shouldDelete == true) {
+                    controller.listController.deleteChat(user);
+                    if (Get.isRegistered<ChatUserCardController>(tag: 'chat_card_${user.id}')) {
+                      Get.delete<ChatUserCardController>(tag: 'chat_card_${user.id}', force: true);
+                    }
+                  }
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
