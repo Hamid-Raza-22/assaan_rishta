@@ -1,5 +1,4 @@
 // Updated user_details_view.dart
-import 'dart:ui';
 import 'package:flutter/services.dart'; // For Clipboard
 // Optional: import 'package:share_plus/share_plus.dart'; // If you fix the plugin
 import 'package:flutter/material.dart';
@@ -321,42 +320,31 @@ class UserDetailsView extends GetView<UserDetailsController> {
           ),
         ),
         Positioned(
+          top: 0,
           left: 0,
           right: 0,
-          top: 0,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              ImageHelper(
-                image: controller.profileDetails.value.profileImage != null
-                    ? controller.profileDetails.value.profileImage!
-                    : AppAssets.imagePlaceholder,
-                imageType: controller.profileDetails.value.profileImage != null
-                    ? ImageType.network
-                    : ImageType.asset,
-                imageShape: ImageShape.circle,
-                boxFit: BoxFit.contain,
-                height: 90,
-                width: 90,
-              ),
-              // Apply blur if enabled
-              if (controller.profileDetails.value.blurProfileImage == true)
-                ClipOval(
-                  child: SizedBox(
-                    width: 90,
-                    height: 90,
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          child: Center(
+            child: Builder(
+              builder: (context) {
+                final shouldBlur = controller.profileDetails.value.blurProfileImage ?? false;
+                debugPrint('🎯 UserDetails - shouldBlur: $shouldBlur, is_blur value: ${controller.profileDetails.value.blurProfileImage}');
+                
+                return BlurredProfileImage(
+                  imageProvider: (controller.profileDetails.value.profileImage != null && 
+                          controller.profileDetails.value.profileImage!.isNotEmpty)
+                      ? NetworkImage(controller.profileDetails.value.profileImage!) as ImageProvider
+                      : AssetImage(
+                          controller.getGenderBasedPlaceholder(controller.profileDetails.value.gender),
+                        ) as ImageProvider,
+                  shouldBlur: shouldBlur,
+                  isCircular: true,
+                  width: 90,
+                  height: 90,
+                  boxFit: BoxFit.cover,
+                  blurSigma: 10.0,
+                );
+              },
+            ),
           ),
         ),
       ],

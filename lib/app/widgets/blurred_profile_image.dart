@@ -9,6 +9,7 @@ class BlurredProfileImage extends StatelessWidget {
   final BoxFit boxFit;
   final BorderRadius? borderRadius;
   final double blurSigma;
+  final bool isCircular;
 
   const BlurredProfileImage({
     super.key,
@@ -19,41 +20,86 @@ class BlurredProfileImage extends StatelessWidget {
     this.boxFit = BoxFit.cover,
     this.borderRadius,
     this.blurSigma = 10.0,
+    this.isCircular = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget imageWidget = Image(
-      image: imageProvider,
-      width: width,
-      height: height,
-      fit: boxFit,
-    );
-
-    if (shouldBlur) {
-      imageWidget = Stack(
-        fit: StackFit.passthrough,
-        children: [
-          imageWidget,
-          ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: blurSigma,
-                sigmaY: blurSigma,
+    // For circular images, wrap everything once
+    if (isCircular) {
+      // Debug print
+      if (shouldBlur) {
+        debugPrint('🔵 Applying blur - Circular: $isCircular, Sigma: $blurSigma, Size: ${width}x${height}');
+      }
+      
+      return ClipOval(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image(
+                image: imageProvider,
+                fit: boxFit,
               ),
-              child: Container(
-                width: width,
-                height: height,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+              if (shouldBlur)
+                ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: blurSigma,
+                      sigmaY: blurSigma,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
       );
     }
 
+    // For rectangular/border radius images
+    Widget imageWidget = SizedBox(
+      width: width,
+      height: height,
+      child: Image(
+        image: imageProvider,
+        fit: boxFit,
+      ),
+    );
+
+    if (shouldBlur) {
+      imageWidget = SizedBox(
+        width: width,
+        height: height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageWidget,
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: blurSigma,
+                  sigmaY: blurSigma,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Handle border radius
     if (borderRadius != null) {
       return ClipRRect(
         borderRadius: borderRadius!,

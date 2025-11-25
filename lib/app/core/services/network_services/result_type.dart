@@ -24,6 +24,11 @@ class AppError {
           other.title == title &&
           other.description == description &&
           other.statusCode == statusCode);
+
+  @override
+  String toString() {
+    return 'AppError(title: $title, description: $description, statusCode: $statusCode)';
+  }
 }
 
 class AppSuccess {

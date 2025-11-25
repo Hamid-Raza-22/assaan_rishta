@@ -14,6 +14,7 @@ class ChatUser {
   late String pushToken;
   late String email;
   late List<String> blockedUsers;
+  late bool isDeactivated;
 
   ChatUser({
     required this.image,
@@ -30,6 +31,7 @@ class ChatUser {
     required this.pushToken,
     required this.email,
     this.blockedUsers = const [],
+    this.isDeactivated = false,
   });
 
   ChatUser.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class ChatUser {
     } else {
       blockedUsers = [];
     }
+    isDeactivated = json['is_deactivated'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -69,6 +72,7 @@ class ChatUser {
     data['push_token'] = pushToken;
     data['email'] = email;
     data['blockedUsers'] = blockedUsers; // Add blocked users to JSON
+    data['is_deactivated'] = isDeactivated;
     return data;
   }
 }

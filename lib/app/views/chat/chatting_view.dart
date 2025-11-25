@@ -72,6 +72,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   late final RxBool isBlocked;
   late final RxBool isBlockedByOther;
   late final RxBool isDelete;
+  final RxBool isDeactivated = false.obs;
   final isInitialLoading = true.obs;
   final showLoading = false.obs;
   // Add disposal flag
@@ -435,6 +436,20 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   Future<void> sendMessageWithReply() async {
     final message = textController.text.trim();
     if (message.isEmpty) return;
+
+    // Check if recipient is deactivated
+    bool isDeactivated = await _checkIfUserIsDeactivated(user.id);
+    if (isDeactivated) {
+      Get.snackbar(
+        'User Unavailable',
+        'This user has deactivated their profile. You cannot send messages.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.redColor,
+        colorText: AppColors.whiteColor,
+        duration: const Duration(seconds: 3),
+      );
+      return;
+    }
 
     final finalMessage = replyingTo.value != null
         ? '↪️ ${replyPreview.value}\n\n$message'
@@ -1126,10 +1141,12 @@ Future<void> showImageOptions() async {
       final results = await Future.wait([
         chatController.isUserBlocked(user.id),
         chatController.isBlockedByFriend(user.id),
+        _checkIfUserIsDeactivated(user.id),
       ]);
 
       isBlocked.value = results[0];
       isBlockedByOther.value = results[1];
+      isDeactivated.value = results[2];
     } catch (e) {
       debugPrint('Error checking block status: $e');
     }
@@ -1267,6 +1284,19 @@ Future<void> showImageOptions() async {
     final message = textController.text.trim();
     if (message.isEmpty) {
       debugPrint('⚠️ Empty message, not sending');
+      return;
+    }
+
+    // Check if recipient is deactivated
+    if (isDeactivated.value) {
+      Get.snackbar(
+        'User Unavailable',
+        'This user has deactivated their profile. You cannot send messages.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.redColor,
+        colorText: AppColors.whiteColor,
+        duration: const Duration(seconds: 3),
+      );
       return;
     }
 
@@ -1436,16 +1466,19 @@ Future<void> showImageOptions() async {
 
   // Getters remain the same...
   ChatUser get currentUserData => cachedUserData.value ?? user;
-  bool get isAnyBlocked => isBlocked.value || isBlockedByOther.value || isDelete.value;
+  bool get isAnyBlocked => isBlocked.value || isBlockedByOther.value || isDelete.value || isDeactivated.value;
   String get userImageUrl => currentUserData.image.isNotEmpty
       ? currentUserData.image
       : AppConstants.profileImg;
-  String get blockMessage => isBlockedByOther.value || isDelete.value
-      ? "You can no longer message this user"
-      : "You have blocked this user";
+  String get blockMessage {
+    if (isDeactivated.value) return "This user has deactivated their account";
+    if (isBlockedByOther.value || isDelete.value) return "You can no longer message this user";
+    return "You have blocked this user";
+  }
 
   String get emptyStateMessage {
     if (isAnyBlocked) {
+      if (isDeactivated.value) return 'User account deactivated';
       return isBlockedByOther.value
           ? 'You can no longer message this user'
           : 'You have blocked this user';
@@ -1467,7 +1500,10 @@ Future<void> showImageOptions() async {
   }
 
   IconData get emptyStateIcon {
-    if (isAnyBlocked) return Icons.block_rounded;
+    if (isAnyBlocked) {
+      if (isDeactivated.value) return Icons.person_off_rounded;
+      return Icons.block_rounded;
+    }
     if (chatController.currentChatDeletionTime.value != null) return Icons.restart_alt;
     return Icons.chat_bubble_outline;
   }
@@ -1478,6 +1514,27 @@ Future<void> showImageOptions() async {
 
   Color? get emptyStateTextColor {
     return isAnyBlocked ? Colors.red[700] : Colors.grey[600];
+  }
+
+  /// Check if user is deactivated in Firebase
+  Future<bool> _checkIfUserIsDeactivated(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(userId)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final isDeactivated = data?['is_deactivated'] ?? false;
+        debugPrint('🔍 User $userId deactivation status: $isDeactivated');
+        return isDeactivated;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error checking deactivation status: $e');
+      return false;
+    }
   }
 }
 // Modified ChattingView to accept initial block status

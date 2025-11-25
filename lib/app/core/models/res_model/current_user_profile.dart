@@ -353,7 +353,7 @@ class CurrentUserProfile {
     userStateId = json['userStateId'];
     userCountryId = json['userCountryId'];
     subscribtionStatus = json['subscribtionStatus'];
-    blurProfileImage = json['blur_toggle'] ?? false;
+    blurProfileImage = json['is_blur'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -474,7 +474,7 @@ class CurrentUserProfile {
     data['userStateId'] = userStateId;
     data['userCountryId'] = userCountryId;
     data['subscribtionStatus'] = subscribtionStatus;
-    data['blur_toggle'] = blurProfileImage;
+    data['is_blur'] = blurProfileImage;
     return data;
   }
 }

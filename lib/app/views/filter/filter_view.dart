@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -235,7 +234,8 @@ class FilterView extends GetView<FilterController> {
                       fontWeight: FontWeight.w500,
                       fontSize: 18,
                       onTap: () {
-                        Get.toNamed(AppRoutes.USER_DETAILS_VIEW, arguments: user.userId);
+                        Get.toNamed(AppRoutes.USER_DETAILS_VIEW,
+                            arguments: user.userId);
                       },
                     ),
                     const SizedBox(height: 30),
@@ -262,7 +262,6 @@ class FilterView extends GetView<FilterController> {
                 Container(
                   height: 100,
                   width: 100,
-                  padding: const EdgeInsets.all(05),
                   decoration: BoxDecoration(
                     color: AppColors.whiteColor,
                     shape: BoxShape.circle,
@@ -275,39 +274,21 @@ class FilterView extends GetView<FilterController> {
                       ),
                     ],
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ImageHelper(
-                        image: user.profileImage != null
-                            ? user.profileImage!
-                            : AppAssets.imagePlaceholder,
-                        imageType: user.profileImage != null
-                            ? ImageType.network
-                            : ImageType.asset,
-                        imageShape: ImageShape.circle,
-                        boxFit: BoxFit.cover,
-                        height: 90,
-                        width: 90,
-                      ),
-                      // Apply blur if enabled
-                      if (user.blurProfileImage == true)
-                        ClipOval(
-                          child: SizedBox(
-                            width: 90,
-                            height: 90,
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: BlurredProfileImage(
+                      imageProvider: (user.profileImage != null && user.profileImage!.isNotEmpty)
+                          ? NetworkImage(user.profileImage!) as ImageProvider
+                          : AssetImage(
+                              controller.getGenderBasedPlaceholder(user.gender),
+                            ) as ImageProvider,
+                      shouldBlur: user.blurProfileImage ?? false,
+                      isCircular: true,
+                      width: 90,
+                      height: 90,
+                      boxFit: BoxFit.cover,
+                      blurSigma: 10.0,
+                    ),
                   ),
                 ),
               ],
@@ -330,7 +311,10 @@ class FilterView extends GetView<FilterController> {
       builder: (context) {
         return SingleChildScrollView(
           padding: EdgeInsets.only( // Add this padding
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery
+                .of(context)
+                .viewInsets
+                .bottom,
           ),
           child: Padding( // Wrap Column with Padding for horizontal and vertical
             padding: const EdgeInsets.symmetric(
@@ -395,7 +379,9 @@ class FilterView extends GetView<FilterController> {
                   fontWeight: FontWeight.w500,
                   fontSize: 18,
                   onTap: () {
-                    if (controller.userIdSearchTEC.text.trim().isNotEmpty) {
+                    if (controller.userIdSearchTEC.text
+                        .trim()
+                        .isNotEmpty) {
                       Navigator.pop(context);
                       Get.toNamed(AppRoutes.USER_DETAILS_VIEW,
                           arguments: controller.userIdSearchTEC.text.trim());
@@ -447,7 +433,10 @@ class FilterView extends GetView<FilterController> {
       builder: (context) {
         return SingleChildScrollView(
           padding: EdgeInsets.only( // Add this padding
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery
+                .of(context)
+                .viewInsets
+                .bottom,
           ),
           child: Padding( // Wrap Column with Padding for horizontal and vertical
             padding: const EdgeInsets.symmetric(

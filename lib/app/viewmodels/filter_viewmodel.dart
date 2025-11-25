@@ -192,6 +192,11 @@ class FilterController extends BaseController {
             return profile.userId != currentUserId && !alreadyAdded;
           }).toList();
 
+          // Debug: Log blur status for each profile
+          for (var profile in filteredProfiles) {
+            debugPrint('🔵 Filter Profile - User: ${profile.userId}, Name: ${profile.name}, Blur: ${profile.blurProfileImage}');
+          }
+
           profileList.addAll(filteredProfiles);
           isReloadMore.value = false;
         }
@@ -302,6 +307,24 @@ class FilterController extends BaseController {
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
+  }
+
+  /// Get gender-based placeholder image
+  /// Returns male/female placeholder based on user's gender
+  String getGenderBasedPlaceholder(String? gender) {
+    if (gender == null || gender.isEmpty) {
+      return AppAssets.imagePlaceholder;
+    }
+    
+    // Check gender (case-insensitive)
+    final genderLower = gender.toLowerCase();
+    if (genderLower == 'male') {
+      return AppAssets.malePlaceholder;
+    } else if (genderLower == 'female') {
+      return AppAssets.femalePlaceholder;
+    } else {
+      return AppAssets.imagePlaceholder;
+    }
   }
 
   @override

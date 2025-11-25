@@ -419,7 +419,7 @@ class ProfileDetails {
       tiktokLink = 'https://www.tiktok.com/@asaanrishtaofficial0/video/7561825639393742102?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
       // tiktokLink = 'https://www.tiktok.com/@islamicvibes599/video/7421592716967955744?is_from_webapp=1&sender_device=pc&web_id=7540255193688294920';
     }
-    blurProfileImage = json['blur_toggle'] ?? false;
+    blurProfileImage = json['is_blur'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -560,7 +560,7 @@ class ProfileDetails {
     data['aboutCountryId'] = aboutCountryId;
     data['aboutParentCityId'] = aboutParentCityId;
     data['tiktokLink'] = tiktokLink;
-    data['blur_toggle'] = blurProfileImage;
+    data['is_blur'] = blurProfileImage;
     return data;
   }
 }
