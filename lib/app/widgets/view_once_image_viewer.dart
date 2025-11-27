@@ -57,20 +57,12 @@ class _ViewOnceImageViewerState extends State<ViewOnceImageViewer> {
 
   void _closeViewer() {
     _timer?.cancel();
-    
-    // Disable screen security when closing
-    ScreenSecurity.disableScreenSecurity();
-    
     Navigator.pop(context);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    
-    // Ensure screen security is disabled
-    ScreenSecurity.disableScreenSecurity();
-    
     super.dispose();
   }
   @override

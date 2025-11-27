@@ -34,9 +34,6 @@ class _PhotoGalleryViewState extends State<PhotoGalleryView> {
 
   @override
   void dispose() {
-    // Disable screen security when leaving gallery
-    ScreenSecurity.disableScreenSecurity();
-    
     super.dispose();
   }
 

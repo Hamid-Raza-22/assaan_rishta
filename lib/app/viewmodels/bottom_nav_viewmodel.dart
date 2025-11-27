@@ -52,6 +52,26 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     isLoggedIn.value =  useCase.getUserLoggedInStatus();
   }
 
+  /// Call this after login to refresh controller state and reset tab index
+  void refreshAfterLogin() {
+    debugPrint('🔄 Refreshing BottomNavController after login');
+    
+    // Reload login status
+    isLoggedIn.value = useCase.getUserLoggedInStatus();
+    
+    // Reset to home tab (index 0) to avoid tab mismatch
+    // Guest has 4 tabs, logged-in has 5 tabs - indices shift after login
+    selectedTab.value = 0;
+    
+    // Re-initialize Firebase user if logged in
+    if (isLoggedIn.value) {
+      _initializeFirebaseUser();
+      FirebaseService.setAppState(isInForeground: true, isInChat: false);
+    }
+    
+    debugPrint('✅ BottomNavController refreshed - isLoggedIn: ${isLoggedIn.value}, tab: ${selectedTab.value}');
+  }
+
   void _initializePages() {
     pages = [
       const HomeView(),

@@ -1022,9 +1022,6 @@ Future<void> showImageOptions() async {
   void onClose() {
     debugPrint('🗑️ Closing ChattingViewController for ${user.name}');
     
-    // Disable screen security when leaving chat
-    ScreenSecurity.disableScreenSecurity();
-    
     scrollController.dispose();
 
     // Mark controller as inactive
