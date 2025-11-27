@@ -29,6 +29,7 @@ import 'app/fast_pay/app/app.locator.dart';
 import 'app/utils/app_colors.dart';
 import 'app/viewmodels/chat_list_viewmodel.dart';
 import 'app/viewmodels/chat_viewmodel.dart';
+import 'app/core/utils/screen_security.dart';
 
 
 Future<bool> isFirstInstall() async {
@@ -114,6 +115,10 @@ Future<void> main() async {
       ? AppRoutes.ONBOARDING
       // : AppRoutes.ONBOARDING;
        : AppRoutes.SPLASH;
+
+  // Enable screen security globally - Block screenshots & screen recording
+  await ScreenSecurity.enableScreenSecurity();
+  debugPrint('🔒 Screen security enabled - Screenshots blocked');
 
   runApp(AsanRishtaApp(initialRoute: initialRoute));
 }
@@ -271,6 +276,9 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     debugPrint('📱 App resumed from background');
 
     try {
+      // Re-enable screen security on resume to ensure it stays active
+      await ScreenSecurity.enableScreenSecurity();
+      
       FirebaseService.setAppState(isInForeground: true);
 
       if (FirebaseService.me != null) {

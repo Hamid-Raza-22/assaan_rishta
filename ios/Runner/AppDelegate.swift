@@ -5,12 +5,17 @@ import FirebaseMessaging
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private var secureTextField: UITextField?
+  
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     // Configure Firebase
     FirebaseApp.configure()
+    
+    // Setup screen security method channel
+    setupScreenSecurityChannel()
     
     // Register for remote notifications
     if #available(iOS 10.0, *) {
@@ -91,5 +96,114 @@ extension AppDelegate: MessagingDelegate {
       object: nil,
       userInfo: dataDict
     )
+  }
+}
+
+// MARK: - Screen Security
+extension AppDelegate {
+  private func setupScreenSecurityChannel() {
+    guard let controller = window?.rootViewController as? FlutterViewController else {
+      return
+    }
+    
+    let channel = FlutterMethodChannel(
+      name: "com.asaanrishta.app/screen_security",
+      binaryMessenger: controller.binaryMessenger
+    )
+    
+    channel.setMethodCallHandler { [weak self] (call, result) in
+      switch call.method {
+      case "enableScreenSecurity":
+        self?.enableScreenSecurity()
+        result(true)
+      case "disableScreenSecurity":
+        self?.disableScreenSecurity()
+        result(true)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+  
+  private func enableScreenSecurity() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self,
+            let window = self.window else { return }
+      
+      // Remove existing secure field if any
+      self.secureTextField?.removeFromSuperview()
+      
+      // Create a secure text field that covers the entire window
+      // This prevents screenshots on iOS
+      let textField = UITextField()
+      textField.isSecureTextEntry = true
+      textField.isUserInteractionEnabled = false
+      textField.frame = window.bounds
+      textField.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      
+      // Insert at the very back so it doesn't interfere with UI
+      window.insertSubview(textField, at: 0)
+      window.layer.superlayer?.addSublayer(textField.layer)
+      textField.layer.sublayers?.first?.addSublayer(window.layer)
+      
+      self.secureTextField = textField
+      
+      // Also add screenshot notification observer
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(self.userDidTakeScreenshot),
+        name: UIApplication.userDidTakeScreenshotNotification,
+        object: nil
+      )
+      
+      // Screen recording observer
+      if #available(iOS 11.0, *) {
+        NotificationCenter.default.addObserver(
+          self,
+          selector: #selector(self.screenCaptureChanged),
+          name: UIScreen.capturedDidChangeNotification,
+          object: nil
+        )
+      }
+      
+      print("🔒 Screen security enabled on iOS")
+    }
+  }
+  
+  private func disableScreenSecurity() {
+    DispatchQueue.main.async { [weak self] in
+      self?.secureTextField?.removeFromSuperview()
+      self?.secureTextField = nil
+      
+      NotificationCenter.default.removeObserver(
+        self as Any,
+        name: UIApplication.userDidTakeScreenshotNotification,
+        object: nil
+      )
+      
+      if #available(iOS 11.0, *) {
+        NotificationCenter.default.removeObserver(
+          self as Any,
+          name: UIScreen.capturedDidChangeNotification,
+          object: nil
+        )
+      }
+      
+      print("🔓 Screen security disabled on iOS")
+    }
+  }
+  
+  @objc private func userDidTakeScreenshot() {
+    print("⚠️ Screenshot detected!")
+    // You can add additional handling here like showing an alert
+  }
+  
+  @objc private func screenCaptureChanged() {
+    if #available(iOS 11.0, *) {
+      if UIScreen.main.isCaptured {
+        print("⚠️ Screen recording detected!")
+        // You can add additional handling here
+      }
+    }
   }
 }

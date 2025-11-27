@@ -14,6 +14,12 @@ class MainActivity : FlutterActivity() {
     private val DEVELOPER_MODE_CHANNEL = "com.asaanrishta.app/developer_mode"
     private val SCREEN_SECURITY_CHANNEL = "com.asaanrishta.app/screen_security"
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Enable screen security by default - Block screenshots & screen recording
+        enableScreenSecurity()
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         

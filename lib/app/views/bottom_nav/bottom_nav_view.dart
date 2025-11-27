@@ -7,8 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/export.dart';
 import '../../utils/exports.dart';
+import '../../viewmodels/bottom_nav_viewmodel.dart';
 import '../chat/chatting_view.dart';
-import 'export.dart';
 
 class BottomNavView extends StatefulWidget {
   final int index;
@@ -54,6 +54,15 @@ class _BottomNavViewState extends State<BottomNavView> {
     final BottomNavController controller = Get.isRegistered<BottomNavController>()
         ? Get.find<BottomNavController>()
         : Get.put(BottomNavController(), permanent: true);
+
+    // Always refresh login status when view is built (handles guest -> logged in transition)
+    final bool currentLoginStatus = controller.useCase.userManagementRepo.getUserLoggedInStatus();
+    if (controller.isLoggedIn.value != currentLoginStatus) {
+      // Login status changed, refresh controller
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.refreshAfterLogin();
+      });
+    }
 
     // Initialize controller and set initial tab only once
     if (!_hasInitialized) {

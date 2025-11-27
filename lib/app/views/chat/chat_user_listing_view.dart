@@ -1,7 +1,6 @@
 // chat_user_listing_view.dart - Fixed with proper refresh mechanism
 
 import 'package:assaan_rishta/app/core/services/firebase_service/export.dart';
-import 'package:assaan_rishta/app/core/utils/screen_security.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +10,7 @@ import '../../utils/exports.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../../widgets/chat_user_card.dart';
+import '../../core/utils/screen_security.dart';
 
 
 class ChatUserListingView extends StatefulWidget {
@@ -107,9 +107,6 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
   }
   @override
   void dispose() {
-    // Disable screen security when leaving chat list
-    ScreenSecurity.disableScreenSecurity();
-    
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

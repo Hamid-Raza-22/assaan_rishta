@@ -1,4 +1,5 @@
 import 'package:assaan_rishta/app/viewmodels/chat_viewmodel.dart';
+import 'package:assaan_rishta/app/viewmodels/bottom_nav_viewmodel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -185,6 +186,14 @@ class LoginViewModel extends GetxController {
 
 
           update();
+          
+          // Refresh BottomNavController to reset tab index after login
+          // This fixes the issue where guest mode tabs (4 tabs) get mixed with logged-in tabs (5 tabs)
+          if (Get.isRegistered<BottomNavController>()) {
+            final bottomNavController = Get.find<BottomNavController>();
+            bottomNavController.refreshAfterLogin();
+          }
+          
           // Decide initial destination based on partner preference flag in Firestore
           try {
             final doc = await FirebaseFirestore.instance
