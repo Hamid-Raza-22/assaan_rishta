@@ -10,6 +10,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
+
 class MainActivity : FlutterActivity() {
     private val DEVELOPER_MODE_CHANNEL = "com.asaanrishta.app/developer_mode"
     private val SCREEN_SECURITY_CHANNEL = "com.asaanrishta.app/screen_security"
