@@ -93,14 +93,14 @@ jobs:
         env:
           SUPPLY_JSON_KEY: asaan-rishta-chat-d848bdbc2a5e.json
 
-      # 13. Upload build artifacts (optional)
-      - name: Upload AAB artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-aab
-          path: build/app/outputs/bundle/release/app-release.aab
-          retention-days: 30
+#      # 13. Upload build artifacts (optional)
+#      - name: Upload AAB artifact
+#        if: success()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: app-release-aab
+#          path: build/app/outputs/bundle/release/app-release.aab
+#          retention-days: 30
 
       # 14. Notify on success (optional)
       - name: Notify success

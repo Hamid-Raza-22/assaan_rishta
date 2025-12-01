@@ -215,42 +215,7 @@ class HomeView extends GetView<HomeController> {
     }
   }
 
-  Future<bool?> _showExitDialog(BuildContext context) {
-    return Get.dialog<bool>(
-      AlertDialog.adaptive(
-        backgroundColor: AppColors.whiteColor,
-        surfaceTintColor: AppColors.whiteColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
-            Icon(Icons.exit_to_app, color: AppColors.primaryColor),
-            SizedBox(width: 8),
-            Text('Exit App'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to exit?',
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Get.back(result: true),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-      barrierDismissible: true,
-    );
-  }
+
 
   Widget homeShimmer(BuildContext context) {
     double w = MediaQuery.sizeOf(context).width;
