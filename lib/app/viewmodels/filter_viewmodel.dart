@@ -16,6 +16,9 @@ class FilterController extends BaseController {
 
   List<ProfilesList> profileList = [];
   RxBool isLoading = false.obs;
+  
+  /// Featured toggle state
+  RxBool isFeaturedEnabled = false.obs;
 
   ///for details
   RxBool isDetailsLoading = false.obs;
@@ -63,6 +66,7 @@ class FilterController extends BaseController {
 
   Rx<bool> isFilterApplied = false.obs;
   Rx<bool> isSearchByUserId = false.obs; // New flag for User ID search
+  int featuredPageNo = 1;
 
   @override
   void onInit() {
@@ -72,9 +76,42 @@ class FilterController extends BaseController {
 
   _initApis() {
     scrollController.addListener(_loadMoreData);
-    getAllProfiles();
+    _loadProfiles();
     getAllCasts();
     getAllCountries();
+  }
+
+  /// Toggle featured profiles on/off
+  void toggleFeatured() {
+    isFeaturedEnabled.value = !isFeaturedEnabled.value;
+    _refreshProfiles();
+  }
+
+  /// Set featured state explicitly  
+  void setFeaturedEnabled(bool enabled) {
+    if (isFeaturedEnabled.value != enabled) {
+      isFeaturedEnabled.value = enabled;
+      _refreshProfiles();
+    }
+  }
+
+  /// Refresh profiles based on current featured state
+  void _refreshProfiles() {
+    profileList.clear();
+    pageNo = 1;
+    featuredPageNo = 1;
+    isFirstLoad.value = true;
+    update();
+    _loadProfiles();
+  }
+
+  /// Load profiles based on featured toggle state
+  void _loadProfiles({int? page}) {
+    if (isFeaturedEnabled.value) {
+      getAllFeaturedProfiles(page: page);
+    } else {
+      getAllProfiles(page: page);
+    }
   }
 
   _loadMoreData() {
@@ -82,6 +119,7 @@ class FilterController extends BaseController {
         scrollController.position.maxScrollExtent) {
       if (totalCounts > profileList.length) {
         pageNo = pageNo + 1;
+        featuredPageNo = featuredPageNo + 1;
         isFirstLoad.value = false;
         isReloadMore.value = true;
         update();
@@ -91,7 +129,7 @@ class FilterController extends BaseController {
         } else if (isFilterApplied.isTrue) {
           getAllProfilesByFilter(page: pageNo);
         } else {
-          getAllProfiles(page: pageNo);
+          _loadProfiles(page: isFeaturedEnabled.value ? featuredPageNo : pageNo);
         }
       }
     }
@@ -173,7 +211,7 @@ class FilterController extends BaseController {
     // Reset search flags when getting all profiles
     isSearchByUserId.value = false;
 
-    final response = await userManagementUseCases.getAllFeaturedProfiles(
+    final response = await userManagementUseCases.getAllProfiles(
       pageNo: page ?? 1,
       pageLimit: "12",
     );
@@ -195,6 +233,51 @@ class FilterController extends BaseController {
           // Debug: Log blur status for each profile
           for (var profile in filteredProfiles) {
             debugPrint('🔵 Filter Profile - User: ${profile.userId}, Name: ${profile.name}, Blur: ${profile.blurProfileImage}');
+          }
+
+          profileList.addAll(filteredProfiles);
+          isReloadMore.value = false;
+        }
+        if (isFirstLoad.isTrue) {
+          isLoading.value = false;
+        }
+        update();
+      },
+    );
+  }
+
+  /// Get all featured profiles
+  getAllFeaturedProfiles({page, limit}) async {
+    if (isFirstLoad.isTrue) {
+      profileList = [];
+      isLoading.value = true;
+    }
+
+    // Reset search flags when getting featured profiles
+    isSearchByUserId.value = false;
+
+    final response = await userManagementUseCases.getAllFeaturedProfiles(
+      pageNo: page ?? 1,
+      pageLimit: "12",
+    );
+    return response.fold(
+          (error) {
+        isLoading.value = false;
+      },
+          (success) {
+        totalCounts = success.totalRecords!;
+        if (success.profilesList!.isNotEmpty) {
+          final currentUserId = userManagementUseCases.getUserId();
+
+          final filteredProfiles = success.profilesList!.where((profile) {
+            final alreadyAdded = profileList
+                .any((existing) => existing.userId == profile.userId);
+            return profile.userId != currentUserId && !alreadyAdded;
+          }).toList();
+
+          // Debug: Log blur status for each profile
+          for (var profile in filteredProfiles) {
+            debugPrint('⭐ Featured Profile - User: ${profile.userId}, Name: ${profile.name}, Blur: ${profile.blurProfileImage}');
           }
 
           profileList.addAll(filteredProfiles);
@@ -285,6 +368,7 @@ class FilterController extends BaseController {
   clearAllFilters() {
     isFilterApplied.value = false;
     isSearchByUserId.value = false; // Reset search flag
+    isFeaturedEnabled.value = false; // Reset featured toggle
     caste = "".obs;
     ageFrom = "".obs;
     ageTo = "".obs;
@@ -296,6 +380,8 @@ class FilterController extends BaseController {
     maritalStatus = "".obs;
     religion = "".obs;
     userIdSearchTEC.clear(); // Clear search field
+    pageNo = 1;
+    featuredPageNo = 1;
     isFirstLoad.value = true;
     update();
     getAllProfiles(page: 1);

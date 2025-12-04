@@ -3,12 +3,16 @@
 import 'dart:convert';
 import 'package:assaan_rishta/app/widgets/app_text.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/export.dart';
+import '../core/routes/app_routes.dart';
+import '../core/services/firebase_service/notification_service.dart';
+import '../core/services/secure_storage_service.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import 'auth_service.dart';
@@ -32,53 +36,204 @@ class ProfileController extends GetxController {
     return "${profileDetails.value.firstName} ${profileDetails.value.lastName}";
   }
 
-  // Deactivate profile
-  deactivateProfile() async {
-    AppUtils.onLoading(Get.context!);
+  /// Deactivate profile - Professional implementation with proper sequencing
+  /// Flow: API Call → Firebase Cleanup → FCM Removal → Local Clear → Navigate
+  Future<void> deactivateProfile() async {
+    final context = Get.context!;
+    
+    // Show deactivation-specific loading
+    _showDeactivationLoader();
 
     try {
       final userId = userManagementUseCases.getUserId().toString();
-      debugPrint('🔄 Starting profile deactivation for user: $userId');
+      debugPrint('🔄 [DEACTIVATE] Starting for user: $userId');
 
+      // Step 1: Call backend API to deactivate
       final response = await userManagementUseCases.deactivateUserProfile();
 
-      await response.fold(
-            (error) {
-          AppUtils.dismissLoader(Get.context!);
-          debugPrint("❌ Error deactivating profile: $error");
-          AppUtils.failedData(
-            title: "Deactivation Failed",
-            message: "Failed to deactivate profile",
-          );
-          throw Exception("Deactivation failed");
+      final isSuccess = response.fold(
+        (error) {
+          debugPrint("❌ [DEACTIVATE] API Error: $error");
+          return false;
         },
-            (success) async {
-          debugPrint("✅ Profile deactivated successfully");
-
-          // Update Firebase to mark user as deactivated
-          // await _markUserAsDeactivatedInFirebase(userId);
-          // Step 2: Complete Firebase cleanup
-          await _performCompleteFirebaseCleanup(userId);
-          AppUtils.dismissLoader(Get.context!);
-
-          AppUtils.successData(
-            title: "Profile Deactivated",
-            message: "Your profile has been deactivated successfully",
-          );
-
-          // Logout user after short delay
-          await Future.delayed(const Duration(seconds: 2));
-          handleLogout(Get.context!);
+        (success) {
+          debugPrint("✅ [DEACTIVATE] API Success");
+          return true;
         },
       );
 
+      if (!isSuccess) {
+        _dismissDeactivationLoader();
+        AppUtils.failedData(
+          title: "Deactivation Failed",
+          message: "Failed to deactivate profile. Please try again.",
+        );
+        return;
+      }
+
+      // Step 2: Perform all cleanup operations in parallel for speed
+      debugPrint('🔄 [DEACTIVATE] Starting cleanup operations...');
+      
+      await Future.wait([
+        _performFastFirebaseCleanup(userId),
+        _removeFCMTokenFast(userId),
+      ], eagerError: false);
+
+      debugPrint('✅ [DEACTIVATE] All cleanup operations completed');
+
+      // Step 3: Clear local storage and auth state
+      await _clearLocalDataFast();
+
+      // Step 4: Dismiss loader
+      _dismissDeactivationLoader();
+
+      // Step 5: Show brief success toast (non-blocking)
+      Get.snackbar(
+        'Profile Deactivated',
+        'Your profile has been deactivated successfully',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppColors.greenColor,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+        margin: const EdgeInsets.all(10),
+        borderRadius: 10,
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+      );
+
+      // Step 6: Navigate immediately to login
+      debugPrint('🚪 [DEACTIVATE] Navigating to login...');
+      Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
+
     } catch (e) {
-      AppUtils.dismissLoader(Get.context!);
-      debugPrint("❌ Error in profile deactivation: $e");
+      debugPrint("❌ [DEACTIVATE] Error: $e");
+      _dismissDeactivationLoader();
       AppUtils.failedData(
         title: "Deactivation Failed",
         message: "Failed to deactivate profile. Please try again.",
       );
+    }
+  }
+
+  /// Show deactivation-specific loader
+  void _showDeactivationLoader() {
+    Get.dialog(
+      PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.primaryColor),
+                SizedBox(height: 16),
+                AppText(
+                  text: 'Deactivating profile...',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                SizedBox(height: 4),
+                AppText(
+                  text: 'Please wait',
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  /// Dismiss deactivation loader safely
+  void _dismissDeactivationLoader() {
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+  }
+
+  /// Fast Firebase cleanup - optimized for deactivation (not deletion)
+  Future<void> _performFastFirebaseCleanup(String userId) async {
+    try {
+      debugPrint('🔥 [CLEANUP] Fast Firebase cleanup for: $userId');
+
+      // Only update user's own document - don't iterate all users
+      await FirebaseFirestore.instance
+          .collection('Hamid_users')
+          .doc(userId)
+          .update({
+        'is_deactivated': true,
+        'deactivated_at': DateTime.now().millisecondsSinceEpoch.toString(),
+        'is_online': false,
+        'is_mobile_online': false,
+        'is_web_online': false,
+        'push_token': '', // Clear push token
+      });
+
+      debugPrint('✅ [CLEANUP] Firebase cleanup done');
+    } catch (e) {
+      debugPrint('⚠️ [CLEANUP] Firebase cleanup error (non-fatal): $e');
+      // Don't rethrow - deactivation should still proceed
+    }
+  }
+
+  /// Fast FCM token removal
+  Future<void> _removeFCMTokenFast(String userId) async {
+    try {
+      debugPrint('🔔 [CLEANUP] Removing FCM token...');
+      
+      await Future.wait([
+        FirebaseFirestore.instance
+            .collection('Hamid_users')
+            .doc(userId)
+            .update({'push_token': FieldValue.delete()}),
+        FirebaseMessaging.instance.deleteToken(),
+      ], eagerError: false);
+
+      debugPrint('✅ [CLEANUP] FCM token removed');
+    } catch (e) {
+      debugPrint('⚠️ [CLEANUP] FCM removal error (non-fatal): $e');
+    }
+  }
+
+  /// Fast local data clearing
+  Future<void> _clearLocalDataFast() async {
+    try {
+      debugPrint('🗑️ [CLEANUP] Clearing local data...');
+
+      final secureStorage = SecureStorageService();
+      
+      // Save onboarding flags before clearing
+      final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
+      final isFirstInstall = await secureStorage.isFirstInstall();
+
+      // Clear all data
+      await secureStorage.clearAll();
+
+      // Restore onboarding flags
+      await Future.wait([
+        secureStorage.setHasSeenOnboarding(hasSeenOnboarding),
+        secureStorage.setFirstInstall(isFirstInstall),
+      ]);
+
+      // Clear notification session
+      NotificationServices.clearSession();
+
+      // Update auth state
+      authService.isUserLoggedIn.value = false;
+      authService.currentUser.value = null;
+
+      debugPrint('✅ [CLEANUP] Local data cleared');
+    } catch (e) {
+      debugPrint('⚠️ [CLEANUP] Local clear error (non-fatal): $e');
     }
   }
 

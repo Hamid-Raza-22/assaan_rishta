@@ -10,3 +10,4 @@ export 'message_card.dart';
 export 'photo_gallery_view.dart';
 export 'display_image_widget.dart';
 export 'blurred_profile_image.dart';
+export 'featured_toggle.dart';

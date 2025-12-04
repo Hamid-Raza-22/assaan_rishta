@@ -81,11 +81,14 @@ class EndPoints {
   }
 
   getAllProfilesUrl({pageNo, pageLimit, uid}) {
-    return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/$uid';
+    // return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/$uid';
+    return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/0';
+
   }
 
   getAllFeaturedProfilesUrl({pageNo, pageLimit, uid}) {
-    return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/0';
+    return '${baseUrl}Users/GetAllFeaturedProfiles/$pageNo/$pageLimit/$uid';
+    // return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/0';
   }
 
   getProfilesDetailsUrl({uid}) {

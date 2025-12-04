@@ -24,6 +24,7 @@ class HomeView extends GetView<HomeController> {
           body: SafeArea(
             child: Column(
               children: [
+                const SizedBox(height: 5),
                 Obx(
                       () => Flexible(
                     child: controller.isLoading.isFalse
@@ -59,9 +60,23 @@ class HomeView extends GetView<HomeController> {
   }
 
   _appBar(BuildContext context) {
-    return const PreferredSize(
-      preferredSize: Size(double.infinity, 40),
-      child: CustomAppBar(isBack: false, title: "Home"),
+    return PreferredSize(
+      preferredSize: const Size(double.infinity, 40),
+      child: CustomAppBar(
+        isBack: false,
+        title: "Home",
+        actions: [
+          Obx(
+            () => Padding(
+              padding: const EdgeInsets.only(right: 15.0),
+              child: FeaturedChip(
+                isEnabled: controller.isFeaturedEnabled.value,
+                onTap: () => controller.toggleFeatured(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

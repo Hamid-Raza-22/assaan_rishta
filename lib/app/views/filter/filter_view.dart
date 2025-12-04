@@ -27,8 +27,17 @@ class FilterView extends GetView<FilterController> {
             preferredSize: const Size(double.infinity, 40),
             child: CustomAppBar(
               isBack: false,
-              title: "Filter",
+              // title: "Filter",
               actions: [
+                Obx(
+                  () => Padding(
+                    padding: const EdgeInsets.only(right: 4.0),
+                    child: FeaturedChip(
+                      isEnabled: controller.isFeaturedEnabled.value,
+                      onTap: () => controller.toggleFeatured(),
+                    ),
+                  ),
+                ),
                 IconButton(
                   onPressed: () {
                     showFilterBottomSheet(context);
@@ -446,7 +455,15 @@ class FilterView extends GetView<FilterController> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 30),
+                const SizedBox(height: 10),
+                // Featured Toggle at the top of filters
+                Obx(
+                  () => FeaturedToggle(
+                    isEnabled: controller.isFeaturedEnabled.value,
+                    onTap: () => controller.toggleFeatured(),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 CustomDropdown<String>.search(
                   hintText:
                   controller.caste.isEmpty ? 'Cast' : controller.caste.value,

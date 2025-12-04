@@ -97,10 +97,10 @@ class LoginViewModel extends GetxController {
               );
               isLoading.value = false;
 
-            } else {
+            } else  if (error.description == 'account_not_approved') {
               AppUtils.failedData(
                 title: "Account Status",
-                message: "Your Account is not Approved Yet",
+                message: "Your account is not approved please try again within 24 hours or call 03074052552",
               );
               isLoading.value = false;
 
