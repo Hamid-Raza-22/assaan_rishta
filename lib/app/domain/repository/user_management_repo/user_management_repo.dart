@@ -74,6 +74,10 @@ mixin UserManagementRepo {
     required ProfileFilter profileFilter,
   });
 
+  Future<Either<AppError, AllProfileList>> getAllProfilesByFilterForFeature({
+    required ProfileFilter profileFilter,
+  });
+
   Future<Either<AppError, ProfileDetails>> getProfilesDetails({
     required int uid,
   });

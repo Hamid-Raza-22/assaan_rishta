@@ -279,6 +279,22 @@ class UserManagementUseCase {
     );
   }
 
+  Future<Either<AppError, AllProfileList>> getAllProfilesByFilterForFeature({
+    required ProfileFilter profileFilter,
+  }) async {
+    final response = await userManagementRepo.getAllProfilesByFilterForFeature(
+      profileFilter: profileFilter,
+    );
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
+
   Future<Either<AppError, ProfileDetails>> getProfileDetails({
     required int uid,
   }) async {

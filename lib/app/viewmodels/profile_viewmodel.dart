@@ -517,6 +517,7 @@ class ProfileController extends GetxController {
       },
           (success) {
         profileDetails.value = success;
+        debugPrint('📋 Profile loaded - is_blur: ${success.blurProfileImage}');
         isLoading.value = false;
         update();
       },
@@ -731,7 +732,7 @@ class ProfileController extends GetxController {
       profileDetails.value.blurProfileImage = value;
       update();
       
-      // Make API call in background
+      // Make API call
       final response = await userManagementUseCases.updateBlurProfileImage(value);
       
       response.fold(
