@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/export.dart';
 import '../../../core/services/network_services/export.dart';
@@ -264,7 +265,9 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
       CurrentUserProfile model = CurrentUserProfile();
       if (response.statusCode >= 200 && response.statusCode <= 299) {
-        model = CurrentUserProfile.fromJson(jsonDecode(response.body));
+        final jsonData = jsonDecode(response.body);
+        debugPrint('📋 getCurrentUserProfile API response - is_blur: ${jsonData['is_blur']}');
+        model = CurrentUserProfile.fromJson(jsonData);
         return Right(model);
       }
       return Left(
@@ -531,6 +534,33 @@ class UserManagementRepoImpl implements UserManagementRepo {
     try {
       final response = await _networkHelper.post(
         _endPoints.profilesByFilterUrl(),
+        body: profileFilter.toJson(),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(AllProfileList.fromJson(jsonDecode(response.body)));
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, AllProfileList>> getAllProfilesByFilterForFeature({
+    required ProfileFilter profileFilter,
+  }) async {
+    try {
+      final response = await _networkHelper.post(
+        _endPoints.profilesByFilterForFeatureUrl(),
         body: profileFilter.toJson(),
         headers: {"Content-Type": "application/json"},
       );

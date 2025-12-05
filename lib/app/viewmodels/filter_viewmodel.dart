@@ -174,9 +174,14 @@ class FilterController extends BaseController {
       religion: religion.value,
     );
 
-    final response = await userManagementUseCases.getAllProfilesByFilter(
-      profileFilter: filter,
-    );
+    // Call featured filter API if featured switch is ON, otherwise call normal filter API
+    final response = isFeaturedEnabled.value
+        ? await userManagementUseCases.getAllProfilesByFilterForFeature(
+            profileFilter: filter,
+          )
+        : await userManagementUseCases.getAllProfilesByFilter(
+            profileFilter: filter,
+          );
     return response.fold(
           (error) {
         AppUtils.dismissLoader(context);

@@ -161,6 +161,10 @@ class EndPoints {
     return '${baseUrl}Users/GetAllProfilesByFilter';
   }
 
+  profilesByFilterForFeatureUrl() {
+    return '${baseUrl}Users/GetAllProfilesByFilterForFeature';
+  }
+
   contactUsUrl() {
     return '${baseUrl}user/contactus';
   }
