@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../utils/app_colors.dart';
 import '../../../viewmodels/signup_viewmodel.dart';
+import '../../../widgets/app_text.dart';
 
 class ProfilePhotoPicker extends StatelessWidget {
   final SignupViewModel controller;
@@ -101,15 +102,16 @@ class ProfilePhotoPicker extends StatelessWidget {
           ),
         ),
         SizedBox(height: 12),
-        Text(
-          controller.profilePhoto.value != null
+        AppText(
+         text:  controller.profilePhoto.value != null
               ? 'Tap to change photo'
               : 'Add Profile Photo',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
+
+          // style: TextStyle(
+          //   fontSize: 14,
+          //   color: Colors.grey[600],
+          //   fontWeight: FontWeight.w500,
+          // ),
         ),
         if (controller.photoError.value.isNotEmpty)
           Padding(
@@ -123,14 +125,14 @@ class ProfilePhotoPicker extends StatelessWidget {
             ),
           ),
         SizedBox(height: 8),
-        Text(
-          '(Optional)',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[500],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
+        // Text(
+        //   '(Optional)',
+        //   style: TextStyle(
+        //     fontSize: 12,
+        //     color: Colors.grey[500],
+        //     fontStyle: FontStyle.italic,
+        //   ),
+        // ),
       ],
     ));
   }

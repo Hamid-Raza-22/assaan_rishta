@@ -153,31 +153,52 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Handle back button press
-        if (!isSuccess) {
-          final shouldPop = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Cancel Payment?'),
-              content: const Text(
-                  'Are you sure you want to cancel the payment process?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('No'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Yes'),
-                ),
-              ],
-            ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        
+        // Block back completely while loading
+        if (isLoading) {
+          Get.snackbar(
+            'Please Wait',
+            'براہ کرم لین دین مکمل ہونے تک انتظار کریں',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
           );
-          return shouldPop ?? false;
+          return;
         }
-        return true;
+        
+        // If successful, navigate properly
+        if (isSuccess) {
+          handleSuccessNavigation();
+          return;
+        }
+        
+        // Show confirmation dialog for canceling payment
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Cancel Payment?'),
+            content: const Text(
+                'کیا آپ واقعی ادائیگی کا عمل منسوخ کرنا چاہتے ہیں؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('نہیں'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('ہاں'),
+              ),
+            ],
+          ),
+        );
+        
+        if (shouldPop == true) {
+          Get.back();
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.whiteColor,
@@ -187,11 +208,45 @@ class _WebViewScreenState extends State<WebViewScreen> {
           title: const Text('Payment'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
+            onPressed: () async {
+              // Block back while loading
+              if (isLoading) {
+                Get.snackbar(
+                  'Please Wait',
+                  'براہ کرم لین دین مکمل ہونے تک انتظار کریں',
+                  backgroundColor: Colors.orange,
+                  colorText: Colors.white,
+                  duration: const Duration(seconds: 2),
+                );
+                return;
+              }
+              
               if (isSuccess) {
                 handleSuccessNavigation();
               } else {
-                Get.back();
+                // Show confirmation dialog
+                final shouldPop = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Cancel Payment?'),
+                    content: const Text(
+                        'کیا آپ واقعی ادائیگی کا عمل منسوخ کرنا چاہتے ہیں؟'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('نہیں'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('ہاں'),
+                      ),
+                    ],
+                  ),
+                );
+                
+                if (shouldPop == true) {
+                  Get.back();
+                }
               }
             },
           ),

@@ -1075,15 +1075,38 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
   }
 
   Widget _buildUserAvatar() {
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: AppColors.secondaryColor.withOpacity(0.1),
-      backgroundImage: widget.userAvatarUrl != null
-          ? CachedNetworkImageProvider(widget.userAvatarUrl!)
-          : null,
-      child: widget.userAvatarUrl == null
-          ? Icon(Icons.person, size: 18, color: AppColors.secondaryColor)
-          : null,
+    final hasValidUrl = widget.userAvatarUrl != null && widget.userAvatarUrl!.isNotEmpty;
+    
+    if (!hasValidUrl) {
+      return CircleAvatar(
+        radius: 16,
+        backgroundColor: AppColors.secondaryColor.withOpacity(0.1),
+        child: Icon(Icons.person, size: 18, color: AppColors.secondaryColor),
+      );
+    }
+    
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: CachedNetworkImage(
+        imageUrl: AppUtils.sanitizeImageUrl(widget.userAvatarUrl!),
+        width: 32,
+        height: 32,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => CircleAvatar(
+          radius: 16,
+          backgroundColor: AppColors.secondaryColor.withOpacity(0.1),
+          child: const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 1.5),
+          ),
+        ),
+        errorWidget: (context, url, error) => CircleAvatar(
+          radius: 16,
+          backgroundColor: AppColors.secondaryColor.withOpacity(0.1),
+          child: Icon(Icons.person, size: 18, color: AppColors.secondaryColor),
+        ),
+      ),
     );
   }
 

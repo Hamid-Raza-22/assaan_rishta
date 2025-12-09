@@ -264,8 +264,7 @@ class BuyConnectsController extends GetxController {
         }
 
         await _verifyAndDeliverPurchase(purchase);
-        // Reset purchase in progress flag
-        isPurchaseInProgress.value = false;
+        // Flag reset is handled in _verifyAndDeliverPurchase's finally block
 
       } else if (purchase.status == PurchaseStatus.restored) {
         // This is a restored purchase. You might want to handle this.
@@ -446,6 +445,11 @@ class BuyConnectsController extends GetxController {
       // ALWAYS remove the purchase from the processing sets (not from completed)
       _processingPurchases.remove(purchase.purchaseID);
       _globalProcessingPurchases.remove(purchase.purchaseID);
+      
+      // Reset purchase in progress flag - now user can navigate back
+      isPurchaseInProgress.value = false;
+      debugPrint("🔓 Purchase in progress flag RESET - back navigation allowed");
+      
       debugPrint("🏁 Finished processing purchase: ${purchase.purchaseID}");
       debugPrint("📊 Total completed purchases: ${_completedPurchases.length}");
       debugPrint("📊 Total processed transactions: ${_processedTransactions.length}");
@@ -477,9 +481,10 @@ class BuyConnectsController extends GetxController {
 
     ProductDetails? product = getProductById(package.productId);
     if (product != null) {
-      // Set purchase in progress flag
+      // Set purchase in progress flag - will be reset in _handlePurchaseUpdates
       isPurchaseInProgress.value = true;
       _lastPurchaseTime = DateTime.now();
+      debugPrint('🔒 Purchase in progress flag SET - back navigation blocked');
 
       try {
         final purchaseParam = PurchaseParam(productDetails: product);
@@ -487,12 +492,14 @@ class BuyConnectsController extends GetxController {
       } catch (e) {
         debugPrint('❌ Error initiating purchase: $e');
         isPurchaseInProgress.value = false;
+        debugPrint('🔓 Purchase in progress flag RESET due to error');
       }
 
-      // Reset flag after a delay
-      Future.delayed(const Duration(seconds: 3), () {
-        isPurchaseInProgress.value = false;
-      });
+      // DON'T reset flag here with delay - let _handlePurchaseUpdates handle it
+      // The flag will be reset after:
+      // 1. Purchase verification completes successfully
+      // 2. Purchase fails/canceled
+      // 3. Error occurs during processing
     }
   }
 

@@ -22,7 +22,27 @@ class BuyConnectsView extends GetView<BuyConnectsController> {
 
       },
       builder: (_) {
-        return Scaffold(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+            
+            // Block back if purchase is in progress
+            if (controller.isPurchaseInProgress.value) {
+              Get.snackbar(
+                'Transaction In Progress',
+                'براہ کرم لین دین مکمل ہونے تک انتظار کریں',
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 2),
+              );
+              return;
+            }
+            
+            // Allow back navigation
+            Get.back();
+          },
+          child: Scaffold(
           backgroundColor: Colors.white,
           appBar: _appBar(),
           body: Padding(
@@ -104,6 +124,7 @@ class BuyConnectsView extends GetView<BuyConnectsController> {
                   )
                 : connectsShimmer(context),
           ),
+        ),
         );
       },
     );

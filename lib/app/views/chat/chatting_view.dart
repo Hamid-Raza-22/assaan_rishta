@@ -488,7 +488,9 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
       if (userDoc.exists) {
         final data = userDoc.data();
-        currentUserImageUrl.value = data?['image'] ?? AppConstants.profileImg;
+        currentUserImageUrl.value = AppUtils.sanitizeImageUrl(data?['image']) .isEmpty 
+            ? AppConstants.profileImg 
+            : AppUtils.sanitizeImageUrl(data?['image']);
       }
     } catch (e) {
       debugPrint('Error fetching current user profile: $e');
@@ -1465,7 +1467,7 @@ Future<void> showImageOptions() async {
   ChatUser get currentUserData => cachedUserData.value ?? user;
   bool get isAnyBlocked => isBlocked.value || isBlockedByOther.value || isDelete.value || isDeactivated.value;
   String get userImageUrl => currentUserData.image.isNotEmpty
-      ? currentUserData.image
+      ? AppUtils.sanitizeImageUrl(currentUserData.image)
       : AppConstants.profileImg;
   String get blockMessage {
     if (isDeactivated.value) return "This user has deactivated their account";

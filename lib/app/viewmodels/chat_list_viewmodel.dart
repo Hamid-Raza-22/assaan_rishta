@@ -569,12 +569,20 @@ class ChatListController extends GetxController {
         .where('id', whereIn: userIds)
         .snapshots()
         .listen(
-          (snapshot) {
+          (snapshot) async {
         final newUsers = <ChatUser>[];
 
         for (var doc in snapshot.docs) {
           try {
             final user = ChatUser.fromJson(doc.data());
+            
+            // Check if user has at least 1 message
+            final hasMessages = await _userHasMessages(user.id);
+            if (!hasMessages) {
+              debugPrint('⏭️ Skipping user ${user.name} - no messages yet');
+              continue; // Skip users without messages
+            }
+            
             newUsers.add(user);
 
             // Setup message listener for each user
@@ -606,7 +614,7 @@ class ChatListController extends GetxController {
           isNavigatingToChat.value = false;
         }
 
-        debugPrint('✅ Updated chat list with ${newUsers.length} users');
+        debugPrint('✅ Updated chat list with ${newUsers.length} users (filtered by messages)');
       },
       onError: (error) {
         debugPrint('❌ Error fetching user details: $error');
@@ -617,6 +625,39 @@ class ChatListController extends GetxController {
       },
       cancelOnError: false, // Don't cancel on error
     );
+  }
+
+  /// Check if user has at least 1 message in the conversation
+  Future<bool> _userHasMessages(String userId) async {
+    try {
+      final chatId = getConversationId(currentUserId, userId);
+      
+      // Check if any message exists in this conversation
+      final messagesSnapshot = await FirebaseFirestore.instance
+          .collection('Hamid_chats')
+          .doc(chatId)
+          .collection('messages')
+          .limit(1)
+          .get();
+      
+      // Also check deletion timestamp - if deleted, check for new messages after deletion
+      final deletionTime = deletionTimestamps[userId];
+      if (deletionTime != null && messagesSnapshot.docs.isNotEmpty) {
+        final message = messagesSnapshot.docs.first.data();
+        final messageTime = int.parse(message['sent'] ?? '0');
+        final deletedAt = int.parse(deletionTime);
+        
+        // Only count messages after deletion
+        if (messageTime <= deletedAt) {
+          return false;
+        }
+      }
+      
+      return messagesSnapshot.docs.isNotEmpty;
+    } catch (e) {
+      debugPrint('❌ Error checking user messages: $e');
+      return false;
+    }
   }
   // FIXED: Method to ensure streams are active
   ensureStreamsActive() {
