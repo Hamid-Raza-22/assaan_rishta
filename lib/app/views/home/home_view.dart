@@ -66,15 +66,15 @@ class HomeView extends GetView<HomeController> {
         isBack: false,
         title: "Home",
         actions: [
-          Obx(
-            () => Padding(
-              padding: const EdgeInsets.only(right: 15.0),
-              child: FeaturedChip(
-                isEnabled: controller.isFeaturedEnabled.value,
-                onTap: () => controller.toggleFeatured(),
-              ),
-            ),
-          ),
+          // Obx(
+          //   () => Padding(
+          //     padding: const EdgeInsets.only(right: 15.0),
+          //     child: FeaturedChip(
+          //       isEnabled: controller.isFeaturedEnabled.value,
+          //       onTap: () => controller.toggleFeatured(),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
