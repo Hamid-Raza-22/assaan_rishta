@@ -2,6 +2,7 @@ import 'package:assaan_rishta/app/views/signup/widgets/custom_button.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/custom_text_field.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/gender_selector.dart';
 import 'package:assaan_rishta/app/views/signup/widgets/profile_photo_picker.dart';
+import 'package:assaan_rishta/app/widgets/custom_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_datetime_picker_bdaya/flutter_datetime_picker_bdaya.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/gestures.dart';
 import '../../core/routes/app_routes.dart';
 import '../../utils/app_colors.dart';
 import '../../viewmodels/signup_viewmodel.dart';
+import '../../widgets/app_text.dart';
 import '../../widgets/custom_checkbox.dart';
 import 'basic_info_view.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -22,21 +24,23 @@ class SignupView extends StatelessWidget {
 
 SignupView({super.key});
 
-
+  _appBar() {
+    return const PreferredSize(
+      preferredSize: Size(double.infinity, 40),
+      child: CustomAppBar(
+        isBack: true,
+        title: "Create Account",
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Get.back(),
-        ),
-      ),
+      appBar: _appBar(),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 10),
         child: Form(
@@ -45,24 +49,24 @@ SignupView({super.key});
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
-                child: Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+                // child: Text(
+                //   'Create Account',
+                //   style: TextStyle(
+                //     fontSize: 28,
+                //     fontWeight: FontWeight.bold,
+                //     color: Colors.black,
+                //   ),
+                // ),
               ),
               SizedBox(height: 8),
               Center(
-                child: Text(
-                  'Sign up to keep exploring profiles\naround the world',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                    height: 1.4,
-                  ),
+                child: AppText(
+                  text: 'Sign up to keep exploring profiles\naround the world',
+                  // style: TextStyle(
+                  //   fontSize: 16,
+                  //   color: Colors.grey[600],
+                  //   height: 1.4,
+                  // ),
                   textAlign: TextAlign.center,
                 ),
               ),

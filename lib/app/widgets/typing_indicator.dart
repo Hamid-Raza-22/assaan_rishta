@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
+import '../utils/app_utils.dart';
 
 class TypingIndicator extends StatefulWidget {
   final bool isVisible;
@@ -77,7 +78,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                 fit: BoxFit.cover,
                 height: 30,
                 width: 30,
-                imageUrl: widget.userAvatarUrl,
+                imageUrl: AppUtils.sanitizeImageUrl(widget.userAvatarUrl),
                 errorWidget: (c, url, e) => Container(
                   height: 30,
                   width: 30,

@@ -402,21 +402,32 @@ class ChatUserCardController extends GetxController {
     }
 
     try {
-      CachedNetworkImage.evictFromCache(imageUrl).then((_) {
-        final ctx = Get.context;
-        if (ctx == null) {
-          return;
-        }
-        precacheImage(
-          CachedNetworkImageProvider(imageUrl),
-          ctx,
-        ).catchError((e) {
-          debugPrint('🖼️ Error preloading image: $e');
-        });
-      });
-
-      debugPrint('🖼️ Preloading image for user: $userId');
+      // Sanitize URL to remove staging prefix
+      final sanitizedUrl = AppUtils.sanitizeImageUrl(imageUrl);
+      
+      // Don't evict from cache, just preload if not cached
+      final ctx = Get.context;
+      if (ctx == null) {
+        return;
+      }
+      
+      // Use errorListener to suppress 404 errors
+      precacheImage(
+        CachedNetworkImageProvider(
+          sanitizedUrl,
+          errorListener: (error) {
+            // Silently handle 404 and other HTTP errors
+            debugPrint('🖼️ Image not available: $sanitizedUrl');
+          },
+        ),
+        ctx,
+        onError: (exception, stackTrace) {
+          // Silently handle preloading errors (404, network issues, etc.)
+          debugPrint('🖼️ Preload failed for: $sanitizedUrl');
+        },
+      );
     } catch (e) {
+      // Silently catch any other errors
       debugPrint('❌ Error in image preloading: $e');
     }
   }
@@ -710,7 +721,7 @@ class EnhancedChatUserCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(25),
           child: CachedNetworkImage(
             imageUrl: displayUser.image.isNotEmpty
-                ? displayUser.image
+                ? AppUtils.sanitizeImageUrl(displayUser.image)
                 : AppConstants.profileImg,
             height: 50,
             width: 50,
@@ -741,6 +752,10 @@ class EnhancedChatUserCard extends StatelessWidget {
                 size: 30,
               ),
             ),
+            errorListener: (error) {
+              // Silently handle 404 and other image loading errors
+              debugPrint('🖼️ Avatar image error: ${displayUser.id}');
+            },
             cacheManager: DefaultCacheManager(),
             memCacheHeight: 100,
             memCacheWidth: 100,

@@ -43,6 +43,8 @@ class AppUtils {
     );
   }
 
+
+
   // static String getCustomErrorMessage(FirebaseAuthException e) {
   //   switch (e.code) {
   //     case 'invalid-verification-code':
@@ -67,4 +69,16 @@ class AppUtils {
   //       return 'An unknown error occurred. Please try again.';
   //   }
   // }
+
+  /// Sanitize image URL - remove staging prefix from URLs stored in database
+  /// Converts https://staging.thsolutionz.com/... to https://thsolutionz.com/...
+  static String sanitizeImageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    
+    // Replace staging URL with production URL
+    return url.replaceFirst(
+      'https://staging.thsolutionz.com',
+      'https://thsolutionz.com',
+    );
+  }
 }

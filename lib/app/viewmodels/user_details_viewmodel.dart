@@ -95,13 +95,13 @@ class UserDetailsController extends GetxController {
     }
   }
 
-  void _initializeChatController() {
+  Future<void> _initializeChatController() async {
     bool isLoggedIn = useCase.userManagementRepo.getUserLoggedInStatus();
     debugPrint('👤 User logged in: $isLoggedIn');
 
     if (isLoggedIn && Get.isRegistered<ChatViewModel>()) {
       chatController = Get.find<ChatViewModel>();
-      getConnects();
+     await getConnects();
       debugPrint('💬 ChatController initialized');
     } else {
       debugPrint('💬 ChatController not initialized - user not logged in or service not available');

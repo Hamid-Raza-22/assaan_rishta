@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/chat_list_viewmodel.dart';
@@ -125,7 +126,7 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
         }
 
         if (listController.isLoading.value && listController.chatUsers.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildShimmerLoading();
         }
         return _buildChatList();
       }),
@@ -211,6 +212,80 @@ class _ChatUserListingViewState extends State<ChatUserListingView>
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shimmer loading for chat list
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: ListView.builder(
+        itemCount: 8,
+        padding: const EdgeInsets.only(top: 8),
+        physics: const NeverScrollableScrollPhysics(),
+        itemBuilder: (context, index) {
+          return _buildShimmerItem();
+        },
+      ),
+    );
+  }
+
+  /// Single shimmer item for chat user card
+  Widget _buildShimmerItem() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          // Avatar shimmer
+          Container(
+            width: 55,
+            height: 55,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Content shimmer
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name shimmer
+                Container(
+                  width: 140,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Message shimmer
+                Container(
+                  width: double.infinity,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Time shimmer
+          Container(
+            width: 40,
+            height: 12,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
         ],
