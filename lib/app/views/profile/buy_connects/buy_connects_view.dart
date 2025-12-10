@@ -31,7 +31,7 @@ class BuyConnectsView extends GetView<BuyConnectsController> {
             if (controller.isPurchaseInProgress.value) {
               Get.snackbar(
                 'Transaction In Progress',
-                'براہ کرم لین دین مکمل ہونے تک انتظار کریں',
+                'Please wait until the transaction is complete',
                 backgroundColor: Colors.orange,
                 colorText: Colors.white,
                 duration: const Duration(seconds: 2),

@@ -45,6 +45,7 @@ class SignupViewModel extends GetxController {
   var selectedGender = 'Male'.obs;
   var isFormValid = false.obs;
   RxBool isTermsAgree = true.obs;
+  RxBool isProfileBlur = false.obs; // Profile blur option for female users
   
   // Photo picker
   final ImagePicker _picker = ImagePicker();
@@ -258,6 +259,7 @@ class SignupViewModel extends GetxController {
     cityId = 0;
     isTermsAgree.value = true;
     isFormValid.value = false;
+    isProfileBlur.value = false;
     dobController.value = DateTime.now();
     
     // Clear photo
@@ -972,8 +974,7 @@ class SignupViewModel extends GetxController {
       userKaTaruf: aboutYourSelfTEC.text,
       userDiWohtiKaTaruf: aboutYourPartnerTEC.text,
       roleId: 2,
-      profilePhotoPath: profilePhoto.value?.path, // Include photo path if available
-      profilePhotoBase64: photoBase64, // Include base64 photo for server upload
+      profileBlur: isProfileBlur.value, // Profile blur for female users
     );
 
     final response = await userManagementUseCase.signUp(signUpModel: model);

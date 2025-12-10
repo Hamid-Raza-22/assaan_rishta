@@ -18,6 +18,7 @@ class SignUpModel {
   String userKaTaruf;
   String userDiWohtiKaTaruf;
   int roleId;
+  bool profileBlur;
 
   SignUpModel({
     required this.catename,
@@ -39,6 +40,7 @@ class SignUpModel {
     required this.userKaTaruf,
     required this.userDiWohtiKaTaruf,
     required this.roleId,
+    this.profileBlur = false,
   });
 
   factory SignUpModel.fromJson(Map<String, dynamic> json) {
@@ -62,6 +64,7 @@ class SignUpModel {
       userKaTaruf: json['userKaTaruf'],
       userDiWohtiKaTaruf: json['userDiWohtiKaTaruf'],
       roleId: json['role_id'],
+      profileBlur: json['profile_blur'] ?? false,
     );
   }
 
@@ -86,6 +89,7 @@ class SignUpModel {
       'userKaTaruf': userKaTaruf,
       'userDiWohtiKaTaruf': userDiWohtiKaTaruf,
       'role_id': roleId,
+      'profile_blur': profileBlur,
     };
   }
 }

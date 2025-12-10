@@ -32,9 +32,11 @@ class ProfilePhotoPicker extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
               border: Border.all(
-                color: controller.profilePhoto.value != null
-                    ? AppColors.primaryColor
-                    : Colors.grey[300]!,
+                color: controller.photoError.value.isNotEmpty
+                    ? Colors.red
+                    : controller.profilePhoto.value != null
+                        ? AppColors.primaryColor
+                        : Colors.grey[300]!,
                 width: 3,
               ),
               boxShadow: [
@@ -106,13 +108,15 @@ class ProfilePhotoPicker extends StatelessWidget {
          text:  controller.profilePhoto.value != null
               ? 'Tap to change photo'
               : 'Add Profile Photo',
-
-          // style: TextStyle(
-          //   fontSize: 14,
-          //   color: Colors.grey[600],
-          //   fontWeight: FontWeight.w500,
-          // ),
         ),
+        if (controller.profilePhoto.value == null && controller.photoError.value.isEmpty)
+          // Text(
+          //   '(Required)',
+          //   style: TextStyle(
+          //     fontSize: 11,
+          //     color: Colors.grey[500],
+          //   ),
+          // ),
         if (controller.photoError.value.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
