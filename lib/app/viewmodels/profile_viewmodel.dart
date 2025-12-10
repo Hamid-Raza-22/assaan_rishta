@@ -517,7 +517,6 @@ class ProfileController extends GetxController {
       },
           (success) {
         profileDetails.value = success;
-        debugPrint('📋 Profile loaded - is_blur: ${success.blurProfileImage}');
         isLoading.value = false;
         update();
       },

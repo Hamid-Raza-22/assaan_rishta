@@ -282,16 +282,30 @@ SignupView({super.key});
                   onPressed: () {
                     debugPrint("Mobile Number: ${controller.phoneController.text}");
                     debugPrint("Mobile Number: ${controller.countryCode}${controller.phoneController.text.trim()}");
-                    // sendOtpOnWhatsApp("+923486255887", "123456");
-                    //
-                      if (controller.formKey.currentState!.validate()) {
-                        if (controller.isFormValid.value) {
-                          // Store the values in observable variables before navigation
-                          debugPrint("=== Moving to Basic Info ===");
-                          debugPrint("Email saved: ${controller.emailController.value}");
-                          debugPrint("First Name saved: ${controller.firstNameController.value}");
-                          debugPrint("Last Name saved: ${controller.lastNameController.value}");
-
+                    
+                    // Check if profile photo is selected
+                    if (controller.profilePhoto.value == null) {
+                      controller.photoError.value = 'Profile photo is required';
+                      Get.snackbar(
+                        'Photo Required',
+                        'Please add a profile photo to continue',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red.shade100,
+                        colorText: Colors.red.shade800,
+                        margin: const EdgeInsets.all(10),
+                        borderRadius: 8,
+                        duration: const Duration(seconds: 3),
+                      );
+                      return;
+                    }
+                    
+                    if (controller.formKey.currentState!.validate()) {
+                      if (controller.isFormValid.value) {
+                        // Store the values in observable variables before navigation
+                        debugPrint("=== Moving to Basic Info ===");
+                        debugPrint("Email saved: ${controller.emailController.value}");
+                        debugPrint("First Name saved: ${controller.firstNameController.value}");
+                        debugPrint("Last Name saved: ${controller.lastNameController.value}");
 
                         // Get.toNamed(AppRoutes.BASIC_INFO);
                         Get.to(() => const BasicInfoView());

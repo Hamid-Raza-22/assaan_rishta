@@ -1,4 +1,5 @@
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -31,6 +32,63 @@ class BasicInfoView extends GetView<SignupViewModel> {
                 children: [
                   const SizedBox(height: 30),
                   ..._buildDropdownFields(controller),
+                  const SizedBox(height: 20),
+                  
+                  // Profile Blur Switch - Only visible for Female users
+                  Obx(() => controller.selectedGender.value == 'Female' 
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.fillFieldColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.borderColor),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.blur_on,
+                                  color: AppColors.primaryColor,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Profile Picture Blur',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Hide your photo from others',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            CupertinoSwitch(
+                              value: controller.isProfileBlur.value,
+                              onChanged: (value) {
+                                controller.isProfileBlur.value = value;
+                              },
+                              activeColor: AppColors.primaryColor,
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+                  ),
                   const SizedBox(height: 30),
                   CustomButton(
                     text: "Next",
