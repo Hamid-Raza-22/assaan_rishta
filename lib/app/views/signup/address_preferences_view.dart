@@ -31,7 +31,7 @@ class AddressPreferencesView extends GetView<SignupViewModel> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               children: [
-                const SizedBox(height: 30),
+                // const SizedBox(height: 10),
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
