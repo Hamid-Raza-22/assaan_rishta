@@ -81,14 +81,15 @@ class EndPoints {
   }
 
   getAllProfilesUrl({pageNo, pageLimit, uid}) {
-    // return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/$uid';
-    return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/0';
-
+    // Use user ID when logged in, 0 when guest mode
+    final userId = (uid != null && uid != 0) ? uid : 0;
+    return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/$userId';
   }
 
   getAllFeaturedProfilesUrl({pageNo, pageLimit, uid}) {
-    return '${baseUrl}Users/GetAllFeaturedProfiles/$pageNo/$pageLimit/$uid';
-    // return '${baseUrl}Users/GetAllProfiles/$pageNo/$pageLimit/0';
+    // Use user ID when logged in, 0 when guest mode (not null)
+    final userId = (uid != null && uid != 0) ? uid : 0;
+    return '${baseUrl}Users/GetAllFeaturedProfiles/$pageNo/$pageLimit/$userId';
   }
 
   getProfilesDetailsUrl({uid}) {

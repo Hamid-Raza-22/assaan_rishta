@@ -74,7 +74,7 @@ class AppUtils {
   /// Converts https://staging.thsolutionz.com/... to https://thsolutionz.com/...
   static String sanitizeImageUrl(String? url) {
     if (url == null || url.isEmpty) return '';
-    
+
     // Replace staging URL with production URL
     return url.replaceFirst(
       'https://staging.thsolutionz.com',

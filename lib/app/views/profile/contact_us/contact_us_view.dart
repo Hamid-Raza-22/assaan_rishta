@@ -379,16 +379,11 @@ class ContactUsView extends GetView<ContactUsController> {
                       ),
                       const SizedBox(height: 12),
                       const AppText(
-                        text: 'Monday - Friday: 9:00 AM - 6:00 PM (PST)',
+                        text: 'Monday - Saturday: 9:00 AM - 6:00 PM (PST)',
                         fontSize: 13,
                         color: AppColors.greyColor,
                       ),
-                      const SizedBox(height: 4),
-                      const AppText(
-                        text: 'Saturday: 09:00 AM - 6:00 PM (PST)',
-                        fontSize: 13,
-                        color: AppColors.greyColor,
-                      ),
+
                       const SizedBox(height: 4),
                       const AppText(
                         text: 'Sunday: Closed ',

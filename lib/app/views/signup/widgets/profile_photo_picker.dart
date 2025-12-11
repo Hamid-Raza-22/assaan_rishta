@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../utils/app_colors.dart';
@@ -52,11 +53,35 @@ class ProfilePhotoPicker extends StatelessWidget {
                 // Profile photo or placeholder
                 ClipOval(
                   child: controller.profilePhoto.value != null
-                      ? Image.file(
-                          controller.profilePhoto.value!,
+                      ? SizedBox(
                           width: 120,
                           height: 120,
-                          fit: BoxFit.cover,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                controller.profilePhoto.value!,
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.cover,
+                              ),
+                              // Apply blur effect when isProfileBlur is true
+                              if (controller.isProfileBlur.value)
+                                ClipRect(
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 10.0,
+                                      sigmaY: 10.0,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.1),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         )
                       : Container(
                           width: 120,

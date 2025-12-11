@@ -1004,6 +1004,7 @@ class SignupViewModel extends GetxController {
   void waitForAdminApproval() {
     Get.defaultDialog(
       title: '',
+      barrierDismissible: false,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1012,9 +1013,39 @@ class SignupViewModel extends GetxController {
           const Text('Awaiting Approval',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
+          // Urdu Text
           const Text(
-            'Your profile is pending admin approval.',
+            'برائے مہربانی انتظار فرمائیں۔ ہمارا نمائندہ جلد آپ سے رابطہ کرے گا۔\nآپ کی تصدیق کے بعد آپ کا اکاؤنٹ منظور کر لیا جائے گا۔',
             textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          // English Text
+          const Text(
+            'Please wait, our representative will call you soon.\nAfter your verification, your account will be approved.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, height: 1.5, color: Colors.black54),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.schedule, size: 18, color: Colors.orange),
+                const SizedBox(width: 8),
+                const Text(
+                  'Call Timing: 9:00 AM - 6:00 PM\n(Monday - Saturday)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           CustomButton(
@@ -1025,7 +1056,14 @@ class SignupViewModel extends GetxController {
             onTap: () {
               // Clear form data for next signup
               clearFormData();
-              Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
+              // Navigate to guest mode
+              Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+              Get.snackbar(
+                'Guest Mode',
+                'You are in Guest Mode. Please log in after your account is approved.',
+                snackPosition: SnackPosition.BOTTOM,
+                duration: const Duration(seconds: 4),
+              );
             },
           ),
         ],

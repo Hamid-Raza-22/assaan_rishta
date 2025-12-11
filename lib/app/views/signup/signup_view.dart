@@ -48,35 +48,35 @@ SignupView({super.key});
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                // child: Text(
-                //   'Create Account',
-                //   style: TextStyle(
-                //     fontSize: 28,
-                //     fontWeight: FontWeight.bold,
-                //     color: Colors.black,
-                //   ),
-                // ),
-              ),
-              SizedBox(height: 8),
-              Center(
-                child: AppText(
-                  text: 'Sign up to keep exploring profiles\naround the world',
-                  // style: TextStyle(
-                  //   fontSize: 16,
-                  //   color: Colors.grey[600],
-                  //   height: 1.4,
-                  // ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SizedBox(height: 25),
+              // Center(
+              //   // child: Text(
+              //   //   'Create Account',
+              //   //   style: TextStyle(
+              //   //     fontSize: 28,
+              //   //     fontWeight: FontWeight.bold,
+              //   //     color: Colors.black,
+              //   //   ),
+              //   // ),
+              // ),
+              // SizedBox(height: 8),
+              // Center(
+              //   child: AppText(
+              //     text: 'Sign up to keep exploring profiles\naround the world',
+              //     // style: TextStyle(
+              //     //   fontSize: 16,
+              //     //   color: Colors.grey[600],
+              //     //   height: 1.4,
+              //     // ),
+              //     textAlign: TextAlign.center,
+              //   ),
+              // ),
+              // SizedBox(height: 25),
 
               // Profile Photo Picker
               Center(
                 child: ProfilePhotoPicker(controller: controller),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
 
               Row(
                 children: [
@@ -273,6 +273,67 @@ SignupView({super.key});
               SizedBox(height: 10),
 
               GenderSelector(controller: controller),
+              SizedBox(height: 1),
+              // Profile Blur Switch - Only visible for Female users
+              Obx(() => controller.selectedGender.value == 'Female'
+                  ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
+                // decoration: BoxDecoration(
+                //   color: AppColors.fillFieldColor,
+                //   borderRadius: BorderRadius.circular(12),
+                //   border: Border.all(color: AppColors.borderColor),
+                // ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.hide_image_outlined,
+                          color: Colors.grey,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppText(
+                              text: 'Profile Picture Blur',
+                              fontSize: 15,
+                              fontWeight: FontWeight.w300,
+                              // style: TextStyle(
+                              //   fontSize: 14,
+                              //   fontWeight: FontWeight.w600,
+                              //   color: Colors.black87,
+                              // ),
+                            ),
+                            // const SizedBox(height: 2),
+                            // Text(
+                            //   'Hide your photo from others',
+                            //   style: TextStyle(
+                            //     fontSize: 11,
+                            //     color: Colors.grey[600],
+                            //   ),
+                            // ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                   CupertinoSwitch(
+                        value: controller.isProfileBlur.value,
+                        onChanged: (value) {
+                          controller.isProfileBlur.value = value;
+                        },
+                        activeColor: AppColors.primaryColor,
+                        dragStartBehavior: DragStartBehavior.start,
+                      ),
+
+                  ],
+                ),
+              )
+                  : const SizedBox.shrink(),
+              ),
               SizedBox(height: 10),
 
               Obx(
@@ -282,7 +343,7 @@ SignupView({super.key});
                   onPressed: () {
                     debugPrint("Mobile Number: ${controller.phoneController.text}");
                     debugPrint("Mobile Number: ${controller.countryCode}${controller.phoneController.text.trim()}");
-                    
+
                     // Check if profile photo is selected
                     if (controller.profilePhoto.value == null) {
                       controller.photoError.value = 'Profile photo is required';
@@ -298,7 +359,7 @@ SignupView({super.key});
                       );
                       return;
                     }
-                    
+
                     if (controller.formKey.currentState!.validate()) {
                       if (controller.isFormValid.value) {
                         // Store the values in observable variables before navigation
