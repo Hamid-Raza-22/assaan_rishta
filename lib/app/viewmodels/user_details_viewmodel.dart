@@ -579,10 +579,12 @@ class UserDetailsController extends GetxController {
   /// Check if user is deactivated in Firebase
   Future<bool> _checkIfUserIsDeactivated(String userId) async {
     try {
+      // FIXED: Force fetch from server to get latest deactivation status
+      // This ensures admin panel changes are reflected immediately
       final userDoc = await FirebaseFirestore.instance
           .collection('Hamid_users')
           .doc(userId)
-          .get();
+          .get(const GetOptions(source: Source.server));
       
       if (userDoc.exists) {
         final data = userDoc.data();
