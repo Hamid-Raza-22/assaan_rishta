@@ -158,9 +158,8 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                           fontColor: AppColors.whiteColor,
                           fontWeight: FontWeight.w500,
                           fontSize: 18,
-                          onTap:
-                               // ()=> Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW)
-                          controller.isSendingCode.value
+                            // onTap:  ()=> Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW, arguments: Get.arguments)
+                            onTap: controller.isSendingCode.value
                               ? null
                               : () {
                             if (controller.formKey.currentState!.validate()) {

@@ -484,11 +484,8 @@ class ForgotPasswordController extends BaseController{
           confirmPasswordTEC.clear();
           _verificationId = null;
 
-          // Clear password reset screens but preserve Account Type in navigation stack
-          Get.offNamedUntil(
-            AppRoutes.LOGIN,
-            (route) => route.settings.name == AppRoutes.ACCOUNT_TYPE || route.isFirst,
-          );
+          // Pop back to existing login screen (don't create new one)
+          Get.until((route) => route.settings.name == AppRoutes.LOGIN);
         },
       );
     } catch (e) {

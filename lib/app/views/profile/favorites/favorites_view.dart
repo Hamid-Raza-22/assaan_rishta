@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/export.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../utils/exports.dart';
 import '../../../widgets/export.dart';
 
@@ -71,13 +72,7 @@ class FavoritesView extends GetView<FavoritesController> {
       ),
       child: ListTile(
         onTap: () {
-          // Get.to(
-          //   () => const UserDetailsView(),
-          //   binding: AppBindings(),
-          //   transition: Transition.downToUp,
-          //   duration: const Duration(milliseconds: 500),
-          //   arguments: favItem.userId,
-          // );
+          Get.toNamed(AppRoutes.USER_DETAILS_VIEW, arguments: favItem.userId);
         },
         leading: BlurredProfileImage(
           imageProvider: (favItem.profileImage != null && favItem.profileImage!.isNotEmpty)

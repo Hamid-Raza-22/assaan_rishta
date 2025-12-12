@@ -18,8 +18,9 @@ class LoginViewModel extends GetxController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   final chatController = Get.find<ChatViewModel>();
 
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  // Controllers created fresh in onInit to avoid disposal issues
+  late TextEditingController emailController;
+  late TextEditingController passwordController;
 
   var isLoading = false.obs;
   final RxBool forgotPassword = false.obs;
@@ -29,11 +30,16 @@ class LoginViewModel extends GetxController {
   // var agreeToTerms = false.obs;
   var isFormValid = false.obs;
 
-  final formKey = GlobalKey<FormState>();
+  // GlobalKey created fresh in onInit to avoid duplicate key issues
+  late GlobalKey<FormState> formKey;
 
   @override
   void onInit() {
     super.onInit();
+    // Create fresh instances to avoid GlobalKey duplicate and disposed controller issues
+    formKey = GlobalKey<FormState>();
+    emailController = TextEditingController();
+    passwordController = TextEditingController();
     emailController.addListener(_validateForm);
     passwordController.addListener(_validateForm);
   }
