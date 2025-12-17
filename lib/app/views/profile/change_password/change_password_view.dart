@@ -182,7 +182,7 @@ class ChangePasswordView extends GetView<ChangePasswordController> {
                                   await controller.secureStorage.saveUserEmail(email);
                                   debugPrint('✅ Phone and email saved securely');
                                   Get.toNamed(AppRoutes.FORGOT_PASSWORD_VIEW,
-                                      arguments: email);
+                                      arguments: {'email': email, 'source': 'profile'});
                                 } else {
                                   Get.snackbar(
                                     'Not Found',

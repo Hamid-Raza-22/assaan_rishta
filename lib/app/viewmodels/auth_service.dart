@@ -8,8 +8,10 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/routes/app_routes.dart';
+import '../core/services/account_status_service.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/secure_storage_service.dart';
+import '../core/services/session_manager.dart';
 import '../core/utils/app_logger.dart';
 import '../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../views/bottom_nav/export.dart';
@@ -89,6 +91,9 @@ class AuthService extends GetxController {
         // Update FCM token for logged in user
         await _updateFCMToken();
 
+        // Start listening for account status changes (cross-device deactivation)
+        _startAccountStatusListener(userId.toString());
+
         AppLogger.success('User authenticated: $userName (ID: $userId)');
 
         // Navigate to home if on account type page
@@ -150,10 +155,29 @@ class AuthService extends GetxController {
       // Update FCM token after login
       await _updateFCMToken();
 
+      // Start listening for account status changes (cross-device deactivation)
+      _startAccountStatusListener(userId.toString());
+
       debugPrint('✅ Login successful');
     } catch (e) {
       debugPrint('💥 Error during login: $e');
       rethrow;
+    }
+  }
+
+  /// Start listening for account status changes
+  void _startAccountStatusListener(String userId) {
+    if (Get.isRegistered<AccountStatusService>()) {
+      AccountStatusService.instance.startListening(userId);
+      AppLogger.lifecycle('Account status listener started for user: $userId');
+    }
+  }
+
+  /// Stop listening for account status changes
+  Future<void> _stopAccountStatusListener() async {
+    if (Get.isRegistered<AccountStatusService>()) {
+      await AccountStatusService.instance.stopListening();
+      AppLogger.lifecycle('Account status listener stopped');
     }
   }
 
@@ -163,6 +187,9 @@ class AuthService extends GetxController {
     try {
       AppLogger.lifecycle('Waiting for auth verification to complete...');
       NotificationServices.clearSession();
+
+      // 0. Stop account status listener
+      await _stopAccountStatusListener();
 
       // 1. Update Firebase status
       if (_userId != null) {

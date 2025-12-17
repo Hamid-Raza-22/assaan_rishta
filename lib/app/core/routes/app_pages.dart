@@ -6,6 +6,7 @@ import 'package:assaan_rishta/app/views/on_boarding_screens/onboarding_screen.da
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
+import '../../views/account_deactivated/account_deactivated_screen.dart';
 import '../../views/account_type/account_type_view.dart';
 import '../../views/bottom_nav/bottom_nav_view.dart';
 import '../../views/chat/chatting_view.dart';
@@ -183,6 +184,12 @@ class AppPages {
       ),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.ACCOUNT_DEACTIVATED,
+      page: () => const AccountDeactivatedScreen(),
+      transition: Transition.fade,
+      transitionDuration: Duration(milliseconds: 300),
     ),
     GetPage(
       name: AppRoutes.BOTTOM_NAV,

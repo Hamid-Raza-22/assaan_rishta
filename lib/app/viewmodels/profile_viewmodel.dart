@@ -11,8 +11,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/export.dart';
 import '../core/routes/app_routes.dart';
+import '../core/services/account_status_service.dart';
 import '../core/services/firebase_service/notification_service.dart';
 import '../core/services/secure_storage_service.dart';
+import '../core/services/session_manager.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import 'auth_service.dart';
@@ -81,26 +83,36 @@ class ProfileController extends GetxController {
 
       debugPrint('✅ [DEACTIVATE] All cleanup operations completed');
 
-      // Step 3: Clear local storage and auth state
-      await _clearLocalDataFast();
+      // Step 3: Stop account status listener (prevent self-trigger)
+      if (Get.isRegistered<AccountStatusService>()) {
+        await AccountStatusService.instance.stopListening();
+        debugPrint('✅ [DEACTIVATE] Account status listener stopped');
+      }
 
-      // Step 4: Dismiss loader
+      // Step 4: Clear local storage and auth state using SessionManager
+      if (Get.isRegistered<SessionManager>()) {
+        await SessionManager.instance.clearAllSessionData();
+      } else {
+        await _clearLocalDataFast();
+      }
+
+      // Step 5: Dismiss loader
       _dismissDeactivationLoader();
 
-      // Step 5: Show brief success toast (non-blocking)
+      // Step 6: Show brief success toast (non-blocking)
       Get.snackbar(
         'Profile Deactivated',
-        'Your profile has been deactivated successfully',
+        'Your profile has been deactivated successfully. You will be logged out from all devices.',
         snackPosition: SnackPosition.TOP,
         backgroundColor: AppColors.greenColor,
         colorText: Colors.white,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         margin: const EdgeInsets.all(10),
         borderRadius: 10,
         icon: const Icon(Icons.check_circle, color: Colors.white),
       );
 
-      // Step 6: Navigate immediately to login
+      // Step 7: Navigate immediately to login
       debugPrint('🚪 [DEACTIVATE] Navigating to login...');
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
 

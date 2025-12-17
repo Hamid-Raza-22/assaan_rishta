@@ -22,6 +22,8 @@ import '../../views/profile/partner_preference/partner_preference_controller.dar
 import '../../views/profile/user_guide/user_guide_controller.dart';
 import '../../views/splash/export.dart';
 import '../../views/vendor/export.dart';
+import '../services/account_status_service.dart';
+import '../services/session_manager.dart';
 
 
 
@@ -32,6 +34,14 @@ class AppBindings extends Bindings {
     debugPrint('🔧 Initializing AppBindings...');
 
     try {
+      // Register SessionManager first (required by AccountStatusService)
+      Get.put<SessionManager>(SessionManager(), permanent: true);
+      debugPrint('✅ SessionManager registered');
+
+      // Register AccountStatusService (for cross-device deactivation)
+      Get.put<AccountStatusService>(AccountStatusService(), permanent: true);
+      debugPrint('✅ AccountStatusService registered');
+
       Get.lazyPut<AuthService>(() => AuthService(), fenix: true);
       debugPrint('✅ AuthService registered');
 
