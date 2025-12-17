@@ -16,6 +16,7 @@ import 'app/config/firebase_options.dart';
 import 'app/core/di/export.dart';
 import 'app/core/routes/app_pages.dart';
 import 'app/core/routes/app_routes.dart';
+import 'app/core/services/account_status_service.dart';
 import 'app/core/services/deep_link_handler.dart';
 import 'app/core/services/env_config_service.dart';
 import 'app/core/services/secure_storage_service.dart';
@@ -278,6 +279,15 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
     try {
       // Re-enable screen security on resume to ensure it stays active
       await ScreenSecurity.enableScreenSecurity();
+      
+      // Validate account status on every app resume (cross-device deactivation check)
+      if (Get.isRegistered<AccountStatusService>()) {
+        final isValid = await AccountStatusService.instance.validateAccountStatus();
+        if (!isValid) {
+          debugPrint('🚨 Account deactivated - stopping resume actions');
+          return; // Stop here if account is deactivated
+        }
+      }
       
       FirebaseService.setAppState(isInForeground: true);
 

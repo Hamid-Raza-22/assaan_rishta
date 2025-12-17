@@ -484,8 +484,20 @@ class ForgotPasswordController extends BaseController{
           confirmPasswordTEC.clear();
           _verificationId = null;
 
-          // Pop back to existing login screen (don't create new one)
-          Get.until((route) => route.settings.name == AppRoutes.LOGIN);
+          // Check if coming from profile or login based on arguments
+          final args = Get.arguments;
+          String? source;
+          if (args is Map) {
+            source = args['source'] as String?;
+          }
+
+          if (source == 'profile') {
+            // Coming from profile/change password - pop back to bottom nav (preserves state)
+            Get.until((route) => route.settings.name == AppRoutes.BOTTOM_NAV);
+          } else {
+            // Coming from login flow - pop back to login
+            Get.until((route) => route.settings.name == AppRoutes.LOGIN);
+          }
         },
       );
     } catch (e) {

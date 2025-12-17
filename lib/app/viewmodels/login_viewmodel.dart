@@ -96,16 +96,39 @@ class LoginViewModel extends GetxController {
             (error) {
           isLoading.value = false;
           if (error.title == "400") {
-            if (error.description == 'invalid_grant') {
+            if (error.description == 'Invalid credentials') {
               AppUtils.failedData(
                 title: "Invalid Credentials",
                 message: "Your Email or Password is Incorrect",
               );
               isLoading.value = false;
 
-            } else  if (error.description == 'account_not_approved') {
+            } else  if (error.description == 'wrong_id') {
               AppUtils.failedData(
-                title: "Account Status",
+                title: "User Not Exist",
+                message: "Your Email Not Found"
+              );
+              isLoading.value = false;
+
+            }
+            else  if (error.description == 'account_Deactivated') {
+              AppUtils.failedData(
+                title: "Account Deactivated",
+                message: "Your account is no longer supported or deactivated for further details call 03064727345",
+              );
+              isLoading.value = false;
+
+            }
+            else  if (error.description == 'access_denied') {
+              AppUtils.failedData(
+                title: "Access Denied",
+                message: "You are not able to login your account. Contact Asaan Rishta support team '03064727345' for further details.",
+              );
+              isLoading.value = false;
+
+            }      else  if (error.description == 'account_not_approved') {
+              AppUtils.failedData(
+                title: "Account Not Approved",
                 message: "Your account is not approved please try again within 24 hours or call 03074052552",
               );
               isLoading.value = false;

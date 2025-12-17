@@ -95,17 +95,24 @@ class FilterController extends BaseController {
     }
   }
 
-  /// Refresh profiles based on current featured state
+  /// Refresh profiles based on current featured state and applied filters
   void _refreshProfiles() {
     profileList.clear();
     pageNo = 1;
     featuredPageNo = 1;
     isFirstLoad.value = true;
+    isLoading.value = true; // Show shimmer loading
     update();
-    _loadProfiles();
+    
+    // If filters are applied, use filter API; otherwise load all profiles
+    if (isFilterApplied.value) {
+      getAllProfilesByFilter(page: 1);
+    } else {
+      _loadProfiles();
+    }
   }
 
-  /// Load profiles based on featured toggle state
+  /// Load profiles based on featured toggle state (without filters)
   void _loadProfiles({int? page}) {
     if (isFeaturedEnabled.value) {
       getAllFeaturedProfiles(page: page);
@@ -143,8 +150,15 @@ class FilterController extends BaseController {
     userIdSearchTEC.clear();
     isFirstLoad.value = true;
     profileList.clear();
+    pageNo = 1;
+    featuredPageNo = 1;
     update();
-    getAllProfiles(page: 1);
+    // Respect filter and featured state when clearing search
+    if (isFilterApplied.value) {
+      getAllProfilesByFilter(page: 1);
+    } else {
+      _loadProfiles(page: 1);
+    }
   }
 
   ///Existing Apis
@@ -184,7 +198,9 @@ class FilterController extends BaseController {
           );
     return response.fold(
           (error) {
+        isLoading.value = false; // Hide shimmer on error
         AppUtils.dismissLoader(context);
+        update();
       },
           (success) {
         totalCounts = success.totalRecords!;
@@ -199,6 +215,7 @@ class FilterController extends BaseController {
           profileList.addAll(filteredProfiles);
           isReloadMore.value = false;
         }
+        isLoading.value = false; // Hide shimmer on success
         if (context != null) {
           AppUtils.dismissLoader(context);
         }
@@ -373,7 +390,7 @@ class FilterController extends BaseController {
   clearAllFilters() {
     isFilterApplied.value = false;
     isSearchByUserId.value = false; // Reset search flag
-    isFeaturedEnabled.value = false; // Reset featured toggle
+    // Note: Do NOT reset isFeaturedEnabled - filters are independent of featured toggle
     caste = "".obs;
     ageFrom = "".obs;
     ageTo = "".obs;
@@ -389,15 +406,18 @@ class FilterController extends BaseController {
     featuredPageNo = 1;
     isFirstLoad.value = true;
     update();
-    getAllProfiles(page: 1);
+    // Load profiles based on current featured state (filters cleared)
+    _loadProfiles(page: 1);
   }
 
   scrollToTop() {
-    scrollController.animateTo(
-      scrollController.position.minScrollExtent,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.minScrollExtent,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   /// Get gender-based placeholder image

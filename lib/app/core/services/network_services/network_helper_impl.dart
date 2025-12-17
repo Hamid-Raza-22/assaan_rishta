@@ -8,8 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../storage_services/storage_keys.dart';
+import 'api_response_interceptor.dart';
 import 'network_helper.dart';
-
 
 class NetworkHelperImpl extends NetworkHelper {
   NetworkHelperImpl(this.sharedPreferences);
@@ -115,9 +115,16 @@ class NetworkHelperImpl extends NetworkHelper {
     });
   }
 
+  // Interceptor for checking account deactivation
+  final _interceptor = ApiResponseInterceptor();
+
   @override
   http.Response handleResponse(http.Response response) {
     final int statusCode = response.statusCode;
+    
+    // Check for account deactivation in response (async, non-blocking)
+    _interceptor.checkForDeactivation(response);
+    
     switch (statusCode) {
       case 401:
         {
