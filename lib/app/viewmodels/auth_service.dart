@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/routes/app_routes.dart';
 import '../core/services/account_status_service.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/secure_storage_service.dart';
 import '../core/services/session_manager.dart';
@@ -300,7 +301,7 @@ class AuthService extends GetxController {
 
       // Update token in Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_userId.toString())
           .update({
         'push_token': fcmToken,
@@ -322,7 +323,7 @@ class AuthService extends GetxController {
 
       // Remove token from Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_userId.toString())
           .update({
         'push_token': FieldValue.delete(),
@@ -466,7 +467,7 @@ class AuthService extends GetxController {
       final batch = FirebaseFirestore.instance.batch();
 
       // Step 1: Mark user as deleted (instead of immediate deletion)
-      final userRef = FirebaseFirestore.instance.collection('Hamid_users').doc(userId);
+      final userRef = FirebaseFirestore.instance.collection(EnvConfig.firebaseUsersCollection).doc(userId);
       batch.update(userRef, {
         'account_deleted': true,
         'deleted_at': DateTime.now().millisecondsSinceEpoch.toString(),
@@ -481,7 +482,7 @@ class AuthService extends GetxController {
 
       // Step 2: Get all users who have this deleted user in their chat list
       final allUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .get();
 
       for (var userDoc in allUsersSnapshot.docs) {
@@ -504,7 +505,7 @@ class AuthService extends GetxController {
 
       // Step 3: Clean up user's own my_users collection
       final myUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('my_users')
           .get();
@@ -515,7 +516,7 @@ class AuthService extends GetxController {
 
       // Step 4: Clean up deleted_chats collection
       final deletedChatsSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('deleted_chats')
           .get();
@@ -526,7 +527,7 @@ class AuthService extends GetxController {
 
       // Step 5: Update all active conversations to show deletion status
       final conversationsSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .where('participants', arrayContains: userId)
           .get();
 
@@ -581,7 +582,7 @@ class FirebaseService {
       if (userId == null || userId <= 0) return;
 
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId.toString())
           .update({
         'is_online': isActive,
@@ -598,7 +599,7 @@ class FirebaseService {
       if (userId == null || userId <= 0) return;
 
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId.toString())
           .update({
         'is_inside': isInside,

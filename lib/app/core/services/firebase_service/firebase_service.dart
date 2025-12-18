@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 
 import '../../../domain/export.dart';
 import '../../export.dart';
+import '../env_config_service.dart';
 import 'export.dart';
 
 const fireStoregeUrl = "https://firebasestorage.googleapis.com";
@@ -68,12 +69,12 @@ class FirebaseService {
 
   // for checking if user exist or not?
   static Future<bool> userExists(uid) async =>
-      (await firestore.collection('Hamid_users').doc(uid).get()).exists;
+      (await firestore.collection(EnvConfig.firebaseUsersCollection).doc(uid).get()).exists;
 
   // OPTIMIZED: Faster chat connection
   static Future<bool> addChatUser(String uid) async {
     final data = await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .where('id', isEqualTo: uid)
         .get();
 
@@ -88,7 +89,7 @@ class FirebaseService {
 
       batch.set(
         firestore
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(currentUserId)
             .collection('my_users')
             .doc(otherUserDocId),
@@ -106,7 +107,7 @@ class FirebaseService {
   // for getting self info
   static Future<void> getSelfInfo() async {
     await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(useCase.getUserId().toString())
         .get()
         .then((user) async {
@@ -119,10 +120,10 @@ class FirebaseService {
   }
 
   static Future<ChatUser?> getUserById(String uid, String imageUrl) async {
-    final userDoc = await firestore.collection('Hamid_users').doc(uid).get();
+    final userDoc = await firestore.collection(EnvConfig.firebaseUsersCollection).doc(uid).get();
     if (userDoc.exists) {
       debugPrint("user data => ${userDoc.data()}");
-      await firestore.collection('Hamid_users').doc(uid).update({
+      await firestore.collection(EnvConfig.firebaseUsersCollection).doc(uid).update({
         'image': imageUrl,
       });
       return ChatUser.fromJson(userDoc.data()!);
@@ -162,7 +163,7 @@ class FirebaseService {
     bool isExist = await userExists(id);
     if (!isExist) {
       return await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(id)
           .set(chatUser.toJson());
     }
@@ -171,7 +172,7 @@ class FirebaseService {
   // stream for getting all the id of my users from data base
   static Stream<QuerySnapshot<Map<String, dynamic>>> getMyUsersId(currentUID) {
     return firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(currentUID)
         .collection('my_users')
         .orderBy('last_message_time', descending: true)
@@ -183,7 +184,7 @@ class FirebaseService {
     List<String> userIds,
   ) {
     return firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .where('id', whereIn: userIds.isEmpty ? [''] : userIds)
         .snapshots();
   }
@@ -193,7 +194,7 @@ class FirebaseService {
     required String uid,
   }) {
     return firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .where('id', isEqualTo: uid)
         .snapshots();
   }
@@ -204,7 +205,7 @@ class FirebaseService {
 
     try {
       await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(useCase.getUserId().toString())
           .update({
             'is_online': isOnline,
@@ -221,7 +222,7 @@ class FirebaseService {
 
   static Future<void> updateLastActive() async {
     await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(useCase.getUserId().toString())
         .update({
           'last_message': DateTime.now().millisecondsSinceEpoch.toString(),
@@ -233,7 +234,7 @@ class FirebaseService {
     _isInChatScreen = isInside;
 
     await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(useCase.getUserId().toString())
         .update({'is_inside': isInside});
 
@@ -245,7 +246,7 @@ class FirebaseService {
   //update fcm token
   static Future<void> updateFcmToken({fcmToken}) async {
     await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(useCase.getUserId().toString())
         .update({'push_token': fcmToken});
   }
@@ -279,13 +280,13 @@ class FirebaseService {
     final currentUserId = useCase.getUserId().toString();
 
     return firestore
-        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+        .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(user.id)}/messages')
         .orderBy('sent', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
           // Check if this chat was deleted by current user
           final deletionDoc = await firestore
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(currentUserId)
               .collection('deleted_chats')
               .doc(user.id)
@@ -317,7 +318,7 @@ class FirebaseService {
     ChatUser user,
   ) {
     return firestore
-        .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+        .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(user.id)}/messages')
         .orderBy('sent', descending: true)
         .limit(1)
         .snapshots()
@@ -327,7 +328,7 @@ class FirebaseService {
           // Check if this message should be shown
           final currentUserId = useCase.getUserId().toString();
           final deletionDoc = await firestore
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(currentUserId)
               .collection('deleted_chats')
               .doc(user.id)
@@ -452,7 +453,7 @@ class FirebaseService {
     try {
       final currentUserId = useCase.getUserId().toString();
       final deletionDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('deleted_chats')
           .doc(senderId)
@@ -468,7 +469,7 @@ class FirebaseService {
 
         batch.delete(
           firestore
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(currentUserId)
               .collection('deleted_chats')
               .doc(senderId),
@@ -476,7 +477,7 @@ class FirebaseService {
 
         batch.set(
           firestore
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(currentUserId)
               .collection('my_users')
               .doc(senderId),
@@ -502,7 +503,7 @@ class FirebaseService {
 
     await for (final snapshot
         in firestore
-            .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+            .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(user.id)}/messages')
             .orderBy('sent', descending: true)
             .snapshots()) {
       List<Message> filteredMessages = [];
@@ -540,7 +541,7 @@ class FirebaseService {
   ) async {
     try {
       final userDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .get();
       final deletedChats =
@@ -558,7 +559,7 @@ class FirebaseService {
 
     await for (final snapshot
         in firestore
-            .collection('Hamid_chats/${getConversationID(user.id)}/messages')
+            .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(user.id)}/messages')
             .orderBy('sent', descending: true)
             .limit(1)
             .snapshots()) {
@@ -603,7 +604,7 @@ class FirebaseService {
 
       // Check if receiver had deleted this chat
       final receiverDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(receiverId)
           .get();
       final receiverData = receiverDoc.data() ?? {};
@@ -615,7 +616,7 @@ class FirebaseService {
       // Always ensure sender has the connection
       batch.set(
         firestore
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(senderId)
             .collection('my_users')
             .doc(receiverId),
@@ -630,7 +631,7 @@ class FirebaseService {
         // Add back to receiver's my_users
         batch.set(
           firestore
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(receiverId)
               .collection('my_users')
               .doc(senderId),
@@ -645,7 +646,7 @@ class FirebaseService {
         // Normal case - just update timestamp
         batch.set(
           firestore
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(receiverId)
               .collection('my_users')
               .doc(senderId),
@@ -666,7 +667,7 @@ class FirebaseService {
     try {
       final currentUserId = useCase.getUserId().toString();
 
-      await firestore.collection('Hamid_users').doc(currentUserId).update({
+      await firestore.collection(EnvConfig.firebaseUsersCollection).doc(currentUserId).update({
         'deleted_chats.$chatUserId': FieldValue.delete(),
       });
 
@@ -703,7 +704,7 @@ class FirebaseService {
     try {
       // Check if chat was deleted
       final deletionDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('deleted_chats')
           .doc(chatUser.id)
@@ -715,7 +716,7 @@ class FirebaseService {
         // DON'T remove deletion record - keep it for filtering old messages
         // Just restore the chat in my_users
         await firestore
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(currentUserId)
             .collection('my_users')
             .doc(chatUser.id)
@@ -724,7 +725,7 @@ class FirebaseService {
 
       // Send the message
       await firestore
-          .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+          .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(chatUser.id)}/messages')
           .doc(time)
           .set(message.toJson());
 
@@ -733,7 +734,7 @@ class FirebaseService {
 
       // Only update receiver's timestamp if they have the chat
       final receiverChatDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(chatUser.id)
           .collection('my_users')
           .doc(currentUserId)
@@ -744,7 +745,7 @@ class FirebaseService {
       }
 
       // Update receiver's last message
-      await firestore.collection('Hamid_users').doc(chatUser.id).update({
+      await firestore.collection(EnvConfig.firebaseUsersCollection).doc(chatUser.id).update({
         'last_message': time,
       });
 
@@ -790,7 +791,7 @@ class FirebaseService {
     // Add to current user's my_users
     batch.set(
       firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('my_users')
           .doc(chatUser.id),
@@ -800,7 +801,7 @@ class FirebaseService {
 
     // Check if receiver has deleted this chat
     final receiverDeletionDoc = await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(chatUser.id)
         .collection('deleted_chats')
         .doc(currentUserId)
@@ -810,7 +811,7 @@ class FirebaseService {
     if (!receiverDeletionDoc.exists) {
       batch.set(
         firestore
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(chatUser.id)
             .collection('my_users')
             .doc(currentUserId),
@@ -853,7 +854,7 @@ class FirebaseService {
     try {
       // Send the message with specific ID
       await firestore
-          .collection('Hamid_chats/${getConversationID(chatUser.id)}/messages')
+          .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(chatUser.id)}/messages')
           .doc(messageId)
           .set(message.toJson());
 
@@ -862,7 +863,7 @@ class FirebaseService {
 
       // Only update receiver's timestamp if they have the chat
       final receiverChatDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(chatUser.id)
           .collection('my_users')
           .doc(currentUserId)
@@ -873,7 +874,7 @@ class FirebaseService {
       }
 
       // Update receiver's last message
-      await firestore.collection('Hamid_users').doc(chatUser.id).update({
+      await firestore.collection(EnvConfig.firebaseUsersCollection).doc(chatUser.id).update({
         'last_message': messageId,
       });
 
@@ -951,7 +952,7 @@ class FirebaseService {
   ) async {
     try {
       await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('my_users')
           .doc(otherUserId)
@@ -1018,7 +1019,7 @@ class FirebaseService {
   ) async {
     try {
       final userDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(chatUser.id)
           .get();
       if (!userDoc.exists) return;
@@ -1079,7 +1080,7 @@ class FirebaseService {
       final readTime = DateTime.now().millisecondsSinceEpoch.toString();
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(message.sent)
@@ -1129,7 +1130,7 @@ class FirebaseService {
   // delete message
   static Future<void> deleteMessage(Message message) async {
     await firestore
-        .collection('Hamid_chats/${getConversationID(message.toId)}/messages')
+        .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(message.toId)}/messages')
         .doc(message.sent)
         .delete();
 
@@ -1141,7 +1142,7 @@ class FirebaseService {
   // delete message
   static Future<void> updateMessage(Message message, String updatedMsg) async {
     await firestore
-        .collection('Hamid_chats/${getConversationID(message.toId)}/messages')
+        .collection('${EnvConfig.firebaseChatsCollection}/${getConversationID(message.toId)}/messages')
         .doc(message.sent)
         .update({'msg': updatedMsg});
   }
@@ -1201,7 +1202,7 @@ class FirebaseService {
       final _ = useCase.getUserId().toString();
 
       await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(useCase.getUserId().toString())
           .update({
             'blockedUsers.$userIdToBlock': FieldValue.serverTimestamp(),
@@ -1221,7 +1222,7 @@ class FirebaseService {
     try {
       final currentUserId = useCase.getUserId().toString();
       await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(useCase.getUserId().toString())
           .update({'blockedUsers.$userIdToUnblock': FieldValue.delete()});
 
@@ -1241,7 +1242,7 @@ class FirebaseService {
     final currentUserId = useCase.getUserId().toString();
 
     final userDoc = await firestore
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(useCase.getUserId().toString())
         .get();
     final blockedUsers = userDoc.data()?['blockedUsers'] ?? {};
@@ -1257,7 +1258,7 @@ class FirebaseService {
     try {
       final currentUserId = useCase.getUserId().toString();
       final otherUserDoc = await firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .get();
 

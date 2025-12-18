@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,7 +19,8 @@ class AccountDeactivatedScreen extends StatelessWidget {
     // Get deactivation reason from arguments
     final arguments = Get.arguments as Map<String, dynamic>?;
     final reason = arguments?['reason'] as String? ?? 
-        'Your account has been deactivated.';
+        'Your account has been deleted.';
+        // 'Your account has been deactivated.';
 
     return PopScope(
       canPop: false,
@@ -30,15 +32,15 @@ class AccountDeactivatedScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 40.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 60),
-                  
-                  // App Logo
-                  Image.asset(
-                    AppAssets.appLogoPng,
-                    height: 80,
-                    width: 80,
-                  ),
-                  
+                  // const SizedBox(height: 60),
+                  //
+                  // // App Logo
+                  // Image.asset(
+                  //   AppAssets.appLogoPng,
+                  //   height: 80,
+                  //   width: 80,
+                  // ),
+                  //
                   const SizedBox(height: 40),
                   
                   // Deactivated Icon with gradient background
@@ -88,7 +90,8 @@ class AccountDeactivatedScreen extends StatelessWidget {
                   
                   // Title
                   const AppText(
-                    text: 'Account Deactivated',
+                    text: 'Account Deleted',
+                    // text: 'Account Deactivated',
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
                     color: AppColors.blackColor,
@@ -163,7 +166,8 @@ class AccountDeactivatedScreen extends StatelessWidget {
                   
                   // Support Contact Card
                   GestureDetector(
-                    onTap: () => _launchPhone('03064727345'),
+                    // onTap: () => _launchPhone('03064727345'),
+                    onTap: () => openWhatsApp(phone: '03064727345'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
@@ -260,7 +264,30 @@ class AccountDeactivatedScreen extends StatelessWidget {
       await launchUrl(phoneUri);
     }
   }
+  Future<void> openWhatsApp({required String phone, String? message}) async {
+    String cleanNumber = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final text = Uri.encodeComponent(message ?? 'Assalam-o-Alaikum, I need assistance regarding Asaan Rishta.');
+    final whatsappUrl = Uri.parse("whatsapp://send?phone=$cleanNumber&text=$text");
+    final whatsappWebUrl = Uri.parse("https://wa.me/$cleanNumber?text=$text");
 
+    if (await canLaunchUrl(whatsappUrl)) {
+      await launchUrl(whatsappUrl);
+      return;
+    }
+    if (await canLaunchUrl(whatsappWebUrl)) {
+      await launchUrl(whatsappWebUrl, mode: LaunchMode.externalApplication);
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: phone));
+    Get.snackbar(
+      "WhatsApp not found",
+      "Number copied: $phone",
+      backgroundColor: Colors.orange,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+      snackPosition: SnackPosition.TOP,
+    );
+  }
   void _navigateToLogin() {
     // Reset the deactivation state
     if (Get.isRegistered<AccountStatusService>()) {

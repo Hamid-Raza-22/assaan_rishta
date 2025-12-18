@@ -315,7 +315,7 @@
 //   Future<void> _fetchCurrentUserProfile() async {
 //     try {
 //       final userDoc = await FirebaseFirestore.instance
-//           .collection('Hamid_users')
+//           .collection(EnvConfig.firebaseUsersCollection)
 //           .doc(currentUID)
 //           .get();
 //
@@ -402,7 +402,7 @@
 //     final conversationId = chatController.getConversationId(currentUID, user.id);
 //
 //     _typingStatusSubscription = FirebaseFirestore.instance
-//         .collection('Hamid_chats')
+//         .collection(EnvConfig.firebaseChatsCollection)
 //         .doc(conversationId)
 //         .snapshots()
 //         .listen((snapshot) {
@@ -453,7 +453,7 @@
 //       final conversationId = chatController.getConversationId(currentUID, user.id);
 //
 //       await FirebaseFirestore.instance
-//           .collection('Hamid_chats')
+//           .collection(EnvConfig.firebaseChatsCollection)
 //           .doc(conversationId)
 //           .set({
 //         'typing_status': {
@@ -475,7 +475,7 @@
 //     _statusUpdateSubscription?.cancel();
 //
 //     _statusUpdateSubscription = FirebaseFirestore.instance
-//         .collection('Hamid_chats')
+//         .collection(EnvConfig.firebaseChatsCollection)
 //         .doc(conversationId)
 //         .collection('messages')
 //         .snapshots()

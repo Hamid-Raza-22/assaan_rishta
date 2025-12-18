@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import '../../core/base/export.dart';
+import '../../core/services/env_config_service.dart';
 import '../../domain/export.dart';
 
 class SplashController extends BaseController {
@@ -64,7 +65,7 @@ class SplashController extends BaseController {
         }
         
         final doc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(uid.toString())
             .get();
 

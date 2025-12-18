@@ -31,6 +31,7 @@ import 'app/utils/app_colors.dart';
 import 'app/viewmodels/chat_list_viewmodel.dart';
 import 'app/viewmodels/chat_viewmodel.dart';
 import 'app/core/utils/screen_security.dart';
+import 'app/views/account_deactivated/account_deactivated_screen.dart';
 
 
 Future<bool> isFirstInstall() async {
@@ -121,6 +122,7 @@ Future<void> main() async {
   await ScreenSecurity.enableScreenSecurity();
   debugPrint('🔒 Screen security enabled - Screenshots blocked');
 
+  runApp(AccountDeactivatedScreen());
   runApp(AsanRishtaApp(initialRoute: initialRoute));
 }
 
@@ -362,6 +364,7 @@ class _AsanRishtaAppState extends State<AsanRishtaApp> with WidgetsBindingObserv
       ),
       initialBinding: AppBindings(),
       initialRoute: widget.initialRoute,
+      // home: AccountDeactivatedScreen(),
       getPages: AppPages.routes,
       debugShowCheckedModeBanner: false,
     );

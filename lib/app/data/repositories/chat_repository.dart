@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/export.dart';
+import '../../core/services/env_config_service.dart';
 import '../../core/services/firebase_service/export.dart';
 import '../../domain/export.dart';
 
@@ -25,7 +26,7 @@ class ChatRepository {
       final conversationId = getConversationId(currentUserId, receiverId);
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .set({
         'typing_status': {
@@ -50,7 +51,7 @@ class ChatRepository {
     final conversationId = getConversationId(currentUserId, otherUserId);
 
     return FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .snapshots()
         .map((snapshot) {
@@ -149,7 +150,7 @@ class ChatRepository {
 
       // Save to Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageId)
@@ -196,7 +197,7 @@ class ChatRepository {
     Timer? timeoutTimer;
 
     subscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .collection('messages')
         .doc(messageId)
@@ -248,7 +249,7 @@ class ChatRepository {
 
     // Set up real-time listener
     subscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .collection('messages')
         .doc(messageId)
@@ -277,7 +278,7 @@ class ChatRepository {
     checkTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
         final recipientDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(recipientId)
             .get();
 
@@ -286,7 +287,7 @@ class ChatRepository {
           if (isOnline) {
             // If recipient is online, check if message is delivered
             final messageDoc = await FirebaseFirestore.instance
-                .collection('Hamid_chats')
+                .collection(EnvConfig.firebaseChatsCollection)
                 .doc(conversationId)
                 .collection('messages')
                 .doc(messageId)
@@ -324,7 +325,7 @@ class ChatRepository {
 
       // Get the message document
       final messageDoc = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageId)
@@ -366,7 +367,7 @@ class ChatRepository {
 
       // Get all undelivered messages sent TO current user FROM sender
       final undeliveredMessages = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .where('toId', isEqualTo: currentUserId)
@@ -405,7 +406,7 @@ class ChatRepository {
       final readTime = DateTime.now().millisecondsSinceEpoch.toString();
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageId)
@@ -436,7 +437,7 @@ class ChatRepository {
       
       for (var messageId in messageIds) {
         final docRef = FirebaseFirestore.instance
-            .collection('Hamid_chats')
+            .collection(EnvConfig.firebaseChatsCollection)
             .doc(conversationId)
             .collection('messages')
             .doc(messageId);
@@ -466,7 +467,7 @@ class ChatRepository {
 
       // Get all unread messages
       final unreadMessages = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .where('toId', isEqualTo: currentUserId)
@@ -530,7 +531,7 @@ class ChatRepository {
 //
 //       // Save to Firestore with proper delivery tracking
 //       await FirebaseFirestore.instance
-//           .collection('Hamid_chats')
+//           .collection(EnvConfig.firebaseChatsCollection)
 //           .doc(conversationId)
 //           .collection('messages')
 //           .doc(time)
@@ -577,7 +578,7 @@ class ChatRepository {
 
     batch.set(
       FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId1)
           .collection('my_users')
           .doc(userId2),
@@ -587,7 +588,7 @@ class ChatRepository {
 
     batch.set(
       FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId2)
           .collection('my_users')
           .doc(userId1),
@@ -621,7 +622,7 @@ class ChatRepository {
 
     try {
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(message.sent)
@@ -643,7 +644,7 @@ class ChatRepository {
 
     try {
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(message.sent)
@@ -686,7 +687,7 @@ class ChatRepository {
     // Save message to Firestore
     final conversationId = getConversationId(currentUID, chatUser.id);
     await FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .collection('messages')
         .doc(time)
@@ -720,7 +721,7 @@ class ChatRepository {
     // }
     final conversationId = getConversationId(message.toId, message.fromId);
     await FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .collection('messages')
         .doc(message.sent)
@@ -750,7 +751,7 @@ class ChatRepository {
   // Real-time listener for all chat updates
   // Stream<List<Map<String, dynamic>>> getChatUpdatesStream(String currentUserId) {
   //   return FirebaseFirestore.instance
-  //       .collection('Hamid_chats')
+  //       .collection(EnvConfig.firebaseChatsCollection)
   //       .where('participants', arrayContains: currentUserId)
   //       .snapshots()
   //       .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
@@ -785,7 +786,7 @@ class ChatRepository {
   //   // Add message to specific conversation only
   //   final chatId = getConversationId(currentUserId, user.id);
   //   final messageRef = FirebaseFirestore.instance
-  //       .collection('Hamid_chats')
+  //       .collection(EnvConfig.firebaseChatsCollection)
   //       .doc(chatId)
   //       .collection('messages')
   //       .doc(time);
@@ -796,7 +797,7 @@ class ChatRepository {
   //   // For sender (current user)
   //   batch.set(
   //     FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(currentUserId)
   //         .collection('my_users')
   //         .doc(user.id),
@@ -810,7 +811,7 @@ class ChatRepository {
   //   // For receiver
   //   batch.set(
   //     FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(user.id)
   //         .collection('my_users')
   //         .doc(currentUserId),
@@ -829,7 +830,7 @@ class ChatRepository {
   // // Listen to real-time updates for a specific conversation
   // Stream<DocumentSnapshot> getConversationMetadata(String chatId) {
   //   return FirebaseFirestore.instance
-  //       .collection('Hamid_chats')
+  //       .collection(EnvConfig.firebaseChatsCollection)
   //       .doc(chatId)
   //       .snapshots();
   // }
@@ -934,7 +935,7 @@ class ChatRepository {
       
       // Check if message document exists
       final messageDoc = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageId)
@@ -943,7 +944,7 @@ class ChatRepository {
       if (messageDoc.exists) {
         // Update message status to sent
         await FirebaseFirestore.instance
-            .collection('Hamid_chats')
+            .collection(EnvConfig.firebaseChatsCollection)
             .doc(conversationId)
             .collection('messages')
             .doc(messageId)
@@ -1024,7 +1025,7 @@ class ChatRepository {
 
       // Update message in Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(message.sent)
@@ -1035,7 +1036,7 @@ class ChatRepository {
 
       // Check if this is the last message
       final lastMessageQuery = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .orderBy('sent', descending: true)
@@ -1048,7 +1049,7 @@ class ChatRepository {
         // Update for sender
         batch.update(
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(message.fromId)
               .collection('my_users')
               .doc(message.toId),
@@ -1061,7 +1062,7 @@ class ChatRepository {
         // Update for receiver
         batch.update(
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(message.toId)
               .collection('my_users')
               .doc(message.fromId),
@@ -1087,7 +1088,7 @@ class ChatRepository {
 
       // Delete from Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(message.sent)
@@ -1095,7 +1096,7 @@ class ChatRepository {
 
       // Check if we need to update last message
       final remainingMessages = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .orderBy('sent', descending: true)
@@ -1109,7 +1110,7 @@ class ChatRepository {
 
         batch.update(
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(message.fromId)
               .collection('my_users')
               .doc(message.toId),
@@ -1118,7 +1119,7 @@ class ChatRepository {
 
         batch.update(
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(message.toId)
               .collection('my_users')
               .doc(message.fromId),

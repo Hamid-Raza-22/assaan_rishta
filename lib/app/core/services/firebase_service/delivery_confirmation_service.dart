@@ -3,6 +3,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
+import '../env_config_service.dart';
 import 'package:flutter/material.dart';
 
 class DeliveryConfirmationService {
@@ -174,7 +175,7 @@ class DeliveryConfirmationService {
   }) async {
     try {
       final messageRef = _firestore
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageTimestamp);
@@ -223,7 +224,7 @@ class DeliveryConfirmationService {
 
       // Try to get last 20 messages from first conversation
       final messages1 = await _firestore
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId1)
           .collection('messages')
           .orderBy('timestamp', descending: true)
@@ -258,7 +259,7 @@ class DeliveryConfirmationService {
 
       // Try second conversation if not found in first
       final messages2 = await _firestore
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId2)
           .collection('messages')
           .orderBy('timestamp', descending: true)
@@ -350,7 +351,7 @@ class DeliveryConfirmationService {
   }) async {
     try {
       await _firestore
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(receiverId)
           .collection('my_users')
           .doc(senderId)
