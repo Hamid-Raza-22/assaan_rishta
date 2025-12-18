@@ -169,7 +169,7 @@ class NotificationServices {
       // 6. SENDER EXISTENCE VALIDATION
       try {
         final senderDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(senderId)
             .get();
 
@@ -204,7 +204,7 @@ class NotificationServices {
 
       // Check if sender exists in current user's Firestore document
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .get();
 
@@ -215,7 +215,7 @@ class NotificationServices {
 
       // Additional check: verify sender exists in global users
       final senderDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(senderId)
           .get();
 
@@ -322,7 +322,7 @@ class NotificationServices {
       final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageTimestamp)
@@ -403,7 +403,7 @@ class NotificationServices {
 
       // Check if message exists and needs delivery confirmation
       final messageDoc = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageTimestamp)
@@ -540,7 +540,7 @@ class NotificationServices {
       debugPrint('💾 Storing FCM token for user: $userId');
 
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .update({
         'push_token': token,
@@ -562,7 +562,7 @@ class NotificationServices {
       debugPrint('🗑️ Removing FCM token for user: $userId');
 
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .update({
         'push_token': FieldValue.delete(),
@@ -992,7 +992,7 @@ class NotificationServices {
 
       // Double-check: Only add if current user is logged in
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('my_users')
           .doc(senderId)
@@ -1089,7 +1089,7 @@ class NotificationServices {
 
       // Verify receiver exists and has valid token
       final receiverDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(receiverId)
           .get();
 
@@ -1160,7 +1160,7 @@ class NotificationServices {
         if (res.body.contains('UNREGISTERED')) {
           debugPrint('🗑️ Detected unregistered FCM token for user $receiverId. Removing it.');
           await FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(receiverId)
               .update({'push_token': FieldValue.delete()});
         }

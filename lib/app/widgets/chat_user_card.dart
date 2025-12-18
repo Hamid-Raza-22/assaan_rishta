@@ -8,6 +8,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../utils/exports.dart';
 import '../viewmodels/chat_list_viewmodel.dart';
 import '../viewmodels/chat_viewmodel.dart';
@@ -123,7 +124,7 @@ class ChatUserCardController extends GetxController {
     final chatId = getConversationId(currentUID, userId);
 
     _messageStreamSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(chatId)
         .collection('messages')
         .orderBy('sent', descending: true)
@@ -178,7 +179,7 @@ class ChatUserCardController extends GetxController {
 
     // Listen to the entire messages collection for status changes
     _statusUpdateSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(chatId)
         .collection('messages')
         .snapshots()
@@ -237,7 +238,7 @@ class ChatUserCardController extends GetxController {
       debugPrint('🔍 Checking deletion status for user: $userId');
 
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .get();
 
@@ -300,7 +301,7 @@ class ChatUserCardController extends GetxController {
     _userStreamSubscription?.cancel();
 
     _userStreamSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(userId)
         .snapshots()
         .listen(
@@ -359,7 +360,7 @@ class ChatUserCardController extends GetxController {
             realtimeUserData.value = ChatUser.fromJson({
               ...userData,
               'name': userData['name'] ?? 'Deactivated User',
-              'about': 'This account is deactivated',
+              'about': 'This account is Deleted',
               'is_online': false,
               'is_mobile_online': false,
               'is_web_online': false,
@@ -370,7 +371,7 @@ class ChatUserCardController extends GetxController {
             realtimeUserData.value = updatedUser;
           }
 
-          debugPrint('🔄 REAL-TIME UPDATE: ${realtimeUserData.value.name} | Deleted: $accountDeleted | Deactivated: $accountDeactivated | Online: ${realtimeUserData.value.isOnline}');
+          debugPrint('🔄 REAL-TIME UPDATE: ${realtimeUserData.value.name} | Deleted: $accountDeleted | Deleted: $accountDeactivated | Online: ${realtimeUserData.value.isOnline}');
 
           update(['user_data_$userId']);
 
@@ -437,7 +438,7 @@ class ChatUserCardController extends GetxController {
     _blockedByOtherSubscription?.cancel();
 
     _blockStatusSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(currentUID)
         .snapshots()
         .listen(
@@ -472,7 +473,7 @@ class ChatUserCardController extends GetxController {
     );
 
     _blockedByOtherSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(userId)
         .snapshots()
         .listen(
@@ -625,7 +626,7 @@ class EnhancedChatUserCard extends StatelessWidget {
           final isDeleted = ctrl.isCurrentlyDeleted;
           final isDeactivated = ctrl.isCurrentlyDeactivated;
 
-          debugPrint('🎨 Building card UI for: ${displayUser.name} (${displayUser.id}) - Deleted: $isDeleted - Deactivated: $isDeactivated');
+          debugPrint('🎨 Building card UI for: ${displayUser.name} (${displayUser.id}) - Deleted: $isDeleted - Deleted: $isDeactivated');
 
           return ListTile(
             leading: _buildAvatar(isBlocked, isDeleted, isDeactivated, displayUser),
@@ -839,7 +840,7 @@ class EnhancedChatUserCard extends StatelessWidget {
               border: Border.all(color: Colors.orange.withOpacity(0.3)),
             ),
             child: const Text(
-              'DEACTIVATED',
+              'Deleted',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -874,7 +875,7 @@ class EnhancedChatUserCard extends StatelessWidget {
     
     if (isDeactivated) {
       return const Text(
-        'This account is deactivated',
+        'This account is Deleted',
         style: TextStyle(fontSize: 14, color: Colors.orange, fontStyle: FontStyle.italic),
         overflow: TextOverflow.ellipsis,
       );
@@ -1274,7 +1275,7 @@ class EnhancedChatUserCard extends StatelessWidget {
             children: [
               Icon(Icons.pause_circle_outline, color: Colors.orange, size: 28),
               SizedBox(width: 10),
-              Text('Account Deactivated'),
+              Text('Account Deleted'),
             ],
           ),
           content: Column(
@@ -1282,17 +1283,17 @@ class EnhancedChatUserCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'This user has temporarily deactivated their account.',
+                'This user has  Deleted their account.',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-              const SizedBox(height: 10),
-              Text(
-                'The user can reactivate their account at any time.',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
+              // const SizedBox(height: 10),
+              // Text(
+              //   'The user can reactivate their account at any time.',
+              //   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              // ),
               const SizedBox(height: 10),
               const Text(
-                'You cannot send messages while the account is deactivated.',
+                'You cannot send messages while the account is Deleted.',
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
             ],

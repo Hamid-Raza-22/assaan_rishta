@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import '../../../utils/exports.dart';
 import '../../../core/export.dart';
+import '../../../core/services/env_config_service.dart';
 import '../../../domain/export.dart';
 import '../../../viewmodels/signup_viewmodel.dart'; // For PhoneValidationRule
 
@@ -491,7 +492,7 @@ class EditProfileController extends GetxController {
 
           // Update in the correct Hamid_users collection
           await FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(userId)
               .update({
             'name': fullName,
@@ -530,7 +531,7 @@ class EditProfileController extends GetxController {
   //     debugPrint('🔗 Image URL: $imageUrl');
   //
   //     await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(userId)
   //         .update({
   //       'image': imageUrl,
@@ -576,7 +577,7 @@ class EditProfileController extends GetxController {
   //     // updateData['image'] = profile.imageUrl ?? "";
   //
   //     await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(userId)
   //         .update(updateData);
   //
@@ -624,7 +625,7 @@ class EditProfileController extends GetxController {
             final userId = useCases.getUserId().toString();
 
             await FirebaseFirestore.instance
-                .collection('Hamid_users')
+                .collection(EnvConfig.firebaseUsersCollection)
                 .doc(userId)
                 .update({
               'about': profileNameTEC.text.trim(),
@@ -672,7 +673,7 @@ class EditProfileController extends GetxController {
           final userId = useCases.getUserId().toString();
 
           await FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(userId)
               .update({
             'about': aboutMyselfTEC.text.trim().isEmpty

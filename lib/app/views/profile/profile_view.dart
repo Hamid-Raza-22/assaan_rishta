@@ -413,12 +413,10 @@ class ProfileView extends GetView<ProfileController> {
           //   },
           // ),
           ClickableListTile(
-            text: 'Deactivate Profile',
+            text: 'Delete Profile',
             textColor: AppColors.redColor,
             icon: Icons.power_settings_new,
-            onTap: () {
-              onDeactivateProfile(context);
-            },
+            onTap: () => onDeactivateProfile(context)
           ),
           ClickableListTile(
             text: 'Logout',
@@ -445,14 +443,14 @@ class ProfileView extends GetView<ProfileController> {
           elevation: 0.5,
           surfaceTintColor: Colors.white,
           title: Text(
-            "Deactivate Profile?",
+            "Delete Profile?",
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.w600,
             ),
           ),
           content: Text(
-            "Are you sure you want to deactivate your profile? You can reactivate it anytime by logging in again.",
+            "Are you sure you want to permanent delete your profile?",
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w400,
@@ -516,106 +514,6 @@ class ProfileView extends GetView<ProfileController> {
                             border: Border.all(color: AppColors.redColor),
                           ),
                           child: Text(
-                            'Deactivate',
-                            style: GoogleFonts.poppins(
-                              color: AppColors.whiteColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> onDeleteProfile(BuildContext context) async {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          elevation: 0.5,
-          surfaceTintColor: Colors.white,
-          title: Text(
-            "Delete Profile?",
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Text(
-            "Are you sure you want to delete profile?",
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Get.back();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Card(
-                        elevation: 0.5,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(35)),
-                        ),
-                        child: Container(
-                          alignment: Alignment.center,
-                          height: MediaQuery.of(context).size.height * 0.065,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                            borderRadius: BorderRadius.circular(35),
-                            border: Border.all(color: AppColors.primaryColor),
-                          ),
-                          child: Text(
-                            'Cancel',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () async {
-                      controller.deleteProfile(context);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Card(
-                        elevation: 0.5,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(35)),
-                        ),
-                        child: Container(
-                          alignment: Alignment.center,
-                          height: MediaQuery.of(context).size.height * 0.065,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor,
-                            // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                            borderRadius: BorderRadius.circular(35),
-                            border: Border.all(color: AppColors.primaryColor),
-                          ),
-                          child: Text(
                             'Delete',
                             style: GoogleFonts.poppins(
                               color: AppColors.whiteColor,
@@ -634,6 +532,106 @@ class ProfileView extends GetView<ProfileController> {
       },
     );
   }
+
+  // Future<void> onDeleteProfile(BuildContext context) async {
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         backgroundColor: Colors.white,
+  //         elevation: 0.5,
+  //         surfaceTintColor: Colors.white,
+  //         title: Text(
+  //           "Delete Profile?",
+  //           style: GoogleFonts.poppins(
+  //             fontSize: 20,
+  //             fontWeight: FontWeight.w600,
+  //           ),
+  //         ),
+  //         content: Text(
+  //           "Are you sure you want to delete profile?",
+  //           style: GoogleFonts.poppins(
+  //             fontSize: 14,
+  //             fontWeight: FontWeight.w400,
+  //           ),
+  //         ),
+  //         actions: [
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  //             crossAxisAlignment: CrossAxisAlignment.center,
+  //             children: [
+  //               Expanded(
+  //                 child: GestureDetector(
+  //                   onTap: () {
+  //                     Get.back();
+  //                   },
+  //                   child: Padding(
+  //                     padding: const EdgeInsets.symmetric(vertical: 10),
+  //                     child: Card(
+  //                       elevation: 0.5,
+  //                       shape: const RoundedRectangleBorder(
+  //                         borderRadius: BorderRadius.all(Radius.circular(35)),
+  //                       ),
+  //                       child: Container(
+  //                         alignment: Alignment.center,
+  //                         height: MediaQuery.of(context).size.height * 0.065,
+  //                         decoration: BoxDecoration(
+  //                           color: Colors.white,
+  //                           // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+  //                           borderRadius: BorderRadius.circular(35),
+  //                           border: Border.all(color: AppColors.primaryColor),
+  //                         ),
+  //                         child: Text(
+  //                           'Cancel',
+  //                           style: GoogleFonts.poppins(
+  //                             fontWeight: FontWeight.bold,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ),
+  //               Expanded(
+  //                 child: GestureDetector(
+  //                   onTap: () async {
+  //                     controller.deleteProfile(context);
+  //                   },
+  //                   child: Padding(
+  //                     padding: const EdgeInsets.symmetric(vertical: 10),
+  //                     child: Card(
+  //                       elevation: 0.5,
+  //                       shape: const RoundedRectangleBorder(
+  //                         borderRadius: BorderRadius.all(Radius.circular(35)),
+  //                       ),
+  //                       child: Container(
+  //                         alignment: Alignment.center,
+  //                         height: MediaQuery.of(context).size.height * 0.065,
+  //                         decoration: BoxDecoration(
+  //                           color: AppColors.primaryColor,
+  //                           // border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+  //                           borderRadius: BorderRadius.circular(35),
+  //                           border: Border.all(color: AppColors.primaryColor),
+  //                         ),
+  //                         child: Text(
+  //                           'Delete',
+  //                           style: GoogleFonts.poppins(
+  //                             color: AppColors.whiteColor,
+  //                             fontWeight: FontWeight.bold,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
 
   Future<void> onLogout(BuildContext context) async {
     showDialog(

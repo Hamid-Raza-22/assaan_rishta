@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 
 import '../../../core/export.dart';
+import '../../../core/services/env_config_service.dart';
 import '../../../domain/export.dart';
 import '../../../utils/exports.dart';
 
@@ -95,7 +96,7 @@ class PartnerPreferenceController extends GetxController {
     try {
       final uid = useCases.getUserId();
       final doc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(uid.toString())
           .get();
 
@@ -382,7 +383,7 @@ class PartnerPreferenceController extends GetxController {
         try {
           final uid = useCases.getUserId();
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(uid.toString())
               .set({'is_preference_updated': true}, SetOptions(merge: true));
         } catch (_) {}
@@ -402,7 +403,7 @@ class PartnerPreferenceController extends GetxController {
     try {
       final uid = useCases.getUserId();
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(uid.toString())
           .set({'is_preference_updated': true}, SetOptions(merge: true));
       

@@ -185,6 +185,7 @@ class AppPages {
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),
+
     GetPage(
       name: AppRoutes.ACCOUNT_DEACTIVATED,
       page: () => const AccountDeactivatedScreen(),

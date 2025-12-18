@@ -11,6 +11,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/export.dart';
 import '../core/routes/app_routes.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/account_status_service.dart';
 import '../core/services/firebase_service/notification_service.dart';
 import '../core/services/secure_storage_service.dart';
@@ -179,7 +180,7 @@ class ProfileController extends GetxController {
 
       // Only update user's own document - don't iterate all users
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .update({
         'is_deactivated': true,
@@ -204,7 +205,7 @@ class ProfileController extends GetxController {
       
       await Future.wait([
         FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(userId)
             .update({'push_token': FieldValue.delete()}),
         FirebaseMessaging.instance.deleteToken(),
@@ -254,7 +255,7 @@ class ProfileController extends GetxController {
     try {
       debugPrint('🔥 Marking user as deactivated in Firebase: $userId');
 
-      final userRef = FirebaseFirestore.instance.collection('Hamid_users').doc(userId);
+      final userRef = FirebaseFirestore.instance.collection(EnvConfig.firebaseUsersCollection).doc(userId);
       
       await userRef.set({
         'is_deactivated': true,
@@ -330,7 +331,7 @@ class ProfileController extends GetxController {
       final batch = FirebaseFirestore.instance.batch();
 
       // Step 1: Mark user as deleted (instead of immediate deletion)
-      final userRef = FirebaseFirestore.instance.collection('Hamid_users').doc(userId);
+      final userRef = FirebaseFirestore.instance.collection(EnvConfig.firebaseUsersCollection).doc(userId);
       batch.update(userRef, {
         'account_deleted': true,
         'deleted_at': DateTime.now().millisecondsSinceEpoch.toString(),
@@ -345,7 +346,7 @@ class ProfileController extends GetxController {
 
       // Step 2: Get all users who have this deleted user in their chat list
       final allUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .get();
 
       for (var userDoc in allUsersSnapshot.docs) {
@@ -368,7 +369,7 @@ class ProfileController extends GetxController {
 
       // Step 3: Clean up user's own my_users collection
       final myUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('my_users')
           .get();
@@ -379,7 +380,7 @@ class ProfileController extends GetxController {
 
       // Step 4: Clean up deleted_chats collection
       final deletedChatsSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('deleted_chats')
           .get();
@@ -390,7 +391,7 @@ class ProfileController extends GetxController {
 
       // Step 5: Update all active conversations to show deletion status
       final conversationsSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .where('participants', arrayContains: userId)
           .get();
 
@@ -425,7 +426,7 @@ class ProfileController extends GetxController {
   // static Future<bool> isUserDeleted(String userId) async {
   //   try {
   //     final userDoc = await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(userId)
   //         .get();
   //
@@ -446,7 +447,7 @@ class ProfileController extends GetxController {
   // static Future<String?> getUserDeletionTime(String userId) async {
   //   try {
   //     final userDoc = await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(userId)
   //         .get();
   //
@@ -489,7 +490,7 @@ class ProfileController extends GetxController {
       debugPrint('🔗 New image URL: $imageUrl');
 
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .update({
         'image': imageUrl,
@@ -702,7 +703,7 @@ class ProfileController extends GetxController {
   Future<void> checkIfUserLogin() async {
     int? uid = userManagementUseCases.getUserId();
 
-    final userRef = FirebaseFirestore.instance.collection('Hamid_users').doc('$uid');
+    final userRef = FirebaseFirestore.instance.collection(EnvConfig.firebaseUsersCollection).doc('$uid');
 
     final snapshot = await userRef.get();
     final data = snapshot.data() ?? {};

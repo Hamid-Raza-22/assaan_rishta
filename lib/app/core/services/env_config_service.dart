@@ -28,6 +28,12 @@ class EnvConfig {
   static String get firebaseStorageBucket =>
       dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '';
 
+  // Firebase Collections
+  static String get firebaseUsersCollection =>
+      dotenv.env['FIREBASE_USERS_COLLECTION'] ?? 'Hamid_users';
+  static String get firebaseChatsCollection =>
+      dotenv.env['FIREBASE_CHATS_COLLECTION'] ?? 'Hamid_chats';
+
   // PayFast Configuration
   static String get payfastCheckoutUrl =>
       dotenv.env['PAYFAST_CHECKOUT_URL'] ?? '';

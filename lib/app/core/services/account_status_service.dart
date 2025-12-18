@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../routes/app_routes.dart';
 import '../utils/app_logger.dart';
+import 'env_config_service.dart';
 import 'session_manager.dart';
 
 /// AccountStatusService - Manages account deactivation state across devices
@@ -52,7 +53,7 @@ class AccountStatusService extends GetxService {
 
     try {
       _statusListener = FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .snapshots()
           .listen(
@@ -143,7 +144,7 @@ class AccountStatusService extends GetxService {
 
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_currentUserId)
           .get();
 

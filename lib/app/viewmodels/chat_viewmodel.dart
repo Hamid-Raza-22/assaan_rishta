@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:rxdart/rxdart.dart';
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/hive_message_service.dart';
 import '../data/repositories/chat_repository.dart';
@@ -401,7 +402,7 @@ _clearImageFromCache(String imageUrl) {
       // If not in Hive, check Firestore
       if (deletionTime == null) {
         final deletionDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(_repo.currentUserId)
             .collection('deleted_chats')
             .doc(userId)
@@ -468,7 +469,7 @@ _clearImageFromCache(String imageUrl) {
     try {
       // Clear from Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_repo.currentUserId)
           .collection('deleted_chats')
           .doc(userId)
@@ -524,7 +525,7 @@ _clearImageFromCache(String imageUrl) {
 
       try {
         final userDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(pendingChatUserId!)
             .get();
 
@@ -991,7 +992,7 @@ _clearImageFromCache(String imageUrl) {
     final baseStream = _repo.getAllMessages(user);
     return baseStream.asyncMap((snapshot) async {
       final deletionDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_repo.currentUserId)
           .collection('deleted_chats')
           .doc(user.id)
@@ -1251,7 +1252,7 @@ _clearImageFromCache(String imageUrl) {
       final chatId = getConversationId(currentUserId, otherUserId);
 
       final lastMessage = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(chatId)
           .collection('messages')
           .orderBy('sent', descending: true)
@@ -1276,7 +1277,7 @@ _clearImageFromCache(String imageUrl) {
 
       final currentUserId = _repo.currentUserId;
       final myUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('my_users')
           .get();
@@ -1288,7 +1289,7 @@ _clearImageFromCache(String imageUrl) {
         if (data['last_message_time'] == null) {
           final chatId = getConversationId(currentUserId, otherUserId);
           final lastMessageSnapshot = await FirebaseFirestore.instance
-              .collection('Hamid_chats')
+              .collection(EnvConfig.firebaseChatsCollection)
               .doc(chatId)
               .collection('messages')
               .orderBy('sent', descending: true)
@@ -1316,7 +1317,7 @@ _clearImageFromCache(String imageUrl) {
     try {
       final lastMessageTime = await getActualLastMessageTime(userId);
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .update({
         'last_message': lastMessageTime,

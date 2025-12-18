@@ -8,6 +8,7 @@ import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import '../../views/bottom_nav/export.dart';
 import '../utils/app_logger.dart';
+import 'env_config_service.dart';
 import 'firebase_service/notification_service.dart';
 import 'secure_storage_service.dart';
 
@@ -108,7 +109,7 @@ class SessionManager extends GetxService {
       
       if (userId != null && userId.isNotEmpty && userId != '0') {
         await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(userId)
             .update({
           'is_online': false,

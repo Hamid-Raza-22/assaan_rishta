@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../core/models/chat_model/message.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/firebase_service/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
@@ -223,7 +224,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
       // Get all conversations
       final myUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('my_users')
           .get();
@@ -237,7 +238,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
         // Get ALL undelivered messages for this conversation
         final undeliveredMessages = await FirebaseFirestore.instance
-            .collection('Hamid_chats')
+            .collection(EnvConfig.firebaseChatsCollection)
             .doc(conversationId)
             .collection('messages')
             .where('toId', isEqualTo: currentUserId)

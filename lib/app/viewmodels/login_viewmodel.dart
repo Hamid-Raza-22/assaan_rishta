@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 
 import '../core/routes/app_routes.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/secure_storage_service.dart';
 
 
@@ -113,8 +114,8 @@ class LoginViewModel extends GetxController {
             }
             else  if (error.description == 'account_Deactivated') {
               AppUtils.failedData(
-                title: "Account Deactivated",
-                message: "Your account is no longer supported or deactivated for further details call 03064727345",
+                title: "Account Deleted",
+                message: "Your account is no longer supported or Deleted for further details call 03064727345",
               );
               isLoading.value = false;
 
@@ -226,7 +227,7 @@ class LoginViewModel extends GetxController {
           // Decide initial destination based on partner preference flag in Firestore
           try {
             final doc = await FirebaseFirestore.instance
-                .collection('Hamid_users')
+                .collection(EnvConfig.firebaseUsersCollection)
                 .doc(safeUserId.toString())
                 .get();
 

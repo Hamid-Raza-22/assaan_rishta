@@ -27,7 +27,7 @@ class FilterView extends GetView<FilterController> {
             preferredSize: const Size(double.infinity, 40),
             child: CustomAppBar(
               isBack: false,
-              title: "Filter",
+              // title: "Filter",
               actions: [
                 Obx(
                   () => Padding(

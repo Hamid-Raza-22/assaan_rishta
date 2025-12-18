@@ -16,6 +16,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../core/export.dart';
+import '../../core/services/env_config_service.dart';
 import '../../core/utils/screen_security.dart';
 import '../../core/routes/app_routes.dart';
 import '../../domain/use_cases/user_management_use_case/user_management_use_case.dart';
@@ -442,7 +443,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     if (isDeactivated) {
       Get.snackbar(
         'User Unavailable',
-        'This user has deactivated their profile. You cannot send messages.',
+        'This user has Deleted their profile. You cannot send messages.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.redColor,
         colorText: AppColors.whiteColor,
@@ -482,7 +483,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     try {
       // Get current user's profile from Firestore
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUID)
           .get();
 
@@ -505,7 +506,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     );
 
     _typingStatusSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .snapshots()
         .listen((snapshot) {
@@ -575,7 +576,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       );
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .set({
         'typing_status': {
@@ -626,7 +627,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       
       // Get all messages from Firestore
       final snapshot = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .get();
@@ -718,7 +719,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     debugPrint('🎧 Started listening for status updates in conversation: $conversationId');
     
     _statusUpdateSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .collection('messages')
         .snapshots()
@@ -1290,7 +1291,7 @@ Future<void> showImageOptions() async {
     if (isDeactivated.value) {
       Get.snackbar(
         'User Unavailable',
-        'This user has deactivated their profile. You cannot send messages.',
+        'This user has Deleted their profile. You cannot send messages.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.redColor,
         colorText: AppColors.whiteColor,
@@ -1470,14 +1471,14 @@ Future<void> showImageOptions() async {
       ? AppUtils.sanitizeImageUrl(currentUserData.image)
       : AppConstants.profileImg;
   String get blockMessage {
-    if (isDeactivated.value) return "This user has deactivated their account";
+    if (isDeactivated.value) return "This user has Deleted their account";
     if (isBlockedByOther.value || isDelete.value) return "You can no longer message this user";
     return "You have blocked this user";
   }
 
   String get emptyStateMessage {
     if (isAnyBlocked) {
-      if (isDeactivated.value) return 'User account deactivated';
+      if (isDeactivated.value) return 'User account Deleted';
       return isBlockedByOther.value
           ? 'You can no longer message this user'
           : 'You have blocked this user';
@@ -1519,7 +1520,7 @@ Future<void> showImageOptions() async {
   Future<bool> _checkIfUserIsDeactivated(String userId) async {
     try {
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .get();
       

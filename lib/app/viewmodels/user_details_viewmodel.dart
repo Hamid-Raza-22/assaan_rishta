@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 
@@ -582,7 +583,7 @@ class UserDetailsController extends GetxController {
       // FIXED: Force fetch from server to get latest deactivation status
       // This ensures admin panel changes are reflected immediately
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .get(const GetOptions(source: Source.server));
       
