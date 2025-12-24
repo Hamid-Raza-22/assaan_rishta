@@ -50,13 +50,25 @@ app.*.map.json
 *.env
 !.env.example
 
-# Sensitive files
-#*.jks
-#*.keystore
-#*.json
-#!google-services.json
-#!firebase.json
-#!build.json
+# Firebase Service Account JSON files (SECURITY CRITICAL - Never commit!)
+*-service-account*.json
+*service_account*.json
+asaan-rishta-chat-*.json
+firebase-adminsdk*.json
+android/asaan-rishta-chat-*.json
+
+# Sensitive files - Keystore and signing keys (SECURITY CRITICAL - Never commit!)
+*.jks
+*.keystore
+android/app/*.jks
+android/app/*.keystore
+android/key.properties
+key.properties
+
+# Allow specific JSON files
+!google-services.json
+!firebase.json
+!build.json
 
 # Fastlane and Ruby gems
 android/vendor/
