@@ -77,8 +77,11 @@ class AppUtils {
 
     // Replace staging URL with production URL
     return url.replaceFirst(
-      'https://staging.thsolutionz.com',
+      // 'https://staging.thsolutionz.com',
+      // 'https://thsolutionz.com',
       'https://thsolutionz.com',
+      'https://staging.thsolutionz.com',
+
     );
   }
 }

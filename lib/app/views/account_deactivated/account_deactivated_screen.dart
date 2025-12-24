@@ -22,10 +22,12 @@ class AccountDeactivatedScreen extends StatelessWidget {
         'Your account has been deleted.';
         // 'Your account has been deactivated.';
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: AppColors.whiteColor,
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: AppColors.whiteColor,
         body: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
@@ -254,6 +256,7 @@ class AccountDeactivatedScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
