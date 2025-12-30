@@ -51,10 +51,10 @@ jobs:
       # 7. Create service account JSON from secrets
       - name: Create service account JSON
         run: |
-          mkdir -p android/fastlane
-          echo '${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}' > android/fastlane/asaan-rishta-chat-d848bdbc2a5e.json
-          cat android/fastlane/asaan-rishta-chat-d848bdbc2a5e.json
-          ls -lh android/fastlane/asaan-rishta-chat-d848bdbc2a5e.json
+          mkdir -p android
+          echo '${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}' > android/asaan-rishta-chat-d848bdbc2a5e.json
+          cat android/asaan-rishta-chat-d848bdbc2a5e.json
+          ls -lh android/asaan-rishta-chat-d848bdbc2a5e.json
 
       # 8. Create upload keystore from secrets
       - name: Create upload keystore
