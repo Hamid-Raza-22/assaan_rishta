@@ -1792,6 +1792,7 @@ class _ChattingViewState extends State<ChattingView> {
                       ),
                     ),
             ),
+
           if (isBlockedByThem || isDelete || hasBlockedThem)
             Container(
               height: chatMq.height * .05,
