@@ -24,13 +24,13 @@ class PartnerPreferenceController extends GetxController {
   var selectedLanguages = "";
   var languages = <String>[].obs;
 
-  String caste = "";
+  var caste = "".obs;
   List<String> castNameList = [];
 
-  String education = "";
+  var education = "".obs;
   List<String> degreesList = [];
 
-  String occupation = "";
+  var occupation = "".obs;
   List<String> occupationList = [];
   var monthlyIncome = "".obs;
   var motherTongue = "".obs;
@@ -41,7 +41,7 @@ class PartnerPreferenceController extends GetxController {
   int cityId = 0;
   final cityController = SingleSelectController<AllCities>(null);
 
-  String religion = "";
+  var religion = "".obs;
   List<String> religionList = [
     'Muslim-Suni',
     'Muslim-Brelvi',
@@ -50,13 +50,13 @@ class PartnerPreferenceController extends GetxController {
     'Muslim-Other',
   ];
 
-  String height = "";
+  var height = "".obs;
   List<String> heightList = [];
 
   var built = "".obs;
   var complexion = "".obs;
 
-  String maritalStatus = "";
+  var maritalStatus = "".obs;
   List<String> maritalStatusList = [
     "single",
     "married",
@@ -349,16 +349,16 @@ class PartnerPreferenceController extends GetxController {
       "partner_age_from": ageFrom.value,
       "partner_age_to": ageTo.value,
       "partner_languages": languages.value.join(','),
-      "partner_caste": caste,
-      "partner_education": education,
-      "partner_occupation": occupation,
+      "partner_caste": caste.value,
+      "partner_education": education.value,
+      "partner_occupation": occupation.value,
       "partner_monthly_income": monthlyIncome.value,
       "partner_mother_tounge": motherTongue.value,
-      "partner_religion": religion,
-      "partner_height": height,
+      "partner_religion": religion.value,
+      "partner_height": height.value,
       "partner_built": built.value,
       "partner_complexion": complexion.value,
-      "partner_marital_status": maritalStatus,
+      "partner_marital_status": maritalStatus.value,
       "about_partner": userDiWohtiKaTarufTEC.text,
       "partner_smoke": getBoolString(isSmoke.value).toString(),
       "partner_drink": getBoolString(isDrink.value).toString(),
@@ -420,17 +420,17 @@ class PartnerPreferenceController extends GetxController {
   setPersonalInfo(PartnerPreferenceData profile) {
     ageFrom.value = profile.partnerAgeFrom.toString();
     ageTo.value = profile.partnerAgeTo.toString();
-    caste = (profile.partnerCaste ?? "").capitalize!;
-    education = (profile.partnerEducation ?? "").capitalize!;
-    occupation = (profile.partnerOccupation ?? "").capitalize!;
+    caste.value = (profile.partnerCaste ?? "").capitalize!;
+    education.value = profile.partnerEducation ?? "";
+    occupation.value = (profile.partnerOccupation ?? "").capitalize!;
     monthlyIncome.value = (profile.partnerAnnualIncome ?? "").capitalize!;
     motherTongue.value = (profile.partnerMotherTounge ?? "").capitalize!;
     country = (profile.aboutCountryName ?? "").capitalize!; // ✅ SET COUNTRY
-    religion = (profile.partnerReligion ?? "").capitalize!;
-    height = (profile.partnerHeight ?? "").capitalize!;
+    religion.value = profile.partnerReligion ?? "";
+    height.value = (profile.partnerHeight ?? "").capitalize!;
     built.value = (profile.partnerBuilt ?? "").capitalize!;
     complexion.value = (profile.partnerComplexion ?? "").capitalize!;
-    maritalStatus = (profile.partnerMaritalStatus ?? "").capitalize!;
+    maritalStatus.value = profile.partnerMaritalStatus ?? "";
     userDiWohtiKaTarufTEC.text = (profile.aboutPartner ?? "").capitalize!;
     isDrink.value = getStringBool(profile.partnerDrinkHabbit);
     isSmoke.value = getStringBool(profile.partnerSmokeHabbit);
