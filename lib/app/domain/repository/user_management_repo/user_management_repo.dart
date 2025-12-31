@@ -114,4 +114,10 @@ mixin UserManagementRepo {
   Future<Either<AppError, List<FavoritesProfiles>>> getAllFavorites();
 
   Future<Either<AppError, String>> updateBlurProfileImage({required bool blur});
+
+  Future<Either<AppError, AllProfileList>> getMatrimonialProfiles({
+    required int adminId,
+    // required int pageNo,
+    // required int pageLimit,
+  });
 }

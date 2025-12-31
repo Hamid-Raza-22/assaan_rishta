@@ -458,4 +458,24 @@ class UserManagementUseCase {
       },
     );
   }
+
+  Future<Either<AppError, AllProfileList>> getMatrimonialProfiles({
+    required int adminId,
+    // required int pageNo,
+    // required int pageLimit,
+  }) async {
+    final response = await userManagementRepo.getMatrimonialProfiles(
+      adminId: adminId,
+      // pageNo: pageNo,
+      // pageLimit: pageLimit,
+    );
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
 }

@@ -38,6 +38,7 @@ abstract class AppRoutes {
   static const String IN_APP_WEB_VIEW_SITE = '/in_app_web_view_site';
   static const String IN_APP_WEB_VIEW_SITE_TERMS_AND_CONDITIONS = '/in_app_web_view_site_terms_and_conditions';
   static const String ACCOUNT_DEACTIVATED = '/account-deactivated';
+  static const String MATRIMONIAL_PROFILES = '/matrimonial-profiles';
 
   // Helper method for dynamic chat route with user ID
   static String chattingViewWithUser(String userId) => '/chatting_view/$userId';
