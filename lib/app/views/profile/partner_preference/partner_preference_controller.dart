@@ -1,3 +1,4 @@
+
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 
 import 'package:dartz/dartz.dart';
@@ -7,7 +8,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 
 import '../../../core/export.dart';
-import '../../../core/services/env_config_service.dart';
 import '../../../domain/export.dart';
 import '../../../utils/exports.dart';
 
@@ -18,20 +18,20 @@ class PartnerPreferenceController extends GetxController {
   RxBool showSkipButton = false.obs; // Show skip button only when is_preference_updated is false
 
   List<String> ageFromList =
-      List.generate(33, (index) => (18 + index).toString());
+  List.generate(33, (index) => (18 + index).toString());
   RxString ageFrom = "".obs;
   RxString ageTo = "".obs;
   RxString ageValidationError = "".obs; // Error message for age validation
   var selectedLanguages = "";
   var languages = <String>[].obs;
 
-  String caste = "";
+  var caste = "".obs;
   List<String> castNameList = [];
 
-  String education = "";
+  var education = "".obs;
   List<String> degreesList = [];
 
-  String occupation = "";
+  var occupation = "".obs;
   List<String> occupationList = [];
   var monthlyIncome = "".obs;
   var motherTongue = "".obs;
@@ -42,7 +42,7 @@ class PartnerPreferenceController extends GetxController {
   int cityId = 0;
   final cityController = SingleSelectController<AllCities>(null);
 
-  String religion = "";
+  var religion = "".obs;
   List<String> religionList = [
     'Muslim-Suni',
     'Muslim-Brelvi',
@@ -51,13 +51,13 @@ class PartnerPreferenceController extends GetxController {
     'Muslim-Other',
   ];
 
-  String height = "";
+  var height = "".obs;
   List<String> heightList = [];
 
   var built = "".obs;
   var complexion = "".obs;
 
-  String maritalStatus = "";
+  var maritalStatus = "".obs;
   List<String> maritalStatusList = [
     "single",
     "married",
@@ -96,7 +96,7 @@ class PartnerPreferenceController extends GetxController {
     try {
       final uid = useCases.getUserId();
       final doc = await FirebaseFirestore.instance
-          .collection(EnvConfig.firebaseUsersCollection)
+          .collection('Hamid_users')
           .doc(uid.toString())
           .get();
 
@@ -106,7 +106,7 @@ class PartnerPreferenceController extends GetxController {
 
       // Show skip button only if preference is not updated
       showSkipButton.value = !isPreferenceUpdated;
-      
+
       debugPrint('🔍 is_preference_updated: $isPreferenceUpdated');
       debugPrint('🔘 showSkipButton: ${showSkipButton.value}');
     } catch (e) {
@@ -135,15 +135,15 @@ class PartnerPreferenceController extends GetxController {
       ageValidationError.value = "";
       return true; // If fields are empty, don't block validation (other checks will handle empty fields)
     }
-    
+
     final ageFromInt = int.tryParse(ageFrom.value) ?? 0;
     final ageToInt = int.tryParse(ageTo.value) ?? 0;
-    
+
     if (ageFromInt >= ageToInt) {
       ageValidationError.value = "Age From must be less than Age To";
       return false;
     }
-    
+
     ageValidationError.value = "";
     return true;
   }
@@ -152,7 +152,7 @@ class PartnerPreferenceController extends GetxController {
   void validateForm() {
     // First validate age range
     final ageRangeValid = validateAgeRange();
-    
+
     final allFieldsFilled = ageFrom.value.isNotEmpty &&
         ageTo.value.isNotEmpty &&
         languages.isNotEmpty &&
@@ -171,9 +171,9 @@ class PartnerPreferenceController extends GetxController {
         userDiWohtiKaTarufTEC.text.trim().isNotEmpty &&
         isDrink.value.isNotEmpty &&
         isSmoke.value.isNotEmpty;
-    
+
     isFormValid.value = allFieldsFilled && ageRangeValid;
-    
+
     debugPrint("🔍 Form Validation:");
     debugPrint("   ageFrom: ${ageFrom.value.isNotEmpty} (${ageFrom.value})");
     debugPrint("   ageTo: ${ageTo.value.isNotEmpty} (${ageTo.value})");
@@ -222,10 +222,10 @@ class PartnerPreferenceController extends GetxController {
     isLoading.value = true;
     final response = await useCases.getPartnerPreference();
     return response.fold(
-      (error) {
+          (error) {
         isLoading.value = false;
       },
-      (success) {
+          (success) {
         partnerProfile.value = success;
         setPersonalInfo(success);
         isLoading.value = false;
@@ -238,10 +238,10 @@ class PartnerPreferenceController extends GetxController {
     castNameList.clear();
     final response = await systemConfigUseCases.getAllCasts();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.castNames!.isNotEmpty) {
           castNameList.addAll(success.castNames!);
           castNameList.sort((a, b) => a.compareTo(b));
@@ -256,10 +256,10 @@ class PartnerPreferenceController extends GetxController {
     degreesList.clear();
     final response = await systemConfigUseCases.getAllDegrees();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.degreeNames!.isNotEmpty) {
           degreesList.addAll(success.degreeNames!);
           degreesList.sort((a, b) => a.compareTo(b));
@@ -274,10 +274,10 @@ class PartnerPreferenceController extends GetxController {
     occupationList.clear();
     final response = await systemConfigUseCases.getAllOccupations();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.occupationNames!.isNotEmpty) {
           occupationList.addAll(success.occupationNames!);
           update();
@@ -291,10 +291,10 @@ class PartnerPreferenceController extends GetxController {
     countryList.clear();
     final response = await systemConfigUseCases.getAllCountries();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.isNotEmpty) {
           countryList.addAll(success);
           update();
@@ -311,10 +311,10 @@ class PartnerPreferenceController extends GetxController {
       countryId: countryId,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         if (success.isNotEmpty) {
           stateList.addAll(success);
@@ -329,10 +329,10 @@ class PartnerPreferenceController extends GetxController {
     cityList.clear();
     final response = await systemConfigUseCases.getAllCities(stateId: stateId);
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         if (success.isNotEmpty) {
           cityList.addAll(success);
@@ -350,16 +350,16 @@ class PartnerPreferenceController extends GetxController {
       "partner_age_from": ageFrom.value,
       "partner_age_to": ageTo.value,
       "partner_languages": languages.value.join(','),
-      "partner_caste": caste,
-      "partner_education": education,
-      "partner_occupation": occupation,
+      "partner_caste": caste.value,
+      "partner_education": education.value,
+      "partner_occupation": occupation.value,
       "partner_monthly_income": monthlyIncome.value,
       "partner_mother_tounge": motherTongue.value,
-      "partner_religion": religion,
-      "partner_height": height,
+      "partner_religion": religion.value,
+      "partner_height": height.value,
       "partner_built": built.value,
       "partner_complexion": complexion.value,
-      "partner_marital_status": maritalStatus,
+      "partner_marital_status": maritalStatus.value,
       "about_partner": userDiWohtiKaTarufTEC.text,
       "partner_smoke": getBoolString(isSmoke.value).toString(),
       "partner_drink": getBoolString(isDrink.value).toString(),
@@ -370,10 +370,10 @@ class PartnerPreferenceController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Partner Preference",
@@ -383,7 +383,7 @@ class PartnerPreferenceController extends GetxController {
         try {
           final uid = useCases.getUserId();
           FirebaseFirestore.instance
-              .collection(EnvConfig.firebaseUsersCollection)
+              .collection('Hamid_users')
               .doc(uid.toString())
               .set({'is_preference_updated': true}, SetOptions(merge: true));
         } catch (_) {}
@@ -403,15 +403,15 @@ class PartnerPreferenceController extends GetxController {
     try {
       final uid = useCases.getUserId();
       await FirebaseFirestore.instance
-          .collection(EnvConfig.firebaseUsersCollection)
+          .collection('Hamid_users')
           .doc(uid.toString())
           .set({'is_preference_updated': true}, SetOptions(merge: true));
-      
+
       debugPrint('✅ Skipped partner preference, marked as updated');
     } catch (e) {
       debugPrint('❌ Error setting preference flag: $e');
     }
-    
+
     // Navigate to home
     Get.offAllNamed(AppRoutes.BOTTOM_NAV);
   }
@@ -421,17 +421,17 @@ class PartnerPreferenceController extends GetxController {
   setPersonalInfo(PartnerPreferenceData profile) {
     ageFrom.value = profile.partnerAgeFrom.toString();
     ageTo.value = profile.partnerAgeTo.toString();
-    caste = (profile.partnerCaste ?? "").capitalize!;
-    education = (profile.partnerEducation ?? "").capitalize!;
-    occupation = (profile.partnerOccupation ?? "").capitalize!;
+    caste.value = (profile.partnerCaste ?? "").capitalize!;
+    education.value = profile.partnerEducation ?? "";
+    occupation.value = (profile.partnerOccupation ?? "").capitalize!;
     monthlyIncome.value = (profile.partnerAnnualIncome ?? "").capitalize!;
     motherTongue.value = (profile.partnerMotherTounge ?? "").capitalize!;
     country = (profile.aboutCountryName ?? "").capitalize!; // ✅ SET COUNTRY
-    religion = (profile.partnerReligion ?? "").capitalize!;
-    height = (profile.partnerHeight ?? "").capitalize!;
+    religion.value = profile.partnerReligion ?? "";
+    height.value = (profile.partnerHeight ?? "").capitalize!;
     built.value = (profile.partnerBuilt ?? "").capitalize!;
     complexion.value = (profile.partnerComplexion ?? "").capitalize!;
-    maritalStatus = (profile.partnerMaritalStatus ?? "").capitalize!;
+    maritalStatus.value = profile.partnerMaritalStatus ?? "";
     userDiWohtiKaTarufTEC.text = (profile.aboutPartner ?? "").capitalize!;
     isDrink.value = getStringBool(profile.partnerDrinkHabbit);
     isSmoke.value = getStringBool(profile.partnerSmokeHabbit);
@@ -439,15 +439,15 @@ class PartnerPreferenceController extends GetxController {
     selectedLanguages = (profile.partnerLanguages ?? "");
     languages.value = profile.partnerLanguages != null
         ? profile.partnerLanguages!
-            .split(',')
-            .map((e) => e.replaceAll('"', '').trim())
-            .toList()
+        .split(',')
+        .map((e) => e.replaceAll('"', '').trim())
+        .toList()
         : [];
-    
+
     debugPrint("✅ Loaded partner preference data");
     debugPrint("   Country: $country");
     debugPrint("   City ID: $cityId");
-    
+
     // Validate form after loading data
     validateForm();
     update();
