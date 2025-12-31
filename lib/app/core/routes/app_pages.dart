@@ -12,6 +12,7 @@ import '../../views/bottom_nav/bottom_nav_view.dart';
 import '../../views/chat/chatting_view.dart';
 import '../../views/chat/export.dart';
 import '../../views/dashboard/dashboard_view.dart';
+import '../../views/dashboard/matrimonial_profiles_view.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/home/home_view.dart';
 import '../../views/login/login_view.dart';
@@ -112,6 +113,12 @@ class AppPages {
       name: AppRoutes.DASHBOARD,
       page: () => const DashboardView(),
       transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.MATRIMONIAL_PROFILES,
+      page: () => const MatrimonialProfilesView(),
+      transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
@@ -259,11 +266,16 @@ class AppPages {
         if (args is ChatUser) {
           return ChattingView(user: args);
         } else if (args is Map<String, dynamic>) {
-          // Handle map arguments (from notifications)
+          // Handle map arguments (from notifications or admin profile context)
           final chatUser = args['chatUser'] as ChatUser?;
           final isBlocked = args['isBlocked'] as bool?;
           final isBlockedByOther = args['isBlockedByOther'] as bool?;
           final isDeleted = args['isDeleted'] as bool?;
+          // Admin profile context for inline system message
+          final isAdminManagedProfile = args['isAdminManagedProfile'] as bool? ?? false;
+          final originalProfileId = args['originalProfileId'] as int?;
+          final originalProfileName = args['originalProfileName'] as String?;
+          final originalProfileImage = args['originalProfileImage'] as String?;
 
           if (chatUser != null) {
             return ChattingView(
@@ -272,6 +284,10 @@ class AppPages {
               isBlocked: isBlocked,
               isBlockedByOther: isBlockedByOther,
               isDeleted: isDeleted,
+              isAdminManagedProfile: isAdminManagedProfile,
+              originalProfileId: originalProfileId,
+              originalProfileName: originalProfileName,
+              originalProfileImage: originalProfileImage,
             );
           }
         }

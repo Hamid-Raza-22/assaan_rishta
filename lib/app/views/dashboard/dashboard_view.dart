@@ -39,9 +39,9 @@ class DashboardView extends GetView<DashboardController> {
                             delegate: SliverChildListDelegate([
                               _buildWelcomeCard(context),
                               const SizedBox(height: 20),
-                              _buildRegisterUserCard(context),
-                              const SizedBox(height: 20),
-                              _buildStatsSection(context),
+                              // // _buildRegisterUserCard(context),
+                              // const SizedBox(height: 20),
+                              // _buildStatsSection(context),
                               const SizedBox(height: 20),
                               _buildQuickActions(context),
                               const SizedBox(height: 20),
@@ -471,25 +471,23 @@ class DashboardView extends GetView<DashboardController> {
               onTap: () => controller.navigateToRegisterUser(),
             ),
             _buildActionCard(
-              title: "User Management",
-              subtitle: "Manage profiles",
-              icon: Icons.manage_accounts_rounded,
+              title: "My Profiles",
+              subtitle: "View profiles",
+              icon: Icons.people_alt_rounded,
               color: Colors.blue,
               bgColor: Colors.blue.shade50,
-              onTap: () {
-                // Navigate to user management screen
-              },
+              onTap: () => Get.toNamed(AppRoutes.MATRIMONIAL_PROFILES),
             ),
-            _buildActionCard(
-              title: "Approvals",
-              subtitle: "Pending reviews",
-              icon: Icons.task_alt_rounded,
-              color: Colors.orange,
-              bgColor: Colors.orange.shade50,
-              onTap: () {
-                // Navigate to approve profiles screen
-              },
-            ),
+            // _buildActionCard(
+            //   title: "Approvals",
+            //   subtitle: "Pending reviews",
+            //   icon: Icons.task_alt_rounded,
+            //   color: Colors.orange,
+            //   bgColor: Colors.orange.shade50,
+            //   onTap: () {
+            //     // Navigate to approve profiles screen
+            //   },
+            // ),
             _buildActionCard(
               title: "My Profile",
               subtitle: "View profile",

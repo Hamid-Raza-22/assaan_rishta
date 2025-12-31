@@ -195,6 +195,7 @@ class UserDetailsController extends GetxController {
             (success) {
           debugPrint('✅ Profile loaded successfully: ${success.firstName} ${success.lastName}');
           debugPrint('🔵 Blur status from API: ${success.blurProfileImage} (User ID: ${success.userId})');
+          debugPrint('🏷️ profile_created_by from API: ${success.profileCreatedBy}');
           profileDetails.value = success;
           isLoading.value = false;
           update(); // Force UI update
@@ -310,6 +311,108 @@ class UserDetailsController extends GetxController {
 
     pauseVideoPlayback();
 
+    // Check if this is an admin-created profile
+    final int? profileCreatedBy = profileDetails.value.profileCreatedBy;
+    final bool isAdminCreatedProfile = profileCreatedBy != null && profileCreatedBy > 0;
+    
+    debugPrint('🔍 Chat Routing Check:');
+    debugPrint('   Profile ID: ${profileDetails.value.userId}');
+    debugPrint('   Profile Name: ${profileDetails.value.firstName} ${profileDetails.value.lastName}');
+    debugPrint('   profile_created_by value: $profileCreatedBy');
+    debugPrint('   Is Admin Created: $isAdminCreatedProfile');
+
+    if (isAdminCreatedProfile) {
+      // Route chat to admin with profile context (inline system message in chat)
+      debugPrint('🔄 Routing chat to admin ID: $profileCreatedBy');
+      await _initiateAdminChatWithContext(context, profileCreatedBy);
+      return;
+    }
+
+    // Normal chat flow for non-admin profiles
+    await _initiateNormalChat(context);
+  }
+
+  /// Initiate chat with admin, passing profile context for inline system message
+  Future<void> _initiateAdminChatWithContext(BuildContext context, int adminId) async {
+    String adminIdStr = adminId.toString();
+    
+    // Check if admin user is deactivated
+    bool isDeactivated = await _checkIfUserIsDeactivated(adminIdStr);
+    if (isDeactivated) {
+      if (!Get.isSnackbarOpen) {
+        Get.snackbar(
+          'Admin Unavailable',
+          'The matrimonial team is currently unavailable',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.redColor,
+          colorText: AppColors.whiteColor,
+          duration: const Duration(seconds: 3),
+        );
+      }
+      return;
+    }
+
+    final time = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // Create chat user for admin with a reference to the profile
+    ChatUser adminUser = ChatUser(
+      image: AppConstants.profileImg,
+      about: "Matrimonial Team",
+      name: "Matrimonial Admin",
+      createdAt: time,
+      lastActive: time,
+      lastMessage: time,
+      isOnline: false,
+      isInside: false,
+      isMobileOnline: false,
+      isWebOnline: false,
+      id: adminIdStr,
+      pushToken: "",
+      email: "admin@asaanrishta.com",
+    );
+
+    debugPrint('💬 Initiating chat with admin: $adminIdStr (for profile: ${profileDetails.value.userId})');
+
+    // Prepare admin profile context for inline system message
+    final adminProfileContext = {
+      'chatUser': adminUser,
+      'isAdminManagedProfile': true,
+      'originalProfileId': profileDetails.value.userId,
+      'originalProfileName': '${profileDetails.value.firstName} ${profileDetails.value.lastName}',
+      'originalProfileImage': profileDetails.value.profileImage ?? AppConstants.profileImg,
+    };
+
+    await chatController!.userExists(adminIdStr).then((exist) async {
+      if (exist) {
+        ChatUser? chatUser = await chatController!.getUserById(adminIdStr, AppConstants.profileImg);
+        if (chatUser != null) {
+          await chatController!.addChatUser(chatUser.id);
+          // Pass admin profile context as arguments
+          Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: {
+            ...adminProfileContext,
+            'chatUser': chatUser,
+          })!.then((onValue) async {
+            await chatController!.setInsideChatStatus(false);
+          });
+        }
+      } else {
+        await chatController!.createUser(
+          name: "Matrimonial Admin",
+          id: adminIdStr,
+          email: "admin@asaanrishta.com",
+          image: AppConstants.profileImg,
+          isOnline: false,
+          isMobileOnline: false,
+        ).then((onValue) async {
+          await chatController!.addChatUser(adminUser.id);
+          // Pass admin profile context as arguments
+          Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: adminProfileContext);
+        });
+      }
+    });
+  }
+
+  Future<void> _initiateNormalChat(BuildContext context) async {
     String receiverIdStr = '${profileDetails.value.userId}';
     
     // Check if user is deactivated

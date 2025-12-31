@@ -33,6 +33,16 @@ import '../../widgets/typing_indicator.dart';
 
 class ChattingViewController extends GetxController with WidgetsBindingObserver {
   final ChatUser user;
+  // Admin profile context for inline system message
+  final bool isAdminManagedProfile;
+  final int? originalProfileId;
+  final String? originalProfileName;
+  final String? originalProfileImage;
+  // Track if user has clicked Continue Chat
+  final RxBool hasConfirmedAdminChat = false.obs;
+  // Track if admin chat message is being sent (for loading state)
+  final RxBool isSendingAdminChat = false.obs;
+
   String getSelectionCountText() {
     final count = selectedMessages.length;
     if (count == 0) return 'No messages selected';
@@ -55,7 +65,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     required this.user,
     this.initialBlockedStatus,
     this.initialBlockedByOtherStatus,
-    this.initialDeletedStatus
+    this.initialDeletedStatus,
+    this.isAdminManagedProfile = false,
+    this.originalProfileId,
+    this.originalProfileName,
+    this.originalProfileImage,
   });
 
   // Dependencies
@@ -1544,13 +1558,22 @@ class ChattingView extends StatefulWidget {  // Changed to StatefulWidget
   final bool? isBlocked;
   final bool? isBlockedByOther;
   final bool? isDeleted;
+  // Admin profile context for inline system message
+  final bool isAdminManagedProfile;
+  final int? originalProfileId;
+  final String? originalProfileName;
+  final String? originalProfileImage;
 
   const ChattingView({
     super.key,
     required this.user,
     this.isBlocked,
     this.isBlockedByOther,
-    this.isDeleted
+    this.isDeleted,
+    this.isAdminManagedProfile = false,
+    this.originalProfileId,
+    this.originalProfileName,
+    this.originalProfileImage,
   });
 
   @override
@@ -1585,7 +1608,11 @@ class _ChattingViewState extends State<ChattingView> {
           user: widget.user,
           initialBlockedStatus: widget.isBlocked,
           initialBlockedByOtherStatus: widget.isBlockedByOther,
-          initialDeletedStatus: widget.isDeleted
+          initialDeletedStatus: widget.isDeleted,
+          isAdminManagedProfile: widget.isAdminManagedProfile,
+          originalProfileId: widget.originalProfileId,
+          originalProfileName: widget.originalProfileName,
+          originalProfileImage: widget.originalProfileImage,
       ),
       tag: controllerTag,
     );
@@ -1632,12 +1659,22 @@ class _ChattingViewState extends State<ChattingView> {
         // ),
         body: Column(
           children: [
+            // Admin profile system message (shown at top for admin-managed profiles)
+            if (controller.isAdminManagedProfile)
+              Obx(() => !controller.hasConfirmedAdminChat.value
+                  ? _buildAdminProfileSystemMessage(controller)
+                  : const SizedBox.shrink()),
             Expanded(child: _buildMessagesList(controller, chatMq)),
             _buildUploadingIndicator(controller),
-            // _buildBottomSection(controller),
-            Obx(() => controller.isSelectionMode.value
-                ? _buildSelectionModeActions(controller)
-                : _buildBottomSection(controller)),
+            // Hide input until admin chat is confirmed
+            Obx(() {
+              if (controller.isAdminManagedProfile && !controller.hasConfirmedAdminChat.value) {
+                return const SizedBox.shrink();
+              }
+              return controller.isSelectionMode.value
+                  ? _buildSelectionModeActions(controller)
+                  : _buildBottomSection(controller);
+            }),
             _buildEmojiPicker(controller, chatMq),
           ],
         ),
@@ -1962,16 +1999,278 @@ class _ChattingViewState extends State<ChattingView> {
   //           ),
   //       ],
   //     );
-  //   });
-  // }
 
+  /// Build admin profile system message for inline disclaimer
+  Widget _buildAdminProfileSystemMessage(ChattingViewController controller) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryColor.withOpacity(0.08),
+            AppColors.secondaryColor.withOpacity(0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header with icon
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.verified_user_rounded,
+                  color: AppColors.primaryColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Admin Managed Profile',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    Text(
+                      'Important Information',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Profile info card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Profile image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(25),
+                  child: controller.originalProfileImage != null &&
+                          controller.originalProfileImage!.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: controller.originalProfileImage!,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 50,
+                            height: 50,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.person, color: Colors.grey),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            width: 50,
+                            height: 50,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.person, color: Colors.grey),
+                          ),
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: const Icon(Icons.person, color: Colors.grey),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        controller.originalProfileName ?? 'Unknown',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'Profile ID: ${controller.originalProfileId ?? 'N/A'}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Disclaimer text
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.amber.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.amber[700],
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'This profile is managed by the Matrimonial Admin. Your conversation will be directly with the Matrimonial Team, not the individual profile owner.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Continue Chat button with loading state
+        SizedBox(
+          width: double.infinity,
+          child: Obx(() => ElevatedButton(
+                onPressed: controller.isSendingAdminChat.value
+                    ? null
+                    : () => _handleContinueAdminChat(controller),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.7),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: controller.isSendingAdminChat.value
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Connecting...',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.chat_bubble_outline, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Continue Chat',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+              )),
+        ),
+      ],
+    ),
+  );
+}
 
-
-// In chatting_view.dart, fix the _buildMessagesList method:
-
-// Update _buildMessagesList method in chatting_view.dart
-
-// Update the _buildMessagesList method in chatting_view.dart to add spacing for reactions
+  /// Handle Continue Chat button tap - send auto message and enable input
+  Future<void> _handleContinueAdminChat(ChattingViewController controller) async {
+    // Show loading state immediately
+    controller.isSendingAdminChat.value = true;
+    
+    try {
+      // Build auto-message
+      final profileId = controller.originalProfileId ?? 0;
+      final profileName = controller.originalProfileName ?? 'Unknown';
+      final autoMessage = '👋 Hello! I am interested in connecting with the profile:\n\n'
+          '📋 Profile ID: $profileId\n'
+          '👤 Profile Name: $profileName\n\n'
+          'Please assist me with more details about this profile.';
+      
+      debugPrint('📤 Sending admin chat message for profile: $profileId');
+      
+      // Send message - this will create the chat and send the first message
+      await controller.createUserChat(autoMessage);
+      
+      // Hide system message AFTER message is sent successfully
+      controller.hasConfirmedAdminChat.value = true;
+      
+      debugPrint('✅ Admin chat confirmed, message sent for profile: $profileId');
+    } catch (e) {
+      debugPrint('❌ Error sending admin chat message: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to start chat. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      // Always reset loading state
+      controller.isSendingAdminChat.value = false;
+    }
+  }
 
 // Fix 7: Update ListView builder in ChattingView
   Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
@@ -2052,6 +2351,12 @@ class _ChattingViewState extends State<ChattingView> {
               ),
           ],
         );
+      }
+
+      // Don't show empty state when admin system message is visible
+      // User needs to tap "Continue Chat" first
+      if (controller.isAdminManagedProfile && !controller.hasConfirmedAdminChat.value) {
+        return const SizedBox.shrink();
       }
 
       return _buildEmptyState(controller);

@@ -872,4 +872,48 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+
+  @override
+  Future<Either<AppError, AllProfileList>> getMatrimonialProfiles({
+    required int adminId,
+    // required int pageNo,
+    // required int pageLimit,
+  }) async {
+    try {
+      final response = await _networkHelper.get(
+        _endPoints.getMatrimonialProfilesUrl(
+          adminId: adminId,
+          // pageNo: pageNo,
+          // pageLimit: pageLimit,
+        ),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        final decodedBody = jsonDecode(response.body);
+        
+        // Check if response is a list (direct array) or an object
+        if (decodedBody is List) {
+          // API returns direct list of profiles
+          final profilesList = decodedBody.map((item) => ProfilesList.fromJson(item)).toList();
+          return Right(AllProfileList(
+            profilesList: profilesList,
+            totalRecords: profilesList.length,
+          ));
+        } else {
+          // API returns object with profilesList and totalRecords
+          return Right(AllProfileList.fromJson(decodedBody));
+        }
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
 }

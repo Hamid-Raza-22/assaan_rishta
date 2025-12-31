@@ -182,4 +182,14 @@ class EndPoints {
   String updateBlurProfileImageUrl() {
     return '${baseUrl}Users/update_blur_profile_image';
   }
+
+  String getMatrimonialProfilesUrl(
+      {
+        required int adminId,
+        // required int pageNo,
+        // required int pageLimit
+      }) {
+    return '${baseUrl}Users/GetAll_mat_Profiles/$adminId';
+    // return '${baseUrl}Users/GetAll_mat_Profiles/$adminId/$pageNo/$pageLimit';
+  }
 }
