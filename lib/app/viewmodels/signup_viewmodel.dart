@@ -1063,16 +1063,33 @@ class SignupViewModel extends GetxController {
             isEnable: true,
             fontColor: AppColors.whiteColor,
             onTap: () {
+              // Check if registration was from dashboard
+              final wasFromDashboard = isFromDashboard.value;
+              
               // Clear form data for next signup
               clearFormData();
-              // Navigate to guest mode
-              Get.offAllNamed(AppRoutes.BOTTOM_NAV);
-              Get.snackbar(
-                'Guest Mode',
-                'You are in Guest Mode. Please log in after your account is approved.',
-                snackPosition: SnackPosition.BOTTOM,
-                duration: const Duration(seconds: 4),
-              );
+              
+              if (wasFromDashboard) {
+                // Admin registered user - navigate to bottom nav with dashboard tab selected
+                Get.offAllNamed(AppRoutes.BOTTOM_NAV, arguments: {'initialIndex': 4});
+                Get.snackbar(
+                  'User Registered',
+                  'User has been registered successfully. They will be notified after approval.',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.green.withOpacity(0.9),
+                  colorText: Colors.white,
+                  duration: const Duration(seconds: 3),
+                );
+              } else {
+                // Regular user signup - navigate to guest mode
+                Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+                Get.snackbar(
+                  'Guest Mode',
+                  'You are in Guest Mode. Please log in after your account is approved.',
+                  snackPosition: SnackPosition.BOTTOM,
+                  duration: const Duration(seconds: 4),
+                );
+              }
             },
           ),
         ],
