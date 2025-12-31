@@ -70,8 +70,14 @@ class _BottomNavViewState extends State<BottomNavView> {
 
       // Use post frame callback to avoid calling updateTab during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Ensure initial index is within valid range
+        // Check for initialIndex from arguments (used when navigating from signup)
         int validIndex = widget.index;
+        final args = Get.arguments;
+        if (args != null && args is Map && args['initialIndex'] != null) {
+          validIndex = args['initialIndex'] as int;
+        }
+        
+        // Ensure initial index is within valid range
         if (validIndex >= controller.pageCount) {
           validIndex = 0;
         }
