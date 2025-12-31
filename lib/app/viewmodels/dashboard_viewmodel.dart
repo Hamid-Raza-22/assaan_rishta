@@ -99,8 +99,8 @@ class DashboardController extends BaseController {
     signupController.clearFormData();
     
     // Set dashboard registration tracking
-    // signupController.isFromDashboard.value = true;
-    // signupController.profileCreatedBy = userId;
+    signupController.isFromDashboard.value = true;
+    signupController.profileCreatedBy = userId;
     
     debugPrint('🔐 Dashboard registration initiated by user ID: $userId');
     
