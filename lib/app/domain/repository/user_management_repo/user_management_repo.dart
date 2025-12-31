@@ -12,6 +12,8 @@ mixin UserManagementRepo {
 
   int? getUserId();
 
+  Future<int> getUserRoleId();
+
   String getUserName();
 
   String getUserEmail();

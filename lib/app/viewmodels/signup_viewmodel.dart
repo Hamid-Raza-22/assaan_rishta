@@ -47,6 +47,10 @@ class SignupViewModel extends GetxController {
   RxBool isTermsAgree = true.obs;
   RxBool isProfileBlur = false.obs; // Profile blur option for female users
   
+  // Admin dashboard registration tracking
+  RxBool isFromDashboard = false.obs;
+  int profileCreatedBy = 0;
+  
   // Photo picker
   final ImagePicker _picker = ImagePicker();
   Rx<File?> profilePhoto = Rx<File?>(null);
@@ -261,6 +265,10 @@ class SignupViewModel extends GetxController {
     isFormValid.value = false;
     isProfileBlur.value = false;
     dobController.value = DateTime.now();
+    
+    // Reset admin dashboard tracking
+    isFromDashboard.value = false;
+    profileCreatedBy = 0;
     
     // Clear photo
     profilePhoto.value = null;
@@ -974,7 +982,8 @@ class SignupViewModel extends GetxController {
       userKaTaruf: aboutYourSelfTEC.text,
       userDiWohtiKaTaruf: aboutYourPartnerTEC.text,
       roleId: 2,
-      profileBlur: isProfileBlur.value, // Profile blur for female users
+      profileBlur: isProfileBlur.value,
+      profileCreatedBy: isFromDashboard.value && profileCreatedBy > 0 ? profileCreatedBy : null,
     );
 
     final response = await userManagementUseCase.signUp(signUpModel: model);

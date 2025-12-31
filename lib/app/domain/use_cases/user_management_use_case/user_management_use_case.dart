@@ -19,6 +19,10 @@ class UserManagementUseCase {
     return userManagementRepo.getUserId();
   }
 
+  Future<int> getUserRoleId() {
+    return userManagementRepo.getUserRoleId();
+  }
+
   String getUserName() {
     return userManagementRepo.getUserName();
   }

@@ -12,6 +12,7 @@ import '../core/services/firebase_service/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import '../views/chat/chat_user_listing_view.dart';
+import '../views/dashboard/dashboard_view.dart';
 import '../views/filter/export.dart';
 import '../views/vendor/export.dart';
 import '../views/home/home_view.dart';
@@ -28,6 +29,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
   // Cache login status for sync getters
   final RxBool isLoggedIn = false.obs;
+  final RxInt userRoleId = 0.obs;
 
   // Debouncing for status updates
   Timer? _statusUpdateTimer;
@@ -35,6 +37,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
 
   // Cached pages to avoid recreation
   late final List<Widget> pages;
+  late final List<Widget> adminPages; // Pages for admin users (roleId 3)
   late final List<Widget> guestPages; // Pages for non-logged in users
 
   @override
@@ -49,16 +52,23 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
   }
 
   // Load login status from secure storage
-  void _loadLoginStatus()  {
-    isLoggedIn.value =  useCase.getUserLoggedInStatus();
+  void _loadLoginStatus() async {
+    isLoggedIn.value = useCase.getUserLoggedInStatus();
+    // Load user role ID
+    final roleId = await useCase.getUserRoleId();
+    userRoleId.value = roleId;
   }
 
   /// Call this after login to refresh controller state and reset tab index
-  void refreshAfterLogin() {
+  void refreshAfterLogin() async {
     debugPrint('🔄 Refreshing BottomNavController after login');
     
     // Reload login status
     isLoggedIn.value = useCase.getUserLoggedInStatus();
+    
+    // Load user role ID
+    final roleId = await useCase.getUserRoleId();
+    userRoleId.value = roleId;
     
     // Reset to home tab (index 0) to avoid tab mismatch
     // Guest has 4 tabs, logged-in has 5 tabs - indices shift after login
@@ -70,7 +80,7 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
       FirebaseService.setAppState(isInForeground: true, isInChat: false);
     }
     
-    debugPrint('✅ BottomNavController refreshed - isLoggedIn: ${isLoggedIn.value}, tab: ${selectedTab.value}');
+    debugPrint('✅ BottomNavController refreshed - isLoggedIn: ${isLoggedIn.value}, roleId: ${userRoleId.value}, tab: ${selectedTab.value}');
   }
 
   void _initializePages() {
@@ -81,6 +91,14 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
       const FilterView(),
       const ProfileView(),
     ];
+    // Admin pages - Dashboard instead of Profile
+    adminPages = [
+      const HomeView(),
+      const VendorView(),
+      const ChatUserListingView(),
+      const FilterView(),
+      const DashboardView(),
+    ];
     // Limited pages for guest users (only Home, Vendor, Filter, Account Type)
     guestPages = [
       const HomeView(),
@@ -90,9 +108,10 @@ class BottomNavController extends GetxController with WidgetsBindingObserver {
     ];
   }
 
-  // Get current pages based on login status
+  // Get current pages based on login status and role
   List<Widget> get currentPages {
-    return isLoggedIn.value ? pages : guestPages;
+    if (!isLoggedIn.value) return guestPages;
+    return userRoleId.value == 3 ? adminPages : pages;
   }
 
   // Get current page count based on login status

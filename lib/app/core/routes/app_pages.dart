@@ -11,6 +11,7 @@ import '../../views/account_type/account_type_view.dart';
 import '../../views/bottom_nav/bottom_nav_view.dart';
 import '../../views/chat/chatting_view.dart';
 import '../../views/chat/export.dart';
+import '../../views/dashboard/dashboard_view.dart';
 import '../../views/forgot_password/export.dart';
 import '../../views/home/home_view.dart';
 import '../../views/login/login_view.dart';
@@ -104,6 +105,12 @@ class AppPages {
     GetPage(
       name: AppRoutes.PROFILE,
       page: () => const ProfileView(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.DASHBOARD,
+      page: () => const DashboardView(),
       transition: Transition.circularReveal,
       transitionDuration: Duration(milliseconds: 200),
     ),

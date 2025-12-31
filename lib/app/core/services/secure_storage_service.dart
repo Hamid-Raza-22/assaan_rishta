@@ -35,6 +35,7 @@ class SecureStorageService {
   static const String _keyUserPic = 'user_pic';
   static const String _keyUserPassword = 'user_password';
   static const String _keyUserPhone = 'user_phone';
+  static const String _keyUserRoleId = 'user_role_id';
   static const String _keyIsUserLoggedIn = 'is_user_logged_in';
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyLastLoginTime = 'last_login_time';
@@ -196,6 +197,26 @@ class SecureStorageService {
     }
   }
 
+  /// Save user role ID
+  Future<void> saveUserRoleId(int roleId) async {
+    try {
+      await _storage.write(key: _keyUserRoleId, value: roleId.toString());
+    } catch (e) {
+      debugPrint('❌ Error saving user role ID: $e');
+    }
+  }
+
+  /// Get user role ID
+  Future<int> getUserRoleId() async {
+    try {
+      final value = await _storage.read(key: _keyUserRoleId);
+      return int.tryParse(value ?? '0') ?? 0;
+    } catch (e) {
+      debugPrint('❌ Error reading user role ID: $e');
+      return 0;
+    }
+  }
+
   /// Save user password (encrypted)
   Future<void> saveUserPassword(String password) async {
     try {
@@ -305,6 +326,7 @@ class SecureStorageService {
     required String name,
     required String pic,
     String? accessToken,
+    int? roleId,
   }) async {
     try {
       await saveUserId(userId.toString());
@@ -315,6 +337,10 @@ class SecureStorageService {
       
       if (accessToken != null) {
         await saveAccessToken(accessToken);
+      }
+      
+      if (roleId != null) {
+        await saveUserRoleId(roleId);
       }
       
       await saveLastLoginTime();

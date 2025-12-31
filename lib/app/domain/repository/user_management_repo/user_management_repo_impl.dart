@@ -32,6 +32,11 @@ class UserManagementRepoImpl implements UserManagementRepo {
   }
 
   @override
+  Future<int> getUserRoleId() async {
+    return _storageRepo.getInt(StorageKeys.userRoleId) ?? 0;
+  }
+
+  @override
   String getUserName() {
     return '${_storageRepo.getString(StorageKeys.userName)}';
   }
@@ -161,6 +166,10 @@ class UserManagementRepoImpl implements UserManagementRepo {
             StorageKeys.userName, '${model.firstName} ${model.lastName}');
         _storageRepo.setString(StorageKeys.userEmail, '${model.email}');
         _storageRepo.setString(StorageKeys.userPic, '${model.userImage}');
+        // Save user role ID for admin dashboard
+        if (model.roleId != null) {
+          _storageRepo.setInt(StorageKeys.userRoleId, model.roleId!);
+        }
         return Right(model);
       }
       return Left(
