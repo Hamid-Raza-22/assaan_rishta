@@ -48,11 +48,11 @@ class ProfileController extends GetxController {
     _showDeactivationLoader();
 
     try {
-      final userId = userManagementUseCases.getUserId().toString();
+      final userId = userManagementUseCases.getUserId();
       debugPrint('🔄 [DEACTIVATE] Starting for user: $userId');
 
       // Step 1: Call backend API to deactivate
-      final response = await userManagementUseCases.deactivateUserProfile();
+      final response = await userManagementUseCases.deactivateUserProfile(userId: userId!);
 
       final isSuccess = response.fold(
         (error) {
@@ -78,8 +78,8 @@ class ProfileController extends GetxController {
       debugPrint('🔄 [DEACTIVATE] Starting cleanup operations...');
       
       await Future.wait([
-        _performFastFirebaseCleanup(userId),
-        _removeFCMTokenFast(userId),
+        _performFastFirebaseCleanup(userId.toString()),
+        _removeFCMTokenFast(userId.toString()),
       ], eagerError: false);
 
       debugPrint('✅ [DEACTIVATE] All cleanup operations completed');

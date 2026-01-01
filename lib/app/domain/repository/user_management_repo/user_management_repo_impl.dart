@@ -239,11 +239,12 @@ class UserManagementRepoImpl implements UserManagementRepo {
   }
 
   @override
-  Future<Either<AppError, dynamic>> deactivateUserProfile() async {
+  Future<Either<AppError, dynamic>> deactivateUserProfile({ required int userId,}) async {
     try {
       final response = await _networkHelper.get(
         _endPoints.deactivateUserProfile(
-          uid: _storageRepo.getInt(StorageKeys.userId),
+          uid: userId,
+          // uid: _storageRepo.getInt(StorageKeys.userId),
           byWho: 'by user',
         ),
         headers: {"Content-Type": "application/json"},
@@ -276,6 +277,36 @@ class UserManagementRepoImpl implements UserManagementRepo {
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         final jsonData = jsonDecode(response.body);
         debugPrint('📋 getCurrentUserProfile API response - is_blur: ${jsonData['is_blur']}');
+        model = CurrentUserProfile.fromJson(jsonData);
+        return Right(model);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, CurrentUserProfile>> getUserProfileById({
+    required int userId,
+  }) async {
+    try {
+      debugPrint('📋 getUserProfileById - Fetching profile for userId: $userId');
+      final response = await _networkHelper.get(
+        _endPoints.getCurrentUserProfileUrl(uid: userId),
+      );
+      CurrentUserProfile model = CurrentUserProfile();
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        final jsonData = jsonDecode(response.body);
+        debugPrint('📋 getUserProfileById API response received for userId: $userId');
         model = CurrentUserProfile.fromJson(jsonData);
         return Right(model);
       }
@@ -366,6 +397,35 @@ class UserManagementRepoImpl implements UserManagementRepo {
       PartnerPreferenceData model = PartnerPreferenceData();
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         model = PartnerPreferenceData.fromJson(jsonDecode(response.body));
+        return Right(model);
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, PartnerPreferenceData>> getPartnerPreferenceById({
+    required int userId,
+  }) async {
+    try {
+      debugPrint('📋 getPartnerPreferenceById - Fetching for userId: $userId');
+      final response = await _networkHelper.get(
+        _endPoints.getGetPartnerPreferenceDataUrl(uid: userId),
+      );
+      PartnerPreferenceData model = PartnerPreferenceData();
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        model = PartnerPreferenceData.fromJson(jsonDecode(response.body));
+        debugPrint('📋 getPartnerPreferenceById - Data received for userId: $userId');
         return Right(model);
       }
       return Left(
@@ -911,6 +971,67 @@ class UserManagementRepoImpl implements UserManagementRepo {
     } catch (e) {
       return Left(
         AppError(
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, dynamic>> deleteUserProfileById({
+    required int userId,
+  }) async {
+    try {
+      debugPrint('🗑️ deleteUserProfileById - Deleting userId: $userId');
+      final response = await _networkHelper.delete(
+        _endPoints.deleteUserProfile(uid: userId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        debugPrint('✅ deleteUserProfileById - Success');
+        return Right(response.body);
+      }
+      return Left(
+        AppError(
+          title: "Delete Failed",
+          description: "Failed to delete profile. Status: ${response.statusCode}",
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ deleteUserProfileById - Error: $e');
+      return Left(
+        AppError(
+          title: "Error",
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, dynamic>> removeMatrimonialUser({
+    required int userId,
+  }) async {
+    try {
+      debugPrint('🗑️ removeMatrimonialUser - Removing userId: $userId');
+      // Try GET method instead of DELETE (405 error suggests DELETE is not allowed)
+      final response = await _networkHelper.get(
+        _endPoints.removeMatrimonialUser(uid: userId),
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        debugPrint('✅ removeMatrimonialUser - Success');
+        return Right(response.body);
+      }
+      return Left(
+        AppError(
+          title: "Remove Failed",
+          description: "Failed to remove matrimonial user. Status: ${response.statusCode}",
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ removeMatrimonialUser - Error: $e');
+      return Left(
+        AppError(
+          title: "Error",
           description: e.toString(),
         ),
       );

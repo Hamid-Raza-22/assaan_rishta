@@ -404,11 +404,13 @@ class ChatListController extends GetxController {
     try {
       debugPrint('🗑️ Deleting chat with ${user.name}...');
 
-      // ADDED: Clear cached messages from ChatViewModel
+      // ADDED: Clear cached messages from ChatViewModel and Hive
       if (Get.isRegistered<ChatViewModel>()) {
         final chatController = Get.find<ChatViewModel>();
         chatController.cachedMessagesPerUser.remove(user.id);
-        debugPrint('🧹 Cleared cached messages for user: ${user.id}');
+        // CRITICAL: Also clear Hive cache to prevent flash of deleted messages
+        await chatController.clearHiveCacheForUser(user.id);
+        debugPrint('🧹 Cleared cached messages (memory + Hive) for user: ${user.id}');
       }
 
       // Stop listening to this user's messages

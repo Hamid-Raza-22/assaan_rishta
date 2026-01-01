@@ -19,11 +19,20 @@ class EditProfileController extends GetxController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   RxBool isLoading = false.obs;
 
+  // Admin managing another user's profile
+  bool isAdminManaging = false;
+  int? targetUserId;
+
   var profileDetails = CurrentUserProfile().obs;
   List<AllCountries> countryList = [];
   List<AllStates> stateList = [];
   List<AllCities> cityList = [];
   List<String> occupationList = [];
+
+  /// Get the effective user ID (target user if admin managing, otherwise logged-in user)
+  int get effectiveUserId => isAdminManaging && targetUserId != null 
+      ? targetUserId! 
+      : useCases.getUserId() ?? 0;
 
   ///general information
   var firstNameTEC = TextEditingController();
@@ -218,9 +227,24 @@ class EditProfileController extends GetxController {
 
   @override
   void onInit() {
+    // Check if admin is managing another user's profile
+    _checkAdminManagingArguments();
     _generateHeightList();
     _initDropDownAPIs();
     super.onInit();
+  }
+
+  /// Check arguments for admin managing another user
+  void _checkAdminManagingArguments() {
+    final args = Get.arguments;
+    if (args != null && args is Map<String, dynamic>) {
+      isAdminManaging = args['isAdminManaging'] == true;
+      final userIdStr = args['userId']?.toString();
+      if (userIdStr != null && userIdStr.isNotEmpty) {
+        targetUserId = int.tryParse(userIdStr);
+      }
+      debugPrint('🔐 EditProfileController - isAdminManaging: $isAdminManaging, targetUserId: $targetUserId');
+    }
   }
 
   // Updated phone validation with country-specific rules
@@ -306,10 +330,18 @@ class EditProfileController extends GetxController {
 
   getCurrentUserProfiles() async {
     isLoading.value = true;
-    final response = await useCases.getCurrentUserProfile();
+    
+    // Use correct API based on admin managing or not
+    final response = isAdminManaging && targetUserId != null
+        ? await useCases.getUserProfileById(userId: targetUserId!)
+        : await useCases.getCurrentUserProfile();
+    
+    debugPrint('📋 EditProfile - Fetching profile for: ${isAdminManaging ? "target user $targetUserId" : "logged-in user"}');
+    
     return response.fold(
           (error) {
         isLoading.value = false;
+        debugPrint('❌ EditProfile - Error fetching profile: ${error.description}');
       },
           (success) {
         profileDetails.value = success;
@@ -324,6 +356,7 @@ class EditProfileController extends GetxController {
         setHealthInformation(success);
         setOriginInformation(success);
         isLoading.value = false;
+        debugPrint('✅ EditProfile - Profile loaded for: ${success.firstName} ${success.lastName}');
         update();
       },
     );
@@ -442,7 +475,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      "user_id": useCases.getUserId(),
+      "user_id": effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       "first_name": firstNameTEC.text,
@@ -592,7 +625,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'profile_name': profileNameTEC.text.toLowerCase(),
@@ -647,7 +680,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'about_myself': aboutMyselfTEC.text,
@@ -696,7 +729,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'street_address': streetAddressTEC.text,
@@ -732,7 +765,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'monthly_income': monthlyIncome.value,
@@ -762,7 +795,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'complexion': complexion.value,
@@ -795,7 +828,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'live_with': liveWith.value,
@@ -835,7 +868,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'namaz': getBoolString(namaz.value),
@@ -874,7 +907,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'blood_group': bloodGroup.value,
@@ -914,7 +947,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'ethnic_origin': ethnicOrigin.value,

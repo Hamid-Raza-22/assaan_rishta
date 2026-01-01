@@ -12,6 +12,32 @@ import '../../core/routes/app_routes.dart';
 class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
   const MatrimonialProfilesView({super.key});
 
+  /// Calculate age from date of birth
+  String _calculateAge(String? dateOfBirth) {
+    if (dateOfBirth == null || dateOfBirth.isEmpty) {
+      return 'N/A';
+    }
+    
+    try {
+      // Parse the date string (assuming format is like "2023-01-01" or similar)
+      DateTime birthDate = DateTime.parse(dateOfBirth);
+      DateTime today = DateTime.now();
+      
+      int age = today.year - birthDate.year;
+      
+      // Check if birthday hasn't occurred yet this year
+      if (today.month < birthDate.month || 
+          (today.month == birthDate.month && today.day < birthDate.day)) {
+        age--;
+      }
+      
+      return '$age years';
+    } catch (e) {
+      debugPrint('Error parsing date: $dateOfBirth, error: $e');
+      return 'N/A';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<MatrimonialProfilesController>(
@@ -262,26 +288,142 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                       ),
                     ),
                     // const SizedBox(height: 16),
-                    // _buildInfoRow('Cast:', user.cast),
+                    // _buildInfoRow('Cast:', user.userId.toString()),
                     const SizedBox(height: 10),
                     _buildInfoRow('Status:', user.maritalStatus),
                     const SizedBox(height: 10),
                     _buildInfoRow('City:', user.cityName),
                     // const SizedBox(height: 10),
                     // _buildInfoRow('Job:', user.occupation),
-                    // const SizedBox(height: 10),
-                    // _buildInfoRow('Age:', user.age),
+                    const SizedBox(height: 10),
+                    _buildInfoRow('Age:', _calculateAge(user.dateOfBirth)),
                     const SizedBox(height: 30),
-                    CustomButton(
-                      text: "View Profile",
-                      isGradient: true,
-                      fontColor: AppColors.whiteColor,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 18,
-                      onTap: () {
-                        Get.toNamed(AppRoutes.USER_DETAILS_VIEW,
-                            arguments: user.userId);
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomButton(
+                            text: "View Profile",
+                            isGradient: true,
+                            fontColor: AppColors.whiteColor,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 18,
+                            onTap: () {
+                              Get.toNamed(AppRoutes.USER_DETAILS_VIEW,
+                                  arguments: user.userId);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColor,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryColor.withOpacity(0.3),
+                                spreadRadius: 1,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(
+                              Icons.settings,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            color: AppColors.whiteColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'edit_profile':
+                                  Get.toNamed(
+                                    AppRoutes.PROFILE_EDIT_VIEW,
+                                    arguments: {'userId': user.userId.toString(), 'isAdminManaging': true},
+                                  );
+                                  break;
+                                case 'partner_preferences':
+                                  Get.toNamed(
+                                    AppRoutes.PARTNER_PREFERENCE_VIEW,
+                                    arguments: {'userId': user.userId.toString(), 'isAdminManaging': true},
+                                  );
+                                  break;
+                                case 'delete_profile':
+                                  controller.showDeleteConfirmationDialog(context, user);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem<String>(
+                                value: 'edit_profile',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.edit_outlined,
+                                      size: 20,
+                                      color: AppColors.primaryColor,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Edit Profile',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'partner_preferences',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.favorite_border_outlined,
+                                      size: 20,
+                                      color: Colors.pink,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Partner Preferences',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              PopupMenuItem<String>(
+                                value: 'delete_profile',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline,
+                                      size: 20,
+                                      color: Colors.red,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Delete Profile',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 30),
                   ],

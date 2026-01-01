@@ -315,6 +315,23 @@ class UserDetailsController extends GetxController {
     final int? profileCreatedBy = profileDetails.value.profileCreatedBy;
     final bool isAdminCreatedProfile = profileCreatedBy != null && profileCreatedBy > 0;
     
+    // Prevent admin from messaging their own created profiles
+    final int? currentUserId = useCase.getUserId();
+    if (isAdminCreatedProfile && currentUserId != null && currentUserId == profileCreatedBy) {
+      debugPrint('🚫 Admin cannot message their own created profile');
+      if (!Get.isSnackbarOpen) {
+        Get.snackbar(
+          'Not Allowed',
+          'You cannot message profiles that you created',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.redColor,
+          colorText: AppColors.whiteColor,
+          duration: const Duration(seconds: 3),
+        );
+      }
+      return;
+    }
+    
     debugPrint('🔍 Chat Routing Check:');
     debugPrint('   Profile ID: ${profileDetails.value.userId}');
     debugPrint('   Profile Name: ${profileDetails.value.firstName} ${profileDetails.value.lastName}');
