@@ -902,6 +902,7 @@ class ChatRepository {
     String msg,
     Type type, {
     required String messageId,
+    String? profileIdForConnects,
     Function(MessageStatus)? onStatusUpdate,
   }) async {
     final currentUserId = Get.find<UserManagementUseCase>()
@@ -925,7 +926,7 @@ class ChatRepository {
 
     try {
       // First, add the chat user and deduct connects with the specific messageId
-      await FirebaseService.sendFirstMessage(user, msg, type, messageId: messageId);
+      await FirebaseService.sendFirstMessage(user, msg, type, messageId: messageId, profileIdForConnects: profileIdForConnects);
 
       // Small delay to ensure message is created
       await Future.delayed(const Duration(milliseconds: 300));

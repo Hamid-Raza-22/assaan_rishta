@@ -778,6 +778,7 @@ class FirebaseService {
     String msg,
     Type type, {
     String? messageId,  // Optional message ID to use
+    String? profileIdForConnects,  // Optional profile ID for admin-created profiles
   }) async {
     if (me == null) {
       await getSelfInfo();
@@ -823,7 +824,9 @@ class FirebaseService {
     await batch.commit();
     
     // Send message with the same timestamp/messageId
-    await sendMessageWithId(chatUser, msg, type, messageId: timestamp, isFirstMessage: true, recipientId: chatUser.id);
+    // Use profileIdForConnects if provided (for admin-created profiles), otherwise use chatUser.id
+    final recipientIdForConnects = profileIdForConnects ?? chatUser.id;
+    await sendMessageWithId(chatUser, msg, type, messageId: timestamp, isFirstMessage: true, recipientId: recipientIdForConnects);
   }
   
   // New method to send message with specific ID
