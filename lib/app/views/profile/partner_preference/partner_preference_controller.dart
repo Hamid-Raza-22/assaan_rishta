@@ -1,5 +1,6 @@
 
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
+import 'package:assaan_rishta/app/core/services/env_config_service.dart';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
@@ -120,9 +121,10 @@ class PartnerPreferenceController extends GetxController {
   // Check if is_preference_updated is false to show skip button
   void _checkPreferenceStatus() async {
     try {
-      final uid = useCases.getUserId();
+      // Use effectiveUserId instead of useCases.getUserId()
+      final uid = effectiveUserId;
       final doc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(uid.toString())
           .get();
 
@@ -416,9 +418,9 @@ class PartnerPreferenceController extends GetxController {
         );
         // Mark Firestore flag so subsequent logins skip this view
         try {
-          final uid = useCases.getUserId();
+          final uid = effectiveUserId;
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(uid.toString())
               .set({'is_preference_updated': true}, SetOptions(merge: true));
         } catch (_) {}
@@ -436,9 +438,9 @@ class PartnerPreferenceController extends GetxController {
   void skipPartnerPreference() async {
     // Mark preference as updated in Firestore so user won't be forced to fill it again
     try {
-      final uid = useCases.getUserId();
+      final uid = effectiveUserId;
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(uid.toString())
           .set({'is_preference_updated': true}, SetOptions(merge: true));
 
