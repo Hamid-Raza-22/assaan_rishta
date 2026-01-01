@@ -1120,6 +1120,20 @@ Future<void> showImageOptions() async {
     }
   }
 
+  /// Check if messages contain a message for this specific admin profile ID
+  /// This ensures we only auto-confirm if connect was already deducted for THIS profile
+  bool _hasMessageForThisProfile(List<Message> messages) {
+    if (originalProfileId == null) return false;
+    
+    final profileIdPattern = '📋 Profile ID: $originalProfileId';
+    for (final msg in messages) {
+      if (msg.msg.contains(profileIdPattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Initialize chat with proper loading states
   Future<void> _initializeChat() async {
     // FIXED: Set this user as the selected user immediately
@@ -1134,6 +1148,13 @@ Future<void> showImageOptions() async {
       debugPrint('📦 Loaded ${cached.length} messages from cache (Hive)');
       // Sync status from Firestore for cached messages
       _syncCachedMessageStatus();
+      
+      // FIXED: For admin-managed profiles, only auto-confirm if message exists for THIS specific profile
+      // This prevents showing "Continue Chat" for different admin profiles sharing the same admin user
+      if (isAdminManagedProfile && _hasMessageForThisProfile(cached)) {
+        hasConfirmedAdminChat.value = true;
+        debugPrint('✅ Auto-confirmed admin chat - message exists for profile $originalProfileId');
+      }
     }
 
     // Set chat status first
@@ -1212,6 +1233,13 @@ Future<void> showImageOptions() async {
         if (isInitialLoading.value) {
           debugPrint('✅ Message stream delivered. Turning off loading.');
           isInitialLoading.value = false;
+        }
+
+        // FIXED: For admin-managed profiles, only auto-confirm if message exists for THIS specific profile
+        // This prevents showing "Continue Chat" for different admin profiles sharing the same admin user
+        if (isAdminManagedProfile && !hasConfirmedAdminChat.value && _hasMessageForThisProfile(messages)) {
+          hasConfirmedAdminChat.value = true;
+          debugPrint('✅ Auto-confirmed admin chat - message found for profile $originalProfileId in stream');
         }
 
         // FIXED: Only mark messages as read if:
@@ -1377,7 +1405,11 @@ Future<void> showImageOptions() async {
 
         // Send first message
         debugPrint('📨 Sending first message...');
-        await chatController.sendFirstMessage(firstMsg);
+        // Pass originalProfileId for admin-created profiles to deduct connects correctly
+        final profileIdForConnects = isAdminManagedProfile && originalProfileId != null 
+            ? originalProfileId.toString() 
+            : null;
+        await chatController.sendFirstMessage(firstMsg, profileIdForConnects: profileIdForConnects);
         debugPrint('✅ First message sent successfully');
       } else {
         debugPrint('⚠️ User already exists, sending as regular message');

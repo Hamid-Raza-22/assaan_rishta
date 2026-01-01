@@ -710,7 +710,7 @@ _clearImageFromCache(String imageUrl) {
 
 
   // FIXED: Better first message handling with status tracking
-  Future<void> sendFirstMessage(String text) async {
+  Future<void> sendFirstMessage(String text, {String? profileIdForConnects}) async {
     if (selectedUser.value == null) {
       debugPrint('❌ ERROR: No selected user for first message');
       throw Exception('Selected user not set');
@@ -749,6 +749,7 @@ _clearImageFromCache(String imageUrl) {
         text.trim(),
         Type.text,
         messageId: time,
+        profileIdForConnects: profileIdForConnects,
         onStatusUpdate: (status) async {
           // Update the message status in the list
           final index = messages.indexWhere((m) => m.sent == time);
