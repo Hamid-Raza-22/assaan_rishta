@@ -29,6 +29,7 @@ class PartnerPreferenceController extends GetxController {
 
 
 
+
   List<String> ageFromList =
   List.generate(33, (index) => (18 + index).toString());
   RxString ageFrom = "".obs;
