@@ -44,27 +44,29 @@ class ProfilesList {
   String? occupation;
   String? callStatus;
   bool? blurProfileImage;
+  int? profileCreatedBy;
 
   ProfilesList(
       {this.userId,
-      this.name,
-      this.dateOfBirth,
-      this.currentLocationCityId,
-      this.cityName,
-      this.profileImage,
-      this.gender,
-      this.maritalStatus,
-      this.favCount,
-      this.matLogo,
-      this.matName,
-      this.cast,
-      this.favourite,
-      this.age,
-      this.countryName,
-      this.stateName,
-      this.occupation,
-      this.callStatus,
-      this.blurProfileImage});
+        this.name,
+        this.dateOfBirth,
+        this.currentLocationCityId,
+        this.cityName,
+        this.profileImage,
+        this.gender,
+        this.maritalStatus,
+        this.favCount,
+        this.matLogo,
+        this.matName,
+        this.cast,
+        this.favourite,
+        this.age,
+        this.countryName,
+        this.stateName,
+        this.occupation,
+        this.callStatus,
+        this.blurProfileImage,
+        this.profileCreatedBy});
 
   ProfilesList.fromJson(Map<String, dynamic> json) {
     userId = json['user_id'];
@@ -86,6 +88,8 @@ class ProfilesList {
     occupation = json['occupation'];
     callStatus = json['call_status'];
     blurProfileImage = json['is_blur'] ?? false;
+    // Check both possible field names from API
+    profileCreatedBy = json['profile_createdby'] ?? json['profile_created_by'];
   }
 
   Map<String, dynamic> toJson() {
@@ -109,6 +113,7 @@ class ProfilesList {
     data['occupation'] = occupation;
     data['call_status'] = callStatus;
     data['is_blur'] = blurProfileImage;
+    data['profile_created_by'] = profileCreatedBy;
     return data;
   }
 }

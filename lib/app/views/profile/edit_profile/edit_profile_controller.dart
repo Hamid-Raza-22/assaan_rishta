@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import '../../../utils/exports.dart';
 import '../../../core/export.dart';
+import '../../../core/services/env_config_service.dart';
 import '../../../domain/export.dart';
 import '../../../viewmodels/signup_viewmodel.dart'; // For PhoneValidationRule
 
@@ -18,11 +19,20 @@ class EditProfileController extends GetxController {
   final systemConfigUseCases = Get.find<SystemConfigUseCase>();
   RxBool isLoading = false.obs;
 
+  // Admin managing another user's profile
+  bool isAdminManaging = false;
+  int? targetUserId;
+
   var profileDetails = CurrentUserProfile().obs;
   List<AllCountries> countryList = [];
   List<AllStates> stateList = [];
   List<AllCities> cityList = [];
   List<String> occupationList = [];
+
+  /// Get the effective user ID (target user if admin managing, otherwise logged-in user)
+  int get effectiveUserId => isAdminManaging && targetUserId != null
+      ? targetUserId!
+      : useCases.getUserId() ?? 0;
 
   ///general information
   var firstNameTEC = TextEditingController();
@@ -153,7 +163,7 @@ class EditProfileController extends GetxController {
 
   ///general info
   final generalInfoFormKey = GlobalKey<FormState>();
-  
+
   ///origin
   final originFormKey = GlobalKey<FormState>();
   var ethnicOrigin = "".obs;
@@ -217,9 +227,24 @@ class EditProfileController extends GetxController {
 
   @override
   void onInit() {
+    // Check if admin is managing another user's profile
+    _checkAdminManagingArguments();
     _generateHeightList();
     _initDropDownAPIs();
     super.onInit();
+  }
+
+  /// Check arguments for admin managing another user
+  void _checkAdminManagingArguments() {
+    final args = Get.arguments;
+    if (args != null && args is Map<String, dynamic>) {
+      isAdminManaging = args['isAdminManaging'] == true;
+      final userIdStr = args['userId']?.toString();
+      if (userIdStr != null && userIdStr.isNotEmpty) {
+        targetUserId = int.tryParse(userIdStr);
+      }
+      debugPrint('🔐 EditProfileController - isAdminManaging: $isAdminManaging, targetUserId: $targetUserId');
+    }
   }
 
   // Updated phone validation with country-specific rules
@@ -258,24 +283,24 @@ class EditProfileController extends GetxController {
 
     switch (countryISO) {
       case 'PK':
-        // Pakistan: Mobile numbers must start with 3
+      // Pakistan: Mobile numbers must start with 3
         return digitsOnly.startsWith('3') && digitsOnly.length == 10;
       case 'IN':
-        // India: Mobile numbers must start with 6-9
+      // India: Mobile numbers must start with 6-9
         if (digitsOnly.length != 10) return false;
         final firstDigit = int.tryParse(digitsOnly[0]) ?? 0;
         return firstDigit >= 6 && firstDigit <= 9;
       case 'US':
       case 'CA':
-        // US/Canada: Cannot start with 0 or 1
+      // US/Canada: Cannot start with 0 or 1
         if (digitsOnly.length != 10) return false;
         final firstDigit = int.tryParse(digitsOnly[0]) ?? 0;
         return firstDigit >= 2 && firstDigit <= 9;
       case 'SA':
-        // Saudi Arabia: Mobile must start with 5
+      // Saudi Arabia: Mobile must start with 5
         return digitsOnly.startsWith('5') && digitsOnly.length == 9;
       case 'AE':
-        // UAE: Mobile must start with 5
+      // UAE: Mobile must start with 5
         return digitsOnly.startsWith('5') && digitsOnly.length == 9;
       default:
         return true; // Allow any format for other countries
@@ -305,10 +330,18 @@ class EditProfileController extends GetxController {
 
   getCurrentUserProfiles() async {
     isLoading.value = true;
-    final response = await useCases.getCurrentUserProfile();
+
+    // Use correct API based on admin managing or not
+    final response = isAdminManaging && targetUserId != null
+        ? await useCases.getUserProfileById(userId: targetUserId!)
+        : await useCases.getCurrentUserProfile();
+
+    debugPrint('📋 EditProfile - Fetching profile for: ${isAdminManaging ? "target user $targetUserId" : "logged-in user"}');
+
     return response.fold(
           (error) {
         isLoading.value = false;
+        debugPrint('❌ EditProfile - Error fetching profile: ${error.description}');
       },
           (success) {
         profileDetails.value = success;
@@ -323,6 +356,7 @@ class EditProfileController extends GetxController {
         setHealthInformation(success);
         setOriginInformation(success);
         isLoading.value = false;
+        debugPrint('✅ EditProfile - Profile loaded for: ${success.firstName} ${success.lastName}');
         update();
       },
     );
@@ -441,7 +475,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      "user_id": useCases.getUserId(),
+      "user_id": effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       "first_name": firstNameTEC.text,
@@ -491,7 +525,7 @@ class EditProfileController extends GetxController {
 
           // Update in the correct Hamid_users collection
           await FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(userId)
               .update({
             'name': fullName,
@@ -530,7 +564,7 @@ class EditProfileController extends GetxController {
   //     debugPrint('🔗 Image URL: $imageUrl');
   //
   //     await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(userId)
   //         .update({
   //       'image': imageUrl,
@@ -576,7 +610,7 @@ class EditProfileController extends GetxController {
   //     // updateData['image'] = profile.imageUrl ?? "";
   //
   //     await FirebaseFirestore.instance
-  //         .collection('Hamid_users')
+  //         .collection(EnvConfig.firebaseUsersCollection)
   //         .doc(userId)
   //         .update(updateData);
   //
@@ -591,7 +625,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'profile_name': profileNameTEC.text.toLowerCase(),
@@ -624,7 +658,7 @@ class EditProfileController extends GetxController {
             final userId = useCases.getUserId().toString();
 
             await FirebaseFirestore.instance
-                .collection('Hamid_users')
+                .collection(EnvConfig.firebaseUsersCollection)
                 .doc(userId)
                 .update({
               'about': profileNameTEC.text.trim(),
@@ -646,7 +680,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'about_myself': aboutMyselfTEC.text,
@@ -672,7 +706,7 @@ class EditProfileController extends GetxController {
           final userId = useCases.getUserId().toString();
 
           await FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(userId)
               .update({
             'about': aboutMyselfTEC.text.trim().isEmpty
@@ -695,7 +729,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'street_address': streetAddressTEC.text,
@@ -731,7 +765,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'monthly_income': monthlyIncome.value,
@@ -761,7 +795,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'complexion': complexion.value,
@@ -794,7 +828,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'live_with': liveWith.value,
@@ -834,7 +868,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'namaz': getBoolString(namaz.value),
@@ -873,7 +907,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'blood_group': bloodGroup.value,
@@ -913,7 +947,7 @@ class EditProfileController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, dynamic> payload = {
-      'user_id': useCases.getUserId(),
+      'user_id': effectiveUserId,
       "profile_id": profileDetails.value.profileId,
       "roll_id": 0,
       'ethnic_origin': ethnicOrigin.value,
@@ -958,19 +992,19 @@ class EditProfileController extends GetxController {
     lastNameTEC.text = '${profile.lastName}';
     gender.value = '${profileDetails.value.gender}';
     caste = profileDetails.value.cast ?? "";
-    
+
     // Parse mobile number and extract country code
     String fullMobileNo = '${profileDetails.value.mobileNo}';
     String localNumber = '';
-    
+
     if (fullMobileNo.startsWith('+')) {
       // Extract digits only
       String digitsOnly = fullMobileNo.replaceAll(RegExp(r'[^\d]'), '');
-      
+
       // Try to match dial code and extract country ISO code
       String? detectedISO;
       String dialCode = '';
-      
+
       // Try matching from longest to shortest dial codes (3, 2, 1 digits)
       for (int length = 3; length >= 1; length--) {
         if (digitsOnly.length > length) {
@@ -983,7 +1017,7 @@ class EditProfileController extends GetxController {
           }
         }
       }
-      
+
       // Set country code if detected, otherwise default to PK
       if (detectedISO != null) {
         countryCode.value = detectedISO;
@@ -991,20 +1025,20 @@ class EditProfileController extends GetxController {
         countryCode.value = 'PK';
         localNumber = digitsOnly;
       }
-      
+
       debugPrint('📱 Mobile: $fullMobileNo');
       debugPrint('📱 Dial Code: $dialCode');
       debugPrint('📱 ISO Code: ${countryCode.value}');
       debugPrint('📱 Local Number: $localNumber');
-      
+
     } else {
       // No country code prefix, assume it's just local number
       localNumber = fullMobileNo.replaceAll(RegExp(r'[^\d]'), '');
       countryCode.value = 'PK'; // Default to Pakistan
     }
-    
+
     mobileTEC.text = localNumber;
-    
+
     DateTime dateTime = DateTime.parse('${profileDetails.value.dateOfBirth}');
     dobTEC.text = DateFormat('dd/MM/yyyy').format(dateTime);
     selectedDateTime.value = dateTime;

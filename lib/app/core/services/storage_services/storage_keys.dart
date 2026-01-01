@@ -21,4 +21,5 @@ class StorageKeys {
   static const String userPic = "userPic";
   static const String userPassword = "userPassword";
   static const String isUserLoggedIn = "isUserLoggedIn";
+  static const String userRoleId = "userRoleId";
 }

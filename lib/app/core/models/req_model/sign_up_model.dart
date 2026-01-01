@@ -20,6 +20,7 @@ class SignUpModel {
   int roleId;
   String? profilePhotoPath; // Optional photo file path (for local reference)
   String? profilePhotoBase64; // Optional photo base64 data (for server upload)
+  int? profileCreatedBy; // Admin user ID who created this profile
 
   SignUpModel({
     required this.catename,
@@ -42,7 +43,9 @@ class SignUpModel {
     required this.userDiWohtiKaTaruf,
     required this.roleId,
     this.profilePhotoPath, // Optional parameter
-    this.profilePhotoBase64, // Optional parameter
+    this.profilePhotoBase64,
+    this.profileCreatedBy, // Optional parameter for admin registration
+// Optional parameter
   });
 
   factory SignUpModel.fromJson(Map<String, dynamic> json) {
@@ -66,6 +69,8 @@ class SignUpModel {
       userKaTaruf: json['userKaTaruf'],
       userDiWohtiKaTaruf: json['userDiWohtiKaTaruf'],
       roleId: json['role_id'],
+      profileCreatedBy: json['profile_createdby'],
+
     );
   }
 
@@ -92,6 +97,8 @@ class SignUpModel {
       'role_id': roleId,
       if (profilePhotoBase64 != null && profilePhotoBase64!.isNotEmpty)
         'user_image': profilePhotoBase64,
+      if (profileCreatedBy != null && profileCreatedBy! > 0)
+        'profile_createdby': profileCreatedBy,
     };
   }
 }

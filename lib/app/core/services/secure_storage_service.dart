@@ -35,17 +35,18 @@ class SecureStorageService {
   static const String _keyUserPic = 'user_pic';
   static const String _keyUserPassword = 'user_password';
   static const String _keyUserPhone = 'user_phone';
+  static const String _keyUserRoleId = 'user_role_id';
   static const String _keyIsUserLoggedIn = 'is_user_logged_in';
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyLastLoginTime = 'last_login_time';
   static const String _keyFCMToken = 'fcm_token';
-  
+
   // App preferences keys
   static const String _keyHasSeenOnboarding = 'has_seen_onboarding';
   static const String _keyFirstInstall = 'first_install';
 
   // ==================== Auth Token Methods ====================
-  
+
   /// Save authentication token
   Future<void> saveAuthToken(String token) async {
     try {
@@ -78,7 +79,7 @@ class SecureStorageService {
   }
 
   // ==================== Refresh Token Methods ====================
-  
+
   /// Save refresh token
   Future<void> saveRefreshToken(String token) async {
     try {
@@ -100,7 +101,7 @@ class SecureStorageService {
   }
 
   // ==================== User Data Methods ====================
-  
+
   /// Save user ID
   Future<void> saveUserId(String userId) async {
     try {
@@ -193,6 +194,26 @@ class SecureStorageService {
     } catch (e) {
       debugPrint('❌ Error reading user pic: $e');
       return null;
+    }
+  }
+
+  /// Save user role ID
+  Future<void> saveUserRoleId(int roleId) async {
+    try {
+      await _storage.write(key: _keyUserRoleId, value: roleId.toString());
+    } catch (e) {
+      debugPrint('❌ Error saving user role ID: $e');
+    }
+  }
+
+  /// Get user role ID
+  Future<int> getUserRoleId() async {
+    try {
+      final value = await _storage.read(key: _keyUserRoleId);
+      return int.tryParse(value ?? '0') ?? 0;
+    } catch (e) {
+      debugPrint('❌ Error reading user role ID: $e');
+      return 0;
     }
   }
 
@@ -305,6 +326,7 @@ class SecureStorageService {
     required String name,
     required String pic,
     String? accessToken,
+    int? roleId,
   }) async {
     try {
       await saveUserId(userId.toString());
@@ -312,11 +334,15 @@ class SecureStorageService {
       await saveUserName(name);
       await saveUserPic(pic);
       await setUserLoggedIn(true);
-      
+
       if (accessToken != null) {
         await saveAccessToken(accessToken);
       }
-      
+
+      if (roleId != null) {
+        await saveUserRoleId(roleId);
+      }
+
       await saveLastLoginTime();
       debugPrint('✅ Complete user session saved securely');
     } catch (e) {
@@ -334,11 +360,11 @@ class SecureStorageService {
       final pic = await getUserPic();
       final isLoggedIn = await isUserLoggedIn();
       final accessToken = await getAccessToken();
-      
+
       if (userId == null || !isLoggedIn) {
         return null;
       }
-      
+
       return {
         'userId': int.tryParse(userId),
         'email': email,
@@ -354,7 +380,7 @@ class SecureStorageService {
   }
 
   // ==================== Settings Methods ====================
-  
+
   /// Save biometric enabled status
   Future<void> setBiometricEnabled(bool enabled) async {
     try {
@@ -402,7 +428,7 @@ class SecureStorageService {
   }
 
   // ==================== Generic Methods ====================
-  
+
   /// Save any key-value pair securely
   Future<void> write(String key, String value) async {
     try {
@@ -463,7 +489,7 @@ class SecureStorageService {
   }
 
   // ==================== App Preferences Methods ====================
-  
+
   /// Save onboarding completion status
   Future<void> setHasSeenOnboarding(bool hasSeen) async {
     try {

@@ -70,8 +70,14 @@ class _BottomNavViewState extends State<BottomNavView> {
 
       // Use post frame callback to avoid calling updateTab during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Ensure initial index is within valid range
+        // Check for initialIndex from arguments (used when navigating from signup)
         int validIndex = widget.index;
+        final args = Get.arguments;
+        if (args != null && args is Map && args['initialIndex'] != null) {
+          validIndex = args['initialIndex'] as int;
+        }
+
+        // Ensure initial index is within valid range
         if (validIndex >= controller.pageCount) {
           validIndex = 0;
         }
@@ -170,22 +176,25 @@ class _BottomNavViewState extends State<BottomNavView> {
           fontWeight: FontWeight.w400,
           fontSize: 10,
         ),
-        items: _buildNavItems(currentIndex, isLoggedIn),
+        items: _buildNavItems(currentIndex, isLoggedIn, controller),
       );
     });
   }
 
-  List<BottomNavigationBarItem> _buildNavItems(int selectedIndex, bool isLoggedIn) {
+  List<BottomNavigationBarItem> _buildNavItems(int selectedIndex, bool isLoggedIn, BottomNavController controller) {
     List<Map<String, String>> items;
 
     if (isLoggedIn) {
+      // Check if user is admin (roleId 3)
+      final isAdmin = controller.userRoleId.value == 3;
+
       // All 5 tabs for logged in users
       items = [
         {'icon': AppAssets.icHome, 'label': 'Home'},
         {'icon': AppAssets.icVendor, 'label': 'Vendors'},
         {'icon': AppAssets.icChat, 'label': 'Chats'},
         {'icon': AppAssets.icFilter, 'label': 'Filter'},
-        {'icon': AppAssets.icProfile, 'label': 'Profile'},
+        {'icon': AppAssets.icProfile, 'label': isAdmin ? 'Dashboard' : 'Profile'},
       ];
     } else {
       // Only 4 tabs for guest users

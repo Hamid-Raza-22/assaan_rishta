@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 
@@ -27,6 +28,7 @@ class UserDetailsController extends GetxController {
   var receiverId = ''.obs;
   RxBool isLoading = true.obs; // Start with true to show loading immediately
   RxInt totalConnects = 0.obs;
+  RxBool isAlreadyConnected = false.obs; // Track if user is already connected/chatting
   VideoPlayerController? videoController;
 
   @override
@@ -101,7 +103,8 @@ class UserDetailsController extends GetxController {
 
     if (isLoggedIn && Get.isRegistered<ChatViewModel>()) {
       chatController = Get.find<ChatViewModel>();
-     await getConnects();
+      await getConnects();
+      await checkIfAlreadyConnected();
       debugPrint('💬 ChatController initialized');
     } else {
       debugPrint('💬 ChatController not initialized - user not logged in or service not available');
@@ -194,11 +197,14 @@ class UserDetailsController extends GetxController {
             (success) {
           debugPrint('✅ Profile loaded successfully: ${success.firstName} ${success.lastName}');
           debugPrint('🔵 Blur status from API: ${success.blurProfileImage} (User ID: ${success.userId})');
+          debugPrint('🏷️ profile_created_by from API: ${success.profileCreatedBy}');
           profileDetails.value = success;
           isLoading.value = false;
           update(); // Force UI update
           // Prefetch video preview assets ASAP
           _prefetchVideoPreview();
+          // Check connection status after profile details are loaded (needs profileCreatedBy)
+          checkIfAlreadyConnected();
         },
       );
     } catch (e) {
@@ -273,6 +279,49 @@ class UserDetailsController extends GetxController {
     );
   }
 
+  /// Check if current user is already connected/chatting with this profile
+  /// Users who are already connected should NOT need connects to message
+  Future<void> checkIfAlreadyConnected() async {
+    if (receiverId.value.isEmpty) {
+      debugPrint('⚠️ Cannot check connection - no receiver ID');
+      return;
+    }
+
+    try {
+      final currentUserId = useCase.getUserId()?.toString();
+      if (currentUserId == null) {
+        debugPrint('⚠️ Cannot check connection - no current user ID');
+        return;
+      }
+
+      // Check if this profile is an admin-created profile
+      final int? profileCreatedBy = profileDetails.value.profileCreatedBy;
+      final bool isAdminCreatedProfile = profileCreatedBy != null && profileCreatedBy > 0;
+
+      // For admin-created profiles, check connection with the admin
+      final String targetUserId = isAdminCreatedProfile
+          ? profileCreatedBy.toString()
+          : receiverId.value;
+
+      debugPrint('🔍 Checking if already connected with: $targetUserId (admin profile: $isAdminCreatedProfile)');
+
+      // Check if target user exists in current user's my_users collection
+      final myUserDoc = await FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(currentUserId)
+          .collection('my_users')
+          .doc(targetUserId)
+          .get();
+
+      isAlreadyConnected.value = myUserDoc.exists;
+      debugPrint('✅ Already connected: ${isAlreadyConnected.value}');
+      update();
+    } catch (e) {
+      debugPrint('❌ Error checking connection status: $e');
+      isAlreadyConnected.value = false;
+    }
+  }
+
   void navigateToLogin() {
     Get.toNamed(AppRoutes.ACCOUNT_TYPE);
     if (!Get.isSnackbarOpen) {
@@ -309,8 +358,127 @@ class UserDetailsController extends GetxController {
 
     pauseVideoPlayback();
 
+    // Check if this is an admin-created profile
+    final int? profileCreatedBy = profileDetails.value.profileCreatedBy;
+    final bool isAdminCreatedProfile = profileCreatedBy != null && profileCreatedBy > 0;
+
+    // Prevent admin from messaging their own created profiles
+    final int? currentUserId = useCase.getUserId();
+    if (isAdminCreatedProfile && currentUserId != null && currentUserId == profileCreatedBy) {
+      debugPrint('🚫 Admin cannot message their own created profile');
+      if (!Get.isSnackbarOpen) {
+        Get.snackbar(
+          'Not Allowed',
+          'You cannot message profiles that you created',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.redColor,
+          colorText: AppColors.whiteColor,
+          duration: const Duration(seconds: 3),
+        );
+      }
+      return;
+    }
+
+    debugPrint('🔍 Chat Routing Check:');
+    debugPrint('   Profile ID: ${profileDetails.value.userId}');
+    debugPrint('   Profile Name: ${profileDetails.value.firstName} ${profileDetails.value.lastName}');
+    debugPrint('   profile_created_by value: $profileCreatedBy');
+    debugPrint('   Is Admin Created: $isAdminCreatedProfile');
+
+    if (isAdminCreatedProfile) {
+      // Route chat to admin with profile context (inline system message in chat)
+      debugPrint('🔄 Routing chat to admin ID: $profileCreatedBy');
+      await _initiateAdminChatWithContext(context, profileCreatedBy);
+      return;
+    }
+
+    // Normal chat flow for non-admin profiles
+    await _initiateNormalChat(context);
+  }
+
+  /// Initiate chat with admin, passing profile context for inline system message
+  Future<void> _initiateAdminChatWithContext(BuildContext context, int adminId) async {
+    String adminIdStr = adminId.toString();
+
+    // Check if admin user is deactivated
+    bool isDeactivated = await _checkIfUserIsDeactivated(adminIdStr);
+    if (isDeactivated) {
+      if (!Get.isSnackbarOpen) {
+        Get.snackbar(
+          'Admin Unavailable',
+          'The matrimonial team is currently unavailable',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.redColor,
+          colorText: AppColors.whiteColor,
+          duration: const Duration(seconds: 3),
+        );
+      }
+      return;
+    }
+
+    final time = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // Create chat user for admin with a reference to the profile
+    ChatUser adminUser = ChatUser(
+      image: AppConstants.profileImg,
+      about: "Matrimonial Team",
+      name: "Matrimonial Admin",
+      createdAt: time,
+      lastActive: time,
+      lastMessage: time,
+      isOnline: false,
+      isInside: false,
+      isMobileOnline: false,
+      isWebOnline: false,
+      id: adminIdStr,
+      pushToken: "",
+      email: "admin@asaanrishta.com",
+    );
+
+    debugPrint('💬 Initiating chat with admin: $adminIdStr (for profile: ${profileDetails.value.userId})');
+
+    // Prepare admin profile context for inline system message
+    final adminProfileContext = {
+      'chatUser': adminUser,
+      'isAdminManagedProfile': true,
+      'originalProfileId': profileDetails.value.userId,
+      'originalProfileName': '${profileDetails.value.firstName} ${profileDetails.value.lastName}',
+      'originalProfileImage': profileDetails.value.profileImage ?? AppConstants.profileImg,
+    };
+
+    await chatController!.userExists(adminIdStr).then((exist) async {
+      if (exist) {
+        ChatUser? chatUser = await chatController!.getUserById(adminIdStr, AppConstants.profileImg);
+        if (chatUser != null) {
+          await chatController!.addChatUser(chatUser.id);
+          // Pass admin profile context as arguments
+          Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: {
+            ...adminProfileContext,
+            'chatUser': chatUser,
+          })!.then((onValue) async {
+            await chatController!.setInsideChatStatus(false);
+          });
+        }
+      } else {
+        await chatController!.createUser(
+          name: "Matrimonial Admin",
+          id: adminIdStr,
+          email: "admin@asaanrishta.com",
+          image: AppConstants.profileImg,
+          isOnline: false,
+          isMobileOnline: false,
+        ).then((onValue) async {
+          await chatController!.addChatUser(adminUser.id);
+          // Pass admin profile context as arguments
+          Get.toNamed(AppRoutes.CHATTING_VIEW, arguments: adminProfileContext);
+        });
+      }
+    });
+  }
+
+  Future<void> _initiateNormalChat(BuildContext context) async {
     String receiverIdStr = '${profileDetails.value.userId}';
-    
+
     // Check if user is deactivated
     bool isDeactivated = await _checkIfUserIsDeactivated(receiverIdStr);
     if (isDeactivated) {
@@ -334,19 +502,19 @@ class UserDetailsController extends GetxController {
     debugPrint('💬 Sending message to: $receiverIdStr');
 
     ChatUser user = ChatUser(
-      image: userImage,
-      about: "Hey, I am using We Chat !!",
-      name: receiverName,
-      createdAt: time,
-      lastActive: time,
-      lastMessage: time,
-      isOnline: false,
-      isInside: false,
-      isMobileOnline: false,
-      isWebOnline: false,
-      id: receiverIdStr,
-      pushToken: "",
-      email: receiverEmail);
+        image: userImage,
+        about: "Hey, I am using We Chat !!",
+        name: receiverName,
+        createdAt: time,
+        lastActive: time,
+        lastMessage: time,
+        isOnline: false,
+        isInside: false,
+        isMobileOnline: false,
+        isWebOnline: false,
+        id: receiverIdStr,
+        pushToken: "",
+        email: receiverEmail);
 
     await chatController!.userExists(receiverIdStr).then((exist) async {
       if (exist) {
@@ -564,7 +732,7 @@ class UserDetailsController extends GetxController {
     if (gender == null || gender.isEmpty) {
       return AppAssets.imagePlaceholder;
     }
-    
+
     // Check gender (case-insensitive)
     final genderLower = gender.toLowerCase();
     if (genderLower == 'male') {
@@ -579,11 +747,13 @@ class UserDetailsController extends GetxController {
   /// Check if user is deactivated in Firebase
   Future<bool> _checkIfUserIsDeactivated(String userId) async {
     try {
+      // FIXED: Force fetch from server to get latest deactivation status
+      // This ensures admin panel changes are reflected immediately
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
-          .get();
-      
+          .get(const GetOptions(source: Source.server));
+
       if (userDoc.exists) {
         final data = userDoc.data();
         final isDeactivated = data?['is_deactivated'] ?? false;

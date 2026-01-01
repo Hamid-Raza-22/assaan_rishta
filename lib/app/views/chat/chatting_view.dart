@@ -16,6 +16,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../core/export.dart';
+import '../../core/services/env_config_service.dart';
 import '../../core/utils/screen_security.dart';
 import '../../core/routes/app_routes.dart';
 import '../../domain/use_cases/user_management_use_case/user_management_use_case.dart';
@@ -32,6 +33,16 @@ import '../../widgets/typing_indicator.dart';
 
 class ChattingViewController extends GetxController with WidgetsBindingObserver {
   final ChatUser user;
+  // Admin profile context for inline system message
+  final bool isAdminManagedProfile;
+  final int? originalProfileId;
+  final String? originalProfileName;
+  final String? originalProfileImage;
+  // Track if user has clicked Continue Chat
+  final RxBool hasConfirmedAdminChat = false.obs;
+  // Track if admin chat message is being sent (for loading state)
+  final RxBool isSendingAdminChat = false.obs;
+
   String getSelectionCountText() {
     final count = selectedMessages.length;
     if (count == 0) return 'No messages selected';
@@ -54,7 +65,11 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     required this.user,
     this.initialBlockedStatus,
     this.initialBlockedByOtherStatus,
-    this.initialDeletedStatus
+    this.initialDeletedStatus,
+    this.isAdminManagedProfile = false,
+    this.originalProfileId,
+    this.originalProfileName,
+    this.originalProfileImage,
   });
 
   // Dependencies
@@ -92,7 +107,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
   // FIXED: Track the current chat user ID properly
   String? _currentChatUserId;
-  
+
   // PERFORMANCE: Throttle read receipts to prevent cascade
   DateTime? _lastReadReceiptTime;
   Timer? _readReceiptBatchTimer;
@@ -105,17 +120,17 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   @override
   void onInit() {
     super.onInit();
-    
+
     // Enable screen security (block screenshots & recording)
     ScreenSecurity.enableScreenSecurity();
-    
+
     // Add disposal flag
     scrollController = ScrollController();
     // Listen to keyboard visibility
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _listenToKeyboardVisibility();
     });
-   _isDisposed = false;
+    _isDisposed = false;
     WidgetsBinding.instance.addObserver(this);
     currentUID = useCase.getUserId().toString();
     textController = TextEditingController();
@@ -442,7 +457,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     if (isDeactivated) {
       Get.snackbar(
         'User Unavailable',
-        'This user has deactivated their profile. You cannot send messages.',
+        'This user has Deleted their profile. You cannot send messages.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.redColor,
         colorText: AppColors.whiteColor,
@@ -482,14 +497,14 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     try {
       // Get current user's profile from Firestore
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUID)
           .get();
 
       if (userDoc.exists) {
         final data = userDoc.data();
-        currentUserImageUrl.value = AppUtils.sanitizeImageUrl(data?['image']) .isEmpty 
-            ? AppConstants.profileImg 
+        currentUserImageUrl.value = AppUtils.sanitizeImageUrl(data?['image']) .isEmpty
+            ? AppConstants.profileImg
             : AppUtils.sanitizeImageUrl(data?['image']);
       }
     } catch (e) {
@@ -505,7 +520,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     );
 
     _typingStatusSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .snapshots()
         .listen((snapshot) {
@@ -575,7 +590,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       );
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .set({
         'typing_status': {
@@ -615,33 +630,33 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     debugPrint('🔄 Starting cached message status sync...');
     try {
       final conversationId = chatController.getConversationId(currentUID, user.id);
-      
+
       // Get deletion timestamp for filtering
       final deletionTime = chatController.currentChatDeletionTime.value;
       final deletionTimestamp = deletionTime != null ? int.tryParse(deletionTime) : null;
-      
+
       debugPrint('   Conversation ID: $conversationId');
       debugPrint('   Cached messages count: ${cachedMessages.length}');
       debugPrint('   Deletion filter: $deletionTimestamp');
-      
+
       // Get all messages from Firestore
       final snapshot = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .get();
-      
+
       debugPrint('   Firestore messages count: ${snapshot.docs.length}');
-      
+
       bool hasChanges = false;
       final updatedMessages = List<Message>.from(cachedMessages);
       int filteredCount = 0;
       int processedCount = 0;
-      
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final messageId = doc.id;
-        
+
         // IMPORTANT: Filter out messages before deletion timestamp
         if (deletionTimestamp != null) {
           final messageTimestamp = int.tryParse(messageId);
@@ -651,26 +666,26 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             continue;
           }
         }
-        
+
         processedCount++;
-        
+
         // Find message in cached list
         final index = updatedMessages.indexWhere((m) => m.sent == messageId);
         if (index != -1) {
           final message = updatedMessages[index];
-          
+
           // Parse status from Firestore
           final newStatus = _parseMessageStatus(data);
           final newDelivered = data['delivered']?.toString() ?? '';
           final newRead = data['read']?.toString() ?? '';
-          
+
           // IMPORTANT: Only sync if the actual STATUS changes (sent -> delivered -> read)
           // Ignore minor timestamp fluctuations to avoid excessive Hive writes
           final hasStatusChanged = message.status != newStatus;
-          
+
           if (hasStatusChanged) {
             debugPrint('🔄 Syncing status change for message $messageId: ${message.status.name} → ${newStatus.name}');
-            
+
             // Update message with new status
             final updatedMessage = Message(
               toId: message.toId,
@@ -685,16 +700,16 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
               isViewed: message.isViewed,
               reactions: message.reactions,
             );
-            
+
             updatedMessages[index] = updatedMessage;
             hasChanges = true;
           }
         }
       }
-      
+
       // Log summary
       debugPrint('📊 Sync summary: ${snapshot.docs.length} total messages, $filteredCount filtered (deleted), $processedCount processed');
-      
+
       // Update if there were changes
       if (hasChanges) {
         cachedMessages.assignAll(updatedMessages);
@@ -716,9 +731,9 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     _statusUpdateSubscription?.cancel();
 
     debugPrint('🎧 Started listening for status updates in conversation: $conversationId');
-    
+
     _statusUpdateSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(conversationId)
         .collection('messages')
         .snapshots()
@@ -727,7 +742,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       // Get deletion timestamp for filtering
       final deletionTime = chatController.currentChatDeletionTime.value;
       final deletionTimestamp = deletionTime != null ? int.tryParse(deletionTime) : null;
-      
+
       bool hasChanges = false;
       final updatedMessages = List<Message>.from(cachedMessages);
       int filteredCount = 0;
@@ -747,7 +762,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             continue;
           }
         }
-        
+
         processedCount++;
 
         // Handle both added and modified messages
@@ -756,7 +771,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
           // Find message in local list
           final index = updatedMessages.indexWhere((m) => m.sent == messageId);
-          
+
           if (index != -1) {
             final message = updatedMessages[index];
 
@@ -815,10 +830,10 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       // Only update if there were actual changes
       if (hasChanges) {
         cachedMessages.assignAll(updatedMessages);
-        
+
         // NOTE: Don't save to Hive here - the main stream already handles persistence
         // This listener only updates the UI for immediate visual feedback
-        
+
         // Notify listeners to rebuild UI
         debugPrint('🔄 Notifying UI update for status changes (UI only, no Hive save)');
         cachedMessages.refresh();
@@ -854,7 +869,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   // Enhanced reply method
 
 
-Future<void> showImageOptions() async {
+  Future<void> showImageOptions() async {
     showModalBottomSheet(
       context: Get.context!,
       backgroundColor: Colors.transparent,
@@ -967,7 +982,7 @@ Future<void> showImageOptions() async {
     } finally {
       uploading.value = false;
     }
-    }
+  }
 
   Future<bool> _showViewOnceConfirmationDialog(File imageFile) async {
     return await Get.dialog<bool>(
@@ -1023,7 +1038,7 @@ Future<void> showImageOptions() async {
   @override
   void onClose() {
     debugPrint('🗑️ Closing ChattingViewController for ${user.name}');
-    
+
     scrollController.dispose();
 
     // Mark controller as inactive
@@ -1105,25 +1120,53 @@ Future<void> showImageOptions() async {
     }
   }
 
+  /// Check if messages contain a message for this specific admin profile ID
+  /// This ensures we only auto-confirm if connect was already deducted for THIS profile
+  bool _hasMessageForThisProfile(List<Message> messages) {
+    if (originalProfileId == null) return false;
+
+    final profileIdPattern = '📋 Profile ID: $originalProfileId';
+    for (final msg in messages) {
+      if (msg.msg.contains(profileIdPattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Initialize chat with proper loading states
   Future<void> _initializeChat() async {
     // FIXED: Set this user as the selected user immediately
     chatController.selectedUser.value = user;
     debugPrint('✅ Selected user set to: ${user.name} (${user.id})');
 
-
-    // Immediately show cached messages if available (from memory or Hive)
-    final cached = await chatController.getCachedMessages(user.id);
-    if (cached != null && cached.isNotEmpty) {
-      cachedMessages.value = cached;
-      debugPrint('📦 Loaded ${cached.length} messages from cache (Hive)');
-      // Sync status from Firestore for cached messages
-      _syncCachedMessageStatus();
-    }
-
     // Set chat status first
     chatController.setInsideChatStatus(true, chatUserId: user.id);
-    chatController.checkDeletionRecord();
+
+    // CRITICAL: Load deletion record FIRST before showing any cached messages
+    // This prevents the flash of deleted messages
+    await chatController.loadDeletionRecordForUser(user.id);
+
+    // Now load cached messages WITH deletion filter already applied
+    final cached = await chatController.getCachedMessages(user.id);
+    if (cached != null && cached.isNotEmpty) {
+      // Apply deletion filter to cached messages before showing
+      final filteredCached = chatController.applyDeletionFilterToMessages(cached, user.id);
+      if (filteredCached.isNotEmpty) {
+        cachedMessages.value = filteredCached;
+        debugPrint('📦 Loaded ${filteredCached.length} filtered messages from cache (Hive)');
+        // Sync status from Firestore for cached messages
+        _syncCachedMessageStatus();
+
+        // FIXED: For admin-managed profiles, only auto-confirm if message exists for THIS specific profile
+        if (isAdminManagedProfile && _hasMessageForThisProfile(filteredCached)) {
+          hasConfirmedAdminChat.value = true;
+          debugPrint('✅ Auto-confirmed admin chat - message exists for profile $originalProfileId');
+        }
+      } else {
+        debugPrint('📦 All cached messages filtered out by deletion record');
+      }
+    }
 // Mark incoming messages as delivered when entering chat
     await chatController.markIncomingMessagesAsDelivered();
 // Start listening for status updates
@@ -1199,6 +1242,13 @@ Future<void> showImageOptions() async {
           isInitialLoading.value = false;
         }
 
+        // FIXED: For admin-managed profiles, only auto-confirm if message exists for THIS specific profile
+        // This prevents showing "Continue Chat" for different admin profiles sharing the same admin user
+        if (isAdminManagedProfile && !hasConfirmedAdminChat.value && _hasMessageForThisProfile(messages)) {
+          hasConfirmedAdminChat.value = true;
+          debugPrint('✅ Auto-confirmed admin chat - message found for profile $originalProfileId in stream');
+        }
+
         // FIXED: Only mark messages as read if:
         // 1. App is not paused
         // 2. This controller is active
@@ -1240,7 +1290,7 @@ Future<void> showImageOptions() async {
 
       // PERFORMANCE: Batch read receipts with 500ms throttle
       final now = DateTime.now();
-      if (_lastReadReceiptTime != null && 
+      if (_lastReadReceiptTime != null &&
           now.difference(_lastReadReceiptTime!).inMilliseconds < 500) {
         debugPrint('⏭️ Throttled read receipt (${unreadMessages.length} messages, ${now.difference(_lastReadReceiptTime!).inMilliseconds}ms since last)');
         return;
@@ -1253,7 +1303,7 @@ Future<void> showImageOptions() async {
       if (_isActiveController && chatController.selectedUser.value?.id == user.id) {
         final messageIds = unreadMessages.map((m) => m.sent).toList();
         final readTime = DateTime.now().millisecondsSinceEpoch.toString();
-        
+
         // PERFORMANCE: Update local cache IMMEDIATELY to prevent message_card duplicate marking
         for (var message in unreadMessages) {
           message.read = readTime;
@@ -1262,7 +1312,7 @@ Future<void> showImageOptions() async {
           chatController.markAsRecentlyMarked(message.sent);
         }
         cachedMessages.refresh();
-        
+
         // Then update Firestore (async, UI already updated)
         await chatController.chatRepo.markMultipleMessagesAsRead(user.id, messageIds);
       }
@@ -1290,7 +1340,7 @@ Future<void> showImageOptions() async {
     if (isDeactivated.value) {
       Get.snackbar(
         'User Unavailable',
-        'This user has deactivated their profile. You cannot send messages.',
+        'This user has Deleted their profile. You cannot send messages.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: AppColors.redColor,
         colorText: AppColors.whiteColor,
@@ -1362,7 +1412,11 @@ Future<void> showImageOptions() async {
 
         // Send first message
         debugPrint('📨 Sending first message...');
-        await chatController.sendFirstMessage(firstMsg);
+        // Pass originalProfileId for admin-created profiles to deduct connects correctly
+        final profileIdForConnects = isAdminManagedProfile && originalProfileId != null
+            ? originalProfileId.toString()
+            : null;
+        await chatController.sendFirstMessage(firstMsg, profileIdForConnects: profileIdForConnects);
         debugPrint('✅ First message sent successfully');
       } else {
         debugPrint('⚠️ User already exists, sending as regular message');
@@ -1442,21 +1496,21 @@ Future<void> showImageOptions() async {
     if (!Get.isRegistered<ChatListController>() || Get.isRegistered<ChatListController>()) {
       final listController = Get.find<ChatListController>();
       if (!listController.isLoading.value ||
-                    !listController.isRefreshing.value ||
-                    !listController.isNavigatingToChat.value) {
+          !listController.isRefreshing.value ||
+          !listController.isNavigatingToChat.value) {
         await listController.ensureStreamsActive();
       }
     }
 
     // Small delay for smooth transition
     // Future.delayed(const Duration(milliseconds: 100), () {
-      if (Navigator.of(Get.context!).canPop()) {
-        // Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
-        Get.back();
-      } else {
-         Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
-        //Get.to(() => const BottomNavView(index: 2));
-      }
+    if (Navigator.of(Get.context!).canPop()) {
+      // Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
+      Get.back();
+    } else {
+      Get.offNamed(AppRoutes.BOTTOM_NAV2, arguments: 2);
+      //Get.to(() => const BottomNavView(index: 2));
+    }
     // });
   }
   // Check disposal before operations
@@ -1470,14 +1524,14 @@ Future<void> showImageOptions() async {
       ? AppUtils.sanitizeImageUrl(currentUserData.image)
       : AppConstants.profileImg;
   String get blockMessage {
-    if (isDeactivated.value) return "This user has deactivated their account";
+    if (isDeactivated.value) return "This user has Deleted their account";
     if (isBlockedByOther.value || isDelete.value) return "You can no longer message this user";
     return "You have blocked this user";
   }
 
   String get emptyStateMessage {
     if (isAnyBlocked) {
-      if (isDeactivated.value) return 'User account deactivated';
+      if (isDeactivated.value) return 'User account Deleted';
       return isBlockedByOther.value
           ? 'You can no longer message this user'
           : 'You have blocked this user';
@@ -1519,10 +1573,10 @@ Future<void> showImageOptions() async {
   Future<bool> _checkIfUserIsDeactivated(String userId) async {
     try {
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .get();
-      
+
       if (userDoc.exists) {
         final data = userDoc.data();
         final isDeactivated = data?['is_deactivated'] ?? false;
@@ -1543,13 +1597,22 @@ class ChattingView extends StatefulWidget {  // Changed to StatefulWidget
   final bool? isBlocked;
   final bool? isBlockedByOther;
   final bool? isDeleted;
+  // Admin profile context for inline system message
+  final bool isAdminManagedProfile;
+  final int? originalProfileId;
+  final String? originalProfileName;
+  final String? originalProfileImage;
 
   const ChattingView({
     super.key,
     required this.user,
     this.isBlocked,
     this.isBlockedByOther,
-    this.isDeleted
+    this.isDeleted,
+    this.isAdminManagedProfile = false,
+    this.originalProfileId,
+    this.originalProfileName,
+    this.originalProfileImage,
   });
 
   @override
@@ -1581,10 +1644,14 @@ class _ChattingViewState extends State<ChattingView> {
     // Create new controller with unique tag
     controller = Get.put(
       ChattingViewController(
-          user: widget.user,
-          initialBlockedStatus: widget.isBlocked,
-          initialBlockedByOtherStatus: widget.isBlockedByOther,
-          initialDeletedStatus: widget.isDeleted
+        user: widget.user,
+        initialBlockedStatus: widget.isBlocked,
+        initialBlockedByOtherStatus: widget.isBlockedByOther,
+        initialDeletedStatus: widget.isDeleted,
+        isAdminManagedProfile: widget.isAdminManagedProfile,
+        originalProfileId: widget.originalProfileId,
+        originalProfileName: widget.originalProfileName,
+        originalProfileImage: widget.originalProfileImage,
       ),
       tag: controllerTag,
     );
@@ -1631,12 +1698,22 @@ class _ChattingViewState extends State<ChattingView> {
         // ),
         body: Column(
           children: [
+            // Admin profile system message (shown at top for admin-managed profiles)
+            if (controller.isAdminManagedProfile)
+              Obx(() => !controller.hasConfirmedAdminChat.value
+                  ? _buildAdminProfileSystemMessage(controller)
+                  : const SizedBox.shrink()),
             Expanded(child: _buildMessagesList(controller, chatMq)),
             _buildUploadingIndicator(controller),
-            // _buildBottomSection(controller),
-            Obx(() => controller.isSelectionMode.value
-                ? _buildSelectionModeActions(controller)
-                : _buildBottomSection(controller)),
+            // Hide input until admin chat is confirmed
+            Obx(() {
+              if (controller.isAdminManagedProfile && !controller.hasConfirmedAdminChat.value) {
+                return const SizedBox.shrink();
+              }
+              return controller.isSelectionMode.value
+                  ? _buildSelectionModeActions(controller)
+                  : _buildBottomSection(controller);
+            }),
             _buildEmojiPicker(controller, chatMq),
           ],
         ),
@@ -1750,49 +1827,48 @@ class _ChattingViewState extends State<ChattingView> {
               borderRadius: BorderRadius.circular(chatMq.height * .3),
               child: controller.isValidNetworkUrl(controller.userImageUrl)
                   ? CachedNetworkImage(
-                      fit: BoxFit.cover,
-                      height: chatMq.height * .05,
-                      width: chatMq.height * .05,
-                      imageUrl: controller.userImageUrl,
-                      fadeInDuration: const Duration(milliseconds: 0),
-                      fadeOutDuration: const Duration(milliseconds: 0),
-                      placeholder: (c, url) => Container(
-                        height: chatMq.height * .05,
-                        width: chatMq.height * .05,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(chatMq.height * .3),
-                        ),
-                      ),
-                      errorWidget: (c, url, e) => Container(
-                        height: chatMq.height * .05,
-                        width: chatMq.height * .05,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(chatMq.height * .3),
-                        ),
-                        child: const Icon(
-                          CupertinoIcons.person,
-                          color: Colors.grey,
-                          size: 30,
-                        ),
-                      ),
-                    )
+                fit: BoxFit.cover,
+                height: chatMq.height * .05,
+                width: chatMq.height * .05,
+                imageUrl: controller.userImageUrl,
+                fadeInDuration: const Duration(milliseconds: 0),
+                fadeOutDuration: const Duration(milliseconds: 0),
+                placeholder: (c, url) => Container(
+                  height: chatMq.height * .05,
+                  width: chatMq.height * .05,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(chatMq.height * .3),
+                  ),
+                ),
+                errorWidget: (c, url, e) => Container(
+                  height: chatMq.height * .05,
+                  width: chatMq.height * .05,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(chatMq.height * .3),
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.person,
+                    color: Colors.grey,
+                    size: 30,
+                  ),
+                ),
+              )
                   : Container(
-                      height: chatMq.height * .05,
-                      width: chatMq.height * .05,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(chatMq.height * .3),
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.person,
-                        color: Colors.grey,
-                        size: 30,
-                      ),
-                    ),
+                height: chatMq.height * .05,
+                width: chatMq.height * .05,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(chatMq.height * .3),
+                ),
+                child: const Icon(
+                  CupertinoIcons.person,
+                  color: Colors.grey,
+                  size: 30,
+                ),
+              ),
             ),
-
           if (isBlockedByThem || isDelete || hasBlockedThem)
             Container(
               height: chatMq.height * .05,
@@ -1852,126 +1928,279 @@ class _ChattingViewState extends State<ChattingView> {
       );
     });
   }
-  // Move all build methods here as instance methods
-  // Widget _buildAppBar(ChattingViewController controller, Size chatMq) {
-  //   return Obx(() {
-  //     final userData = controller.currentUserData;
-  //     final hasBlockedThem = controller.isBlocked.value;
-  //     final isBlockedByThem = controller.isBlockedByOther.value;
-  //     final isDelete = controller.isDelete.value;
-  //
-  //     return Row(
-  //       children: [
-  //         GestureDetector(
-  //           onTap: controller.navigateBack,
-  //           child: const Icon(Icons.arrow_back_ios, color: Colors.black),
-  //         ),
-  //         // Only show user image if not blocked by them or deleted
-  //         if (!isBlockedByThem && !isDelete && !hasBlockedThem)
-  //           ClipRRect(
-  //             borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //             child: CachedNetworkImage(
-  //               fit: BoxFit.cover,
-  //               height: chatMq.height * .05,
-  //               width: chatMq.height * .05,
-  //               imageUrl: controller.userImageUrl,
-  //               errorWidget: (c, url, e) => Container(
-  //                 height: chatMq.height * .05,
-  //                 width: chatMq.height * .05,
-  //                 decoration: BoxDecoration(
-  //                   color: Colors.grey[300],
-  //                   borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //                 ),
-  //                 child: const Icon(
-  //                   CupertinoIcons.person,
-  //                   color: Colors.grey,
-  //                   size: 30,
-  //                 ),
-  //               ),
-  //               placeholder: (c, url) => Container(
-  //                 height: chatMq.height * .05,
-  //                 width: chatMq.height * .05,
-  //                 decoration: BoxDecoration(
-  //                   color: Colors.grey[200],
-  //                   borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //                 ),
-  //                 child: const Icon(
-  //                   CupertinoIcons.person,
-  //                   color: Colors.grey,
-  //                   size: 30,
-  //                 ),
-  //               ),
-  //             ),
-  //           ),
-  //         // Add a placeholder if blocked or deleted
-  //         if (isBlockedByThem || isDelete || hasBlockedThem)
-  //           Container(
-  //             height: chatMq.height * .05,
-  //             width: chatMq.height * .05,
-  //             decoration: BoxDecoration(
-  //               color: Colors.grey[300],
-  //               borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //             ),
-  //             child: const Icon(
-  //               CupertinoIcons.person_fill, // Using person_fill for a more solid look
-  //               color: Colors.grey,
-  //               size: 30,
-  //             ),
-  //           ),
-  //         const SizedBox(width: 12),
-  //
-  //         Expanded(
-  //           child: Column(
-  //             mainAxisAlignment: MainAxisAlignment.center,
-  //             crossAxisAlignment: CrossAxisAlignment.start,
-  //             children: [
-  //               Text(
-  //                 userData.name,
-  //                 style: const TextStyle(
-  //                   color: Colors.black87,
-  //                   fontSize: 18,
-  //                   fontWeight: FontWeight.w500,
-  //                 ),
-  //                 overflow: TextOverflow.ellipsis,
-  //               ),
-  //               const SizedBox(height: 3),
-  //               if (!isBlockedByThem && !isDelete && !hasBlockedThem)
-  //                 Text(
-  //                   userData.isOnline
-  //                       ? 'Online'
-  //                       : MyDateUtill.getLastActiveTime(
-  //                     context: Get.context!,
-  //                     lastActive: userData.lastActive,
-  //                   ),
-  //                   style: const TextStyle(
-  //                     color: Colors.black54,
-  //                     fontSize: 15,
-  //                   ),
-  //                 ),
-  //             ],
-  //           ),
-  //         ),
-  //         if (hasBlockedThem || isBlockedByThem || hasBlockedThem)
-  //           const Padding(
-  //             padding: EdgeInsets.only(right: 10),
-  //             child: Icon(
-  //               Icons.block,
-  //               color: Colors.red,
-  //               size: 24,
-  //             ),
-  //           ),
-  //       ],
-  //     );
-  //   });
-  // }
 
 
+  /// Build admin profile system message for inline disclaimer
+  Widget _buildAdminProfileSystemMessage(ChattingViewController controller) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryColor.withOpacity(0.08),
+            AppColors.secondaryColor.withOpacity(0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header with icon
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.verified_user_rounded,
+                  color: AppColors.primaryColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Admin Managed Profile',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    Text(
+                      'Important Information',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Profile info card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Profile image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(25),
+                  child: controller.originalProfileImage != null &&
+                      controller.originalProfileImage!.isNotEmpty
+                      ? CachedNetworkImage(
+                    imageUrl: controller.originalProfileImage!,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 50,
+                      height: 50,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.person, color: Colors.grey),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 50,
+                      height: 50,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.person, color: Colors.grey),
+                    ),
+                  )
+                      : Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: const Icon(Icons.person, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        controller.originalProfileName ?? 'Unknown',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'Profile ID: ${controller.originalProfileId ?? 'N/A'}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Disclaimer text
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.amber.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.amber[700],
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'This profile is managed by the Matrimonial Admin. Your conversation will be directly with the Matrimonial Team, not the individual profile owner.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Continue Chat button with loading state
+          SizedBox(
+            width: double.infinity,
+            child: Obx(() => ElevatedButton(
+              onPressed: controller.isSendingAdminChat.value
+                  ? null
+                  : () => _handleContinueAdminChat(controller),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.primaryColor.withOpacity(0.7),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: controller.isSendingAdminChat.value
+                  ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Connecting...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              )
+                  : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.chat_bubble_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Continue Chat',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ),
+        ],
+      ),
+    );
+  }
 
-// In chatting_view.dart, fix the _buildMessagesList method:
+  /// Handle Continue Chat button tap - send auto message and enable input
+  Future<void> _handleContinueAdminChat(ChattingViewController controller) async {
+    // Show loading state immediately
+    controller.isSendingAdminChat.value = true;
 
-// Update _buildMessagesList method in chatting_view.dart
+    try {
+      // Build auto-message
+      final profileId = controller.originalProfileId ?? 0;
+      final profileName = controller.originalProfileName ?? 'Unknown';
+      final autoMessage = '👋 Hello! I am interested in connecting with the profile:\n\n'
+          '📋 Profile ID: $profileId\n'
+          '👤 Profile Name: $profileName\n\n'
+          'Please assist me with more details about this profile.';
 
-// Update the _buildMessagesList method in chatting_view.dart to add spacing for reactions
+      debugPrint('📤 Sending admin chat message for profile: $profileId');
+
+      // Send message - this will create the chat and send the first message
+      await controller.createUserChat(autoMessage);
+
+      // Hide system message AFTER message is sent successfully
+      controller.hasConfirmedAdminChat.value = true;
+
+      debugPrint('✅ Admin chat confirmed, message sent for profile: $profileId');
+    } catch (e) {
+      debugPrint('❌ Error sending admin chat message: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to start chat. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      // Always reset loading state
+      controller.isSendingAdminChat.value = false;
+    }
+  }
 
 // Fix 7: Update ListView builder in ChattingView
   Widget _buildMessagesList(ChattingViewController controller, Size chatMq) {
@@ -2054,6 +2283,12 @@ class _ChattingViewState extends State<ChattingView> {
         );
       }
 
+      // Don't show empty state when admin system message is visible
+      // User needs to tap "Continue Chat" first
+      if (controller.isAdminManagedProfile && !controller.hasConfirmedAdminChat.value) {
+        return const SizedBox.shrink();
+      }
+
       return _buildEmptyState(controller);
     });
   }
@@ -2095,7 +2330,7 @@ class _ChattingViewState extends State<ChattingView> {
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: Row(
                     mainAxisAlignment:
-                        isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
                     children: [
                       if (!isMe)
                         Container(
@@ -2211,7 +2446,7 @@ class _ChattingViewState extends State<ChattingView> {
     return Obx(() {
       return controller.isAnyBlocked
           ? _buildBlockContainer(controller)
-          // : _buildChatInput(controller);
+      // : _buildChatInput(controller);
           : _buildChatInputWithReply(controller);
     });
   }
