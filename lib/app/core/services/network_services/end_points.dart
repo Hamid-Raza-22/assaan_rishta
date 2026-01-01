@@ -24,6 +24,10 @@ class EndPoints {
     return '${baseUrl}Users/DeleteUser/$uid';
   }
 
+  String removeMatrimonialUser({required uid}) {
+    return '${baseUrl}vender/remove_mat_user/$uid';
+  }
+
   String deactivateUserProfile({required uid, required String byWho}) {
     return '${baseUrl}Users/DeActivateUser/$uid/$byWho';
   }

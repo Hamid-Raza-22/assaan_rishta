@@ -107,8 +107,8 @@ class UserManagementUseCase {
     );
   }
 
-  Future<Either<AppError, dynamic>> deactivateUserProfile() async {
-    final response = await userManagementRepo.deactivateUserProfile();
+  Future<Either<AppError, dynamic>> deactivateUserProfile(  {required int userId,}) async {
+    final response = await userManagementRepo.deactivateUserProfile(userId:userId);
     return response.fold(
           (error) {
         return Left(error);
@@ -121,6 +121,21 @@ class UserManagementUseCase {
 
   Future<Either<AppError, CurrentUserProfile>> getCurrentUserProfile() async {
     final response = await userManagementRepo.getCurrentUserProfile();
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
+
+  /// Get user profile by specific userId (for admin managing other users)
+  Future<Either<AppError, CurrentUserProfile>> getUserProfileById({
+    required int userId,
+  }) async {
+    final response = await userManagementRepo.getUserProfileById(userId: userId);
     return response.fold(
       (error) {
         return Left(error);
@@ -168,6 +183,21 @@ class UserManagementUseCase {
 
   Future<Either<AppError, PartnerPreferenceData>> getPartnerPreference() async {
     final response = await userManagementRepo.getPartnerPreference();
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
+
+  /// Get partner preference by specific userId (for admin managing other users)
+  Future<Either<AppError, PartnerPreferenceData>> getPartnerPreferenceById({
+    required int userId,
+  }) async {
+    final response = await userManagementRepo.getPartnerPreferenceById(userId: userId);
     return response.fold(
           (error) {
         return Left(error);
@@ -469,6 +499,36 @@ class UserManagementUseCase {
       // pageNo: pageNo,
       // pageLimit: pageLimit,
     );
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
+
+  /// Delete user profile by userId (Admin functionality)
+  Future<Either<AppError, dynamic>> deleteUserProfileById({
+    required int userId,
+  }) async {
+    final response = await userManagementRepo.deleteUserProfileById(userId: userId);
+    return response.fold(
+      (error) {
+        return Left(error);
+      },
+      (success) {
+        return Right(success);
+      },
+    );
+  }
+
+  /// Remove matrimonial user by userId (Admin functionality)
+  Future<Either<AppError, dynamic>> removeMatrimonialUser({
+    required int userId,
+  }) async {
+    final response = await userManagementRepo.removeMatrimonialUser(userId: userId);
     return response.fold(
       (error) {
         return Left(error);

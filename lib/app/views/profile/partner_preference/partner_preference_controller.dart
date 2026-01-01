@@ -17,6 +17,15 @@ class PartnerPreferenceController extends GetxController {
   RxBool isLoading = false.obs;
   RxBool showSkipButton = false.obs; // Show skip button only when is_preference_updated is false
 
+  // Admin managing another user's profile
+  bool isAdminManaging = false;
+  int? targetUserId;
+
+  /// Get the effective user ID (target user if admin managing, otherwise logged-in user)
+  int get effectiveUserId => isAdminManaging && targetUserId != null 
+      ? targetUserId! 
+      : useCases.getUserId() ?? 0;
+
   List<String> ageFromList =
   List.generate(33, (index) => (18 + index).toString());
   RxString ageFrom = "".obs;
@@ -81,14 +90,31 @@ class PartnerPreferenceController extends GetxController {
 
   @override
   void onInit() {
+    // Check if admin is managing another user's profile
+    _checkAdminManagingArguments();
     _generateHeightList();
     _initDropDownAPIs();
     // Listen to text field changes
     userDiWohtiKaTarufTEC.addListener(validateForm);
     super.onInit();
     validateForm();
-    // Check if user needs to fill preferences (first time)
-    _checkPreferenceStatus();
+    // Check if user needs to fill preferences (first time) - only for non-admin managing
+    if (!isAdminManaging) {
+      _checkPreferenceStatus();
+    }
+  }
+
+  /// Check arguments for admin managing another user
+  void _checkAdminManagingArguments() {
+    final args = Get.arguments;
+    if (args != null && args is Map<String, dynamic>) {
+      isAdminManaging = args['isAdminManaging'] == true;
+      final userIdStr = args['userId']?.toString();
+      if (userIdStr != null && userIdStr.isNotEmpty) {
+        targetUserId = int.tryParse(userIdStr);
+      }
+      debugPrint('🔐 PartnerPreferenceController - isAdminManaging: $isAdminManaging, targetUserId: $targetUserId');
+    }
   }
 
   // Check if is_preference_updated is false to show skip button
@@ -220,15 +246,24 @@ class PartnerPreferenceController extends GetxController {
 
   getPartnerPreference() async {
     isLoading.value = true;
-    final response = await useCases.getPartnerPreference();
+    
+    // Use correct API based on admin managing or not
+    final response = isAdminManaging && targetUserId != null
+        ? await useCases.getPartnerPreferenceById(userId: targetUserId!)
+        : await useCases.getPartnerPreference();
+    
+    debugPrint('📋 PartnerPreference - Fetching for: ${isAdminManaging ? "target user $targetUserId" : "logged-in user"}');
+    
     return response.fold(
           (error) {
         isLoading.value = false;
+        debugPrint('❌ PartnerPreference - Error: ${error.description}');
       },
           (success) {
         partnerProfile.value = success;
         setPersonalInfo(success);
         isLoading.value = false;
+        debugPrint('✅ PartnerPreference - Data loaded successfully');
         update();
       },
     );
@@ -346,7 +381,7 @@ class PartnerPreferenceController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, String> payload = {
-      "userId": useCases.getUserId().toString(),
+      "userId": effectiveUserId.toString(),
       "partner_age_from": ageFrom.value,
       "partner_age_to": ageTo.value,
       "partner_languages": languages.value.join(','),

@@ -444,6 +444,22 @@ _clearImageFromCache(String imageUrl) {
     }).toList();
   }
 
+  // PUBLIC: Load deletion record for a specific user (used before showing cached messages)
+  Future<void> loadDeletionRecordForUser(String userId) async {
+    // Use cached result if available
+    if (_persistentDeletionCache.containsKey(userId)) {
+      currentChatDeletionTime.value = _persistentDeletionCache[userId];
+      return;
+    }
+    // Load from Firestore/Hive
+    await _loadDeletionRecord(userId);
+  }
+
+  // PUBLIC: Apply deletion filter to messages (used for filtering cached messages)
+  List<Message> applyDeletionFilterToMessages(List<Message> messages, String userId) {
+    return _applyDeletionFilter(messages, userId);
+  }
+
   // FIXED: Check deletion record with cache
   Future<void> checkDeletionRecord() async {
     if (selectedUser.value == null) return;
@@ -902,6 +918,18 @@ _clearImageFromCache(String imageUrl) {
       debugPrint('✅ Chat exited successfully - selectedUser: ${selectedUser.value?.id}, currentChatUserId: $currentChatUserId');
     } catch (e) {
       debugPrint('❌ Error exiting chat: $e');
+    }
+  }
+
+  // CRITICAL: Clear Hive cache for a specific user (called when chat is deleted)
+  Future<void> clearHiveCacheForUser(String userId) async {
+    try {
+      await _hiveService.clearMessages(userId);
+      await _hiveService.saveDeletionTime(userId, DateTime.now().millisecondsSinceEpoch.toString());
+      _persistentDeletionCache[userId] = DateTime.now().millisecondsSinceEpoch.toString();
+      debugPrint('🧹 Cleared Hive cache for user: $userId');
+    } catch (e) {
+      debugPrint('❌ Error clearing Hive cache: $e');
     }
   }
 

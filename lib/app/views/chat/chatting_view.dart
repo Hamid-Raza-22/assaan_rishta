@@ -1140,26 +1140,33 @@ Future<void> showImageOptions() async {
     chatController.selectedUser.value = user;
     debugPrint('✅ Selected user set to: ${user.name} (${user.id})');
 
-
-    // Immediately show cached messages if available (from memory or Hive)
-    final cached = await chatController.getCachedMessages(user.id);
-    if (cached != null && cached.isNotEmpty) {
-      cachedMessages.value = cached;
-      debugPrint('📦 Loaded ${cached.length} messages from cache (Hive)');
-      // Sync status from Firestore for cached messages
-      _syncCachedMessageStatus();
-      
-      // FIXED: For admin-managed profiles, only auto-confirm if message exists for THIS specific profile
-      // This prevents showing "Continue Chat" for different admin profiles sharing the same admin user
-      if (isAdminManagedProfile && _hasMessageForThisProfile(cached)) {
-        hasConfirmedAdminChat.value = true;
-        debugPrint('✅ Auto-confirmed admin chat - message exists for profile $originalProfileId');
-      }
-    }
-
     // Set chat status first
     chatController.setInsideChatStatus(true, chatUserId: user.id);
-    chatController.checkDeletionRecord();
+    
+    // CRITICAL: Load deletion record FIRST before showing any cached messages
+    // This prevents the flash of deleted messages
+    await chatController.loadDeletionRecordForUser(user.id);
+
+    // Now load cached messages WITH deletion filter already applied
+    final cached = await chatController.getCachedMessages(user.id);
+    if (cached != null && cached.isNotEmpty) {
+      // Apply deletion filter to cached messages before showing
+      final filteredCached = chatController.applyDeletionFilterToMessages(cached, user.id);
+      if (filteredCached.isNotEmpty) {
+        cachedMessages.value = filteredCached;
+        debugPrint('📦 Loaded ${filteredCached.length} filtered messages from cache (Hive)');
+        // Sync status from Firestore for cached messages
+        _syncCachedMessageStatus();
+        
+        // FIXED: For admin-managed profiles, only auto-confirm if message exists for THIS specific profile
+        if (isAdminManagedProfile && _hasMessageForThisProfile(filteredCached)) {
+          hasConfirmedAdminChat.value = true;
+          debugPrint('✅ Auto-confirmed admin chat - message exists for profile $originalProfileId');
+        }
+      } else {
+        debugPrint('📦 All cached messages filtered out by deletion record');
+      }
+    }
 // Mark incoming messages as delivered when entering chat
     await chatController.markIncomingMessagesAsDelivered();
 // Start listening for status updates
@@ -1921,116 +1928,7 @@ class _ChattingViewState extends State<ChattingView> {
       );
     });
   }
-  // Move all build methods here as instance methods
-  // Widget _buildAppBar(ChattingViewController controller, Size chatMq) {
-  //   return Obx(() {
-  //     final userData = controller.currentUserData;
-  //     final hasBlockedThem = controller.isBlocked.value;
-  //     final isBlockedByThem = controller.isBlockedByOther.value;
-  //     final isDelete = controller.isDelete.value;
-  //
-  //     return Row(
-  //       children: [
-  //         GestureDetector(
-  //           onTap: controller.navigateBack,
-  //           child: const Icon(Icons.arrow_back_ios, color: Colors.black),
-  //         ),
-  //         // Only show user image if not blocked by them or deleted
-  //         if (!isBlockedByThem && !isDelete && !hasBlockedThem)
-  //           ClipRRect(
-  //             borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //             child: CachedNetworkImage(
-  //               fit: BoxFit.cover,
-  //               height: chatMq.height * .05,
-  //               width: chatMq.height * .05,
-  //               imageUrl: controller.userImageUrl,
-  //               errorWidget: (c, url, e) => Container(
-  //                 height: chatMq.height * .05,
-  //                 width: chatMq.height * .05,
-  //                 decoration: BoxDecoration(
-  //                   color: Colors.grey[300],
-  //                   borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //                 ),
-  //                 child: const Icon(
-  //                   CupertinoIcons.person,
-  //                   color: Colors.grey,
-  //                   size: 30,
-  //                 ),
-  //               ),
-  //               placeholder: (c, url) => Container(
-  //                 height: chatMq.height * .05,
-  //                 width: chatMq.height * .05,
-  //                 decoration: BoxDecoration(
-  //                   color: Colors.grey[200],
-  //                   borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //                 ),
-  //                 child: const Icon(
-  //                   CupertinoIcons.person,
-  //                   color: Colors.grey,
-  //                   size: 30,
-  //                 ),
-  //               ),
-  //             ),
-  //           ),
-  //         // Add a placeholder if blocked or deleted
-  //         if (isBlockedByThem || isDelete || hasBlockedThem)
-  //           Container(
-  //             height: chatMq.height * .05,
-  //             width: chatMq.height * .05,
-  //             decoration: BoxDecoration(
-  //               color: Colors.grey[300],
-  //               borderRadius: BorderRadius.circular(chatMq.height * .3),
-  //             ),
-  //             child: const Icon(
-  //               CupertinoIcons.person_fill, // Using person_fill for a more solid look
-  //               color: Colors.grey,
-  //               size: 30,
-  //             ),
-  //           ),
-  //         const SizedBox(width: 12),
-  //
-  //         Expanded(
-  //           child: Column(
-  //             mainAxisAlignment: MainAxisAlignment.center,
-  //             crossAxisAlignment: CrossAxisAlignment.start,
-  //             children: [
-  //               Text(
-  //                 userData.name,
-  //                 style: const TextStyle(
-  //                   color: Colors.black87,
-  //                   fontSize: 18,
-  //                   fontWeight: FontWeight.w500,
-  //                 ),
-  //                 overflow: TextOverflow.ellipsis,
-  //               ),
-  //               const SizedBox(height: 3),
-  //               if (!isBlockedByThem && !isDelete && !hasBlockedThem)
-  //                 Text(
-  //                   userData.isOnline
-  //                       ? 'Online'
-  //                       : MyDateUtill.getLastActiveTime(
-  //                     context: Get.context!,
-  //                     lastActive: userData.lastActive,
-  //                   ),
-  //                   style: const TextStyle(
-  //                     color: Colors.black54,
-  //                     fontSize: 15,
-  //                   ),
-  //                 ),
-  //             ],
-  //           ),
-  //         ),
-  //         if (hasBlockedThem || isBlockedByThem || hasBlockedThem)
-  //           const Padding(
-  //             padding: EdgeInsets.only(right: 10),
-  //             child: Icon(
-  //               Icons.block,
-  //               color: Colors.red,
-  //               size: 24,
-  //             ),
-  //           ),
-  //       ],
-  //     );
+
 
   /// Build admin profile system message for inline disclaimer
   Widget _buildAdminProfileSystemMessage(ChattingViewController controller) {

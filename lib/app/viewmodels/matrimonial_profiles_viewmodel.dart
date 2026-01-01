@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../core/base/export.dart';
 import '../core/export.dart';
@@ -119,6 +120,216 @@ class MatrimonialProfilesController extends BaseController {
       return AppAssets.femalePlaceholder;
     } else {
       return AppAssets.imagePlaceholder;
+    }
+  }
+
+  /// Show professional delete confirmation dialog
+  void showDeleteConfirmationDialog(BuildContext context, ProfilesList user) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Warning Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  size: 48,
+                  color: Colors.red.shade400,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Title
+              Text(
+                'Delete Profile',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.blackColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // User Info
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primaryColor.withOpacity(0.1),
+                      backgroundImage: (user.profileImage != null && user.profileImage!.isNotEmpty)
+                          ? NetworkImage(user.profileImage!)
+                          : null,
+                      child: (user.profileImage == null || user.profileImage!.isEmpty)
+                          ? Icon(Icons.person, color: AppColors.primaryColor)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.name ?? 'Unknown',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'ID: ${user.userId}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: AppColors.fontLightColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Warning Message
+              Text(
+                'Are you sure you want to delete this profile? This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: AppColors.fontLightColor,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.fontLightColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back();
+                        _deleteProfile(context, user);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'Delete',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  /// Delete profile API call
+  Future<void> _deleteProfile(BuildContext context, ProfilesList user) async {
+    AppUtils.onLoading(context);
+    
+    try {
+      // final response = await userManagementUseCases.deleteUserProfileById(
+      // final response = await userManagementUseCases.deactivateUserProfile(
+      final response = await userManagementUseCases.removeMatrimonialUser(
+        userId: user.userId ?? 0,
+      );
+      
+      response.fold(
+        (error) {
+          AppUtils.dismissLoader(context);
+          AppUtils.failedData(
+            title: "Delete Failed",
+            message: error.description ?? "Failed to Delete profile. Please try again.",
+          );
+        },
+        (success) {
+          AppUtils.dismissLoader(context);
+          
+          // Remove from local list
+          profileList.removeWhere((p) => p.userId == user.userId);
+          update();
+          
+          // Show success message
+          Get.snackbar(
+            'Profile Deleted',
+            '${user.name ?? "Profile"} has been Deleted successfully.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: AppColors.greenColor,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
+            margin: const EdgeInsets.all(10),
+            borderRadius: 10,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+          );
+        },
+      );
+    } catch (e) {
+      AppUtils.dismissLoader(context);
+      AppUtils.failedData(
+        title: "Error",
+        message: "An unexpected error occurred. Please try again.",
+      );
+      debugPrint('❌ Error deleting profile: $e');
     }
   }
 
