@@ -686,7 +686,8 @@ Don't have the app? Download now:
       ),
       fontSize: 18,
       onTap: () {
-        if (controller.totalConnects.value > 0) {
+        // If already connected/chatting, allow messaging without checking connects
+        if (controller.isAlreadyConnected.value || controller.totalConnects.value > 0) {
           controller.sendMessageToOtherUser(context);
         } else {
           showDialog(

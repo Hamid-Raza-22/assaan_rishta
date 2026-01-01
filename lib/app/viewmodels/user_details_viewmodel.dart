@@ -28,6 +28,7 @@ class UserDetailsController extends GetxController {
   var receiverId = ''.obs;
   RxBool isLoading = true.obs; // Start with true to show loading immediately
   RxInt totalConnects = 0.obs;
+  RxBool isAlreadyConnected = false.obs; // Track if user is already connected/chatting
   VideoPlayerController? videoController;
 
   @override
@@ -103,6 +104,7 @@ class UserDetailsController extends GetxController {
     if (isLoggedIn && Get.isRegistered<ChatViewModel>()) {
       chatController = Get.find<ChatViewModel>();
      await getConnects();
+     await checkIfAlreadyConnected();
       debugPrint('💬 ChatController initialized');
     } else {
       debugPrint('💬 ChatController not initialized - user not logged in or service not available');
@@ -201,6 +203,8 @@ class UserDetailsController extends GetxController {
           update(); // Force UI update
           // Prefetch video preview assets ASAP
           _prefetchVideoPreview();
+          // Check connection status after profile details are loaded (needs profileCreatedBy)
+          checkIfAlreadyConnected();
         },
       );
     } catch (e) {
@@ -273,6 +277,49 @@ class UserDetailsController extends GetxController {
         update();
       },
     );
+  }
+
+  /// Check if current user is already connected/chatting with this profile
+  /// Users who are already connected should NOT need connects to message
+  Future<void> checkIfAlreadyConnected() async {
+    if (receiverId.value.isEmpty) {
+      debugPrint('⚠️ Cannot check connection - no receiver ID');
+      return;
+    }
+
+    try {
+      final currentUserId = useCase.getUserId()?.toString();
+      if (currentUserId == null) {
+        debugPrint('⚠️ Cannot check connection - no current user ID');
+        return;
+      }
+
+      // Check if this profile is an admin-created profile
+      final int? profileCreatedBy = profileDetails.value.profileCreatedBy;
+      final bool isAdminCreatedProfile = profileCreatedBy != null && profileCreatedBy > 0;
+      
+      // For admin-created profiles, check connection with the admin
+      final String targetUserId = isAdminCreatedProfile 
+          ? profileCreatedBy.toString() 
+          : receiverId.value;
+
+      debugPrint('🔍 Checking if already connected with: $targetUserId (admin profile: $isAdminCreatedProfile)');
+
+      // Check if target user exists in current user's my_users collection
+      final myUserDoc = await FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(currentUserId)
+          .collection('my_users')
+          .doc(targetUserId)
+          .get();
+
+      isAlreadyConnected.value = myUserDoc.exists;
+      debugPrint('✅ Already connected: ${isAlreadyConnected.value}');
+      update();
+    } catch (e) {
+      debugPrint('❌ Error checking connection status: $e');
+      isAlreadyConnected.value = false;
+    }
   }
 
   void navigateToLogin() {
