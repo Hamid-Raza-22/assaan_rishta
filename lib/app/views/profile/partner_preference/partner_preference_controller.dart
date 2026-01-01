@@ -27,6 +27,7 @@ class PartnerPreferenceController extends GetxController {
       ? targetUserId! 
       : useCases.getUserId() ?? 0;
 
+
   List<String> ageFromList =
   List.generate(33, (index) => (18 + index).toString());
   RxString ageFrom = "".obs;
