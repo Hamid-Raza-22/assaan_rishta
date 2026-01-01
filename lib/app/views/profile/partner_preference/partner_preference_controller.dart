@@ -1,4 +1,6 @@
+
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
+import 'package:assaan_rishta/app/core/services/env_config_service.dart';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
@@ -16,8 +18,20 @@ class PartnerPreferenceController extends GetxController {
   RxBool isLoading = false.obs;
   RxBool showSkipButton = false.obs; // Show skip button only when is_preference_updated is false
 
+  // Admin managing another user's profile
+  bool isAdminManaging = false;
+  int? targetUserId;
+
+  /// Get the effective user ID (target user if admin managing, otherwise logged-in user)
+  int get effectiveUserId => isAdminManaging && targetUserId != null
+      ? targetUserId!
+      : useCases.getUserId() ?? 0;
+
+
+
+
   List<String> ageFromList =
-      List.generate(33, (index) => (18 + index).toString());
+  List.generate(33, (index) => (18 + index).toString());
   RxString ageFrom = "".obs;
   RxString ageTo = "".obs;
   RxString ageValidationError = "".obs; // Error message for age validation
@@ -80,22 +94,38 @@ class PartnerPreferenceController extends GetxController {
 
   @override
   void onInit() {
+    // Check if admin is managing another user's profile
+    _checkAdminManagingArguments();
     _generateHeightList();
     _initDropDownAPIs();
     // Listen to text field changes
     userDiWohtiKaTarufTEC.addListener(validateForm);
     super.onInit();
     validateForm();
-    // Check if user needs to fill preferences (first time)
+    // Check if user needs to fill preferences (first time) - for all users including admin
     _checkPreferenceStatus();
+  }
+
+  /// Check arguments for admin managing another user
+  void _checkAdminManagingArguments() {
+    final args = Get.arguments;
+    if (args != null && args is Map<String, dynamic>) {
+      isAdminManaging = args['isAdminManaging'] == true;
+      final userIdStr = args['userId']?.toString();
+      if (userIdStr != null && userIdStr.isNotEmpty) {
+        targetUserId = int.tryParse(userIdStr);
+      }
+      debugPrint('🔐 PartnerPreferenceController - isAdminManaging: $isAdminManaging, targetUserId: $targetUserId');
+    }
   }
 
   // Check if is_preference_updated is false to show skip button
   void _checkPreferenceStatus() async {
     try {
-      final uid = useCases.getUserId();
+      // Use effectiveUserId instead of useCases.getUserId()
+      final uid = effectiveUserId;
       final doc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(uid.toString())
           .get();
 
@@ -105,7 +135,7 @@ class PartnerPreferenceController extends GetxController {
 
       // Show skip button only if preference is not updated
       showSkipButton.value = !isPreferenceUpdated;
-      
+
       debugPrint('🔍 is_preference_updated: $isPreferenceUpdated');
       debugPrint('🔘 showSkipButton: ${showSkipButton.value}');
     } catch (e) {
@@ -134,15 +164,15 @@ class PartnerPreferenceController extends GetxController {
       ageValidationError.value = "";
       return true; // If fields are empty, don't block validation (other checks will handle empty fields)
     }
-    
+
     final ageFromInt = int.tryParse(ageFrom.value) ?? 0;
     final ageToInt = int.tryParse(ageTo.value) ?? 0;
-    
+
     if (ageFromInt >= ageToInt) {
       ageValidationError.value = "Age From must be less than Age To";
       return false;
     }
-    
+
     ageValidationError.value = "";
     return true;
   }
@@ -151,7 +181,7 @@ class PartnerPreferenceController extends GetxController {
   void validateForm() {
     // First validate age range
     final ageRangeValid = validateAgeRange();
-    
+
     final allFieldsFilled = ageFrom.value.isNotEmpty &&
         ageTo.value.isNotEmpty &&
         languages.isNotEmpty &&
@@ -170,9 +200,9 @@ class PartnerPreferenceController extends GetxController {
         userDiWohtiKaTarufTEC.text.trim().isNotEmpty &&
         isDrink.value.isNotEmpty &&
         isSmoke.value.isNotEmpty;
-    
+
     isFormValid.value = allFieldsFilled && ageRangeValid;
-    
+
     debugPrint("🔍 Form Validation:");
     debugPrint("   ageFrom: ${ageFrom.value.isNotEmpty} (${ageFrom.value})");
     debugPrint("   ageTo: ${ageTo.value.isNotEmpty} (${ageTo.value})");
@@ -219,15 +249,24 @@ class PartnerPreferenceController extends GetxController {
 
   getPartnerPreference() async {
     isLoading.value = true;
-    final response = await useCases.getPartnerPreference();
+
+    // Use correct API based on admin managing or not
+    final response = isAdminManaging && targetUserId != null
+        ? await useCases.getPartnerPreferenceById(userId: targetUserId!)
+        : await useCases.getPartnerPreference();
+
+    debugPrint('📋 PartnerPreference - Fetching for: ${isAdminManaging ? "target user $targetUserId" : "logged-in user"}');
+
     return response.fold(
-      (error) {
+          (error) {
         isLoading.value = false;
+        debugPrint('❌ PartnerPreference - Error: ${error.description}');
       },
-      (success) {
+          (success) {
         partnerProfile.value = success;
         setPersonalInfo(success);
         isLoading.value = false;
+        debugPrint('✅ PartnerPreference - Data loaded successfully');
         update();
       },
     );
@@ -237,10 +276,10 @@ class PartnerPreferenceController extends GetxController {
     castNameList.clear();
     final response = await systemConfigUseCases.getAllCasts();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.castNames!.isNotEmpty) {
           castNameList.addAll(success.castNames!);
           castNameList.sort((a, b) => a.compareTo(b));
@@ -255,10 +294,10 @@ class PartnerPreferenceController extends GetxController {
     degreesList.clear();
     final response = await systemConfigUseCases.getAllDegrees();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.degreeNames!.isNotEmpty) {
           degreesList.addAll(success.degreeNames!);
           degreesList.sort((a, b) => a.compareTo(b));
@@ -273,10 +312,10 @@ class PartnerPreferenceController extends GetxController {
     occupationList.clear();
     final response = await systemConfigUseCases.getAllOccupations();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.occupationNames!.isNotEmpty) {
           occupationList.addAll(success.occupationNames!);
           update();
@@ -290,10 +329,10 @@ class PartnerPreferenceController extends GetxController {
     countryList.clear();
     final response = await systemConfigUseCases.getAllCountries();
     return response.fold(
-      (error) {
+          (error) {
         return Left(error);
       },
-      (success) {
+          (success) {
         if (success.isNotEmpty) {
           countryList.addAll(success);
           update();
@@ -310,10 +349,10 @@ class PartnerPreferenceController extends GetxController {
       countryId: countryId,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         if (success.isNotEmpty) {
           stateList.addAll(success);
@@ -328,10 +367,10 @@ class PartnerPreferenceController extends GetxController {
     cityList.clear();
     final response = await systemConfigUseCases.getAllCities(stateId: stateId);
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         if (success.isNotEmpty) {
           cityList.addAll(success);
@@ -345,7 +384,7 @@ class PartnerPreferenceController extends GetxController {
     AppUtils.onLoading(context);
 
     Map<String, String> payload = {
-      "userId": useCases.getUserId().toString(),
+      "userId": effectiveUserId.toString(),
       "partner_age_from": ageFrom.value,
       "partner_age_to": ageTo.value,
       "partner_languages": languages.value.join(','),
@@ -369,10 +408,10 @@ class PartnerPreferenceController extends GetxController {
       payload: payload,
     );
     return response.fold(
-      (error) {
+          (error) {
         AppUtils.dismissLoader(context);
       },
-      (success) {
+          (success) {
         AppUtils.dismissLoader(context);
         AppUtils.successData(
           title: "Partner Preference",
@@ -380,9 +419,9 @@ class PartnerPreferenceController extends GetxController {
         );
         // Mark Firestore flag so subsequent logins skip this view
         try {
-          final uid = useCases.getUserId();
+          final uid = effectiveUserId;
           FirebaseFirestore.instance
-              .collection('Hamid_users')
+              .collection(EnvConfig.firebaseUsersCollection)
               .doc(uid.toString())
               .set({'is_preference_updated': true}, SetOptions(merge: true));
         } catch (_) {}
@@ -400,17 +439,17 @@ class PartnerPreferenceController extends GetxController {
   void skipPartnerPreference() async {
     // Mark preference as updated in Firestore so user won't be forced to fill it again
     try {
-      final uid = useCases.getUserId();
+      final uid = effectiveUserId;
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(uid.toString())
           .set({'is_preference_updated': true}, SetOptions(merge: true));
-      
+
       debugPrint('✅ Skipped partner preference, marked as updated');
     } catch (e) {
       debugPrint('❌ Error setting preference flag: $e');
     }
-    
+
     // Navigate to home
     Get.offAllNamed(AppRoutes.BOTTOM_NAV);
   }
@@ -438,15 +477,15 @@ class PartnerPreferenceController extends GetxController {
     selectedLanguages = (profile.partnerLanguages ?? "");
     languages.value = profile.partnerLanguages != null
         ? profile.partnerLanguages!
-            .split(',')
-            .map((e) => e.replaceAll('"', '').trim())
-            .toList()
+        .split(',')
+        .map((e) => e.replaceAll('"', '').trim())
+        .toList()
         : [];
-    
+
     debugPrint("✅ Loaded partner preference data");
     debugPrint("   Country: $country");
     debugPrint("   City ID: $cityId");
-    
+
     // Validate form after loading data
     validateForm();
     update();

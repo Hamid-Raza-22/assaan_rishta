@@ -24,6 +24,10 @@ class EndPoints {
     return '${baseUrl}Users/DeleteUser/$uid';
   }
 
+  String removeMatrimonialUser({required uid}) {
+    return '${baseUrl}vender/remove_mat_user/$uid';
+  }
+
   String deactivateUserProfile({required uid, required String byWho}) {
     return '${baseUrl}Users/DeActivateUser/$uid/$byWho';
   }
@@ -91,6 +95,7 @@ class EndPoints {
     final userId = (uid != null && uid != 0) ? uid : 0;
     return '${baseUrl}Users/GetAllFeaturedProfiles/$pageNo/$pageLimit/$userId';
   }
+
   getProfilesDetailsUrl({uid}) {
     return '${baseUrl}User/GetConectionDetail/$uid';
     return '${baseUrl}User/GetConectionDetail/$uid';
@@ -180,5 +185,15 @@ class EndPoints {
 
   String updateBlurProfileImageUrl() {
     return '${baseUrl}Users/update_blur_profile_image';
+  }
+
+  String getMatrimonialProfilesUrl(
+      {
+        required int adminId,
+        // required int pageNo,
+        // required int pageLimit
+      }) {
+    return '${baseUrl}Users/GetAll_mat_Profiles/$adminId';
+    // return '${baseUrl}Users/GetAll_mat_Profiles/$adminId/$pageNo/$pageLimit';
   }
 }

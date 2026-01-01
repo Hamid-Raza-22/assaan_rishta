@@ -8,6 +8,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../utils/exports.dart';
 import '../viewmodels/chat_list_viewmodel.dart';
 import '../viewmodels/chat_viewmodel.dart';
@@ -123,7 +124,8 @@ class ChatUserCardController extends GetxController {
     final chatId = getConversationId(currentUID, userId);
 
     _messageStreamSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+                  .collection(EnvConfig.firebaseChatsCollection)
+
         .doc(chatId)
         .collection('messages')
         .orderBy('sent', descending: true)
@@ -178,7 +180,8 @@ class ChatUserCardController extends GetxController {
 
     // Listen to the entire messages collection for status changes
     _statusUpdateSubscription = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+                  .collection(EnvConfig.firebaseChatsCollection)
+
         .doc(chatId)
         .collection('messages')
         .snapshots()
@@ -237,7 +240,8 @@ class ChatUserCardController extends GetxController {
       debugPrint('🔍 Checking deletion status for user: $userId');
 
       final userDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+                    .collection(EnvConfig.firebaseUsersCollection)
+
           .doc(userId)
           .get();
 
@@ -300,7 +304,8 @@ class ChatUserCardController extends GetxController {
     _userStreamSubscription?.cancel();
 
     _userStreamSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+                  .collection(EnvConfig.firebaseUsersCollection)
+
         .doc(userId)
         .snapshots()
         .listen(
@@ -437,7 +442,8 @@ class ChatUserCardController extends GetxController {
     _blockedByOtherSubscription?.cancel();
 
     _blockStatusSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+                  .collection(EnvConfig.firebaseUsersCollection)
+
         .doc(currentUID)
         .snapshots()
         .listen(
@@ -472,7 +478,8 @@ class ChatUserCardController extends GetxController {
     );
 
     _blockedByOtherSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+                  .collection(EnvConfig.firebaseUsersCollection)
+
         .doc(userId)
         .snapshots()
         .listen(

@@ -29,70 +29,70 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
           body: SafeArea(
             child: controller.isLoading.isFalse
                 ? ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    children: [
-                      const SizedBox(height: 10),
-                      getAgeFromAndAgeTo(context: context),
-                      const SizedBox(height: 10),
-                      getLanguages(context: context),
-                      const SizedBox(height: 10),
-                      getCaste(context: context),
-                      const SizedBox(height: 10),
-                      getEducation(context: context),
-                      const SizedBox(height: 10),
-                      getOccupation(context: context),
-                      const SizedBox(height: 10),
-                      getIncome(context: context),
-                      const SizedBox(height: 10),
-                      getMotherTongue(context: context),
-                      const SizedBox(height: 10),
-                      getCountryData(context: context),
-                      const SizedBox(height: 10),
-                      getPartnerReligion(context: context),
-                      const SizedBox(height: 10),
-                      getHeight(context: context),
-                      const SizedBox(height: 10),
-                      getBuilt(context: context),
-                      const SizedBox(height: 10),
-                      getPartnerComplexion(context: context),
-                      const SizedBox(height: 10),
-                      getMaritalStatus(context: context),
-                      const SizedBox(height: 10),
-                      getAboutPartner(context: context),
-                      const SizedBox(height: 10),
-                      isDrinkIsSmoke(context: context),
-                      const SizedBox(height: 10),
-                      Obx(
-                        () => CustomButton(
-                          text: "Update",
-                          fontColor: controller.isFormValid.value
-                              ? AppColors.whiteColor
-                              : AppColors.greyColor,
-                          isGradient: controller.isFormValid.value,
-                          backgroundColor: controller.isFormValid.value
-                              ? null
-                              : AppColors.borderColor,
-                          onTap: controller.isFormValid.value
-                              ? () {
-                                  controller.updatePartnerPreference(context);
-                                }
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // CustomButton(
-                      //   text: "Skip for Now",
-                      //   fontColor: AppColors.primaryColor,
-                      //   isGradient: false,
-                      //   backgroundColor: AppColors.whiteColor,
-                      //   borderColor: AppColors.primaryColor,
-                      //   onTap: () {
-                      //     controller.skipPartnerPreference();
-                      //   },
-                      // ),
-                      const SizedBox(height: 50),
-                    ],
-                  )
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              children: [
+                const SizedBox(height: 10),
+                getAgeFromAndAgeTo(context: context),
+                const SizedBox(height: 10),
+                getLanguages(context: context),
+                const SizedBox(height: 10),
+                getCaste(context: context),
+                const SizedBox(height: 10),
+                getEducation(context: context),
+                const SizedBox(height: 10),
+                getOccupation(context: context),
+                const SizedBox(height: 10),
+                getIncome(context: context),
+                const SizedBox(height: 10),
+                getMotherTongue(context: context),
+                const SizedBox(height: 10),
+                getCountryData(context: context),
+                const SizedBox(height: 10),
+                getPartnerReligion(context: context),
+                const SizedBox(height: 10),
+                getHeight(context: context),
+                const SizedBox(height: 10),
+                getBuilt(context: context),
+                const SizedBox(height: 10),
+                getPartnerComplexion(context: context),
+                const SizedBox(height: 10),
+                getMaritalStatus(context: context),
+                const SizedBox(height: 10),
+                getAboutPartner(context: context),
+                const SizedBox(height: 10),
+                isDrinkIsSmoke(context: context),
+                const SizedBox(height: 10),
+                Obx(
+                      () => CustomButton(
+                    text: "Update",
+                    fontColor: controller.isFormValid.value
+                        ? AppColors.whiteColor
+                        : AppColors.greyColor,
+                    isGradient: controller.isFormValid.value,
+                    backgroundColor: controller.isFormValid.value
+                        ? null
+                        : AppColors.borderColor,
+                    onTap: controller.isFormValid.value
+                        ? () {
+                      controller.updatePartnerPreference(context);
+                    }
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // CustomButton(
+                //   text: "Skip for Now",
+                //   fontColor: AppColors.primaryColor,
+                //   isGradient: false,
+                //   backgroundColor: AppColors.whiteColor,
+                //   borderColor: AppColors.primaryColor,
+                //   onTap: () {
+                //     controller.skipPartnerPreference();
+                //   },
+                // ),
+                const SizedBox(height: 50),
+              ],
+            )
                 : profileShimmer(context),
           ),
           // ),
@@ -105,23 +105,23 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
     return PreferredSize(
       preferredSize: const Size(double.infinity, 40),
       child: Obx(
-        () => CustomAppBar2(
+            () => CustomAppBar2(
           isBack: true,
           title: "Partner Preference",
           actions: controller.showSkipButton.value
               ? [
-                  TextButton(
-                    onPressed: () {
-                      controller.skipPartnerPreference();
-                    },
-                    child: const AppText(
-                      text: "Skip",
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryColor,
-                    ),
-                  ),
-                ]
+            TextButton(
+              onPressed: () {
+                controller.skipPartnerPreference();
+              },
+              child: const AppText(
+                text: "Skip",
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryColor,
+              ),
+            ),
+          ]
               : null,
         ),
       ),
@@ -148,13 +148,13 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                   ),
                   const SizedBox(height: 05),
                   Obx(
-                    () => CustomDropdown<String>(
+                        () => CustomDropdown<String>(
                       hintText: 'Age From',
                       initialItem:
-                          (controller.ageFrom.value.isNotEmpty &&
-                              controller.ageFromList.contains(
-                                controller.ageFrom.value,
-                              ))
+                      (controller.ageFrom.value.isNotEmpty &&
+                          controller.ageFromList.contains(
+                            controller.ageFrom.value,
+                          ))
                           ? controller.ageFrom.value
                           : null,
                       items: controller.ageFromList,
@@ -166,7 +166,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                       decoration: basicInfoDecoration(
                         hintStyle: getHintStyle(controller.ageFrom.value),
                         hasError:
-                            controller.ageValidationError.value.isNotEmpty,
+                        controller.ageValidationError.value.isNotEmpty,
                       ),
                     ),
                   ),
@@ -187,13 +187,13 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                   ),
                   const SizedBox(height: 05),
                   Obx(
-                    () => CustomDropdown<String>(
+                        () => CustomDropdown<String>(
                       hintText: 'Age To',
                       initialItem:
-                          (controller.ageTo.value.isNotEmpty &&
-                              controller.ageFromList.contains(
-                                controller.ageTo.value,
-                              ))
+                      (controller.ageTo.value.isNotEmpty &&
+                          controller.ageFromList.contains(
+                            controller.ageTo.value,
+                          ))
                           ? controller.ageTo.value
                           : null,
                       items: controller.ageFromList,
@@ -205,7 +205,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
                       decoration: basicInfoDecoration(
                         hintStyle: getHintStyle(controller.ageTo.value),
                         hasError:
-                            controller.ageValidationError.value.isNotEmpty,
+                        controller.ageValidationError.value.isNotEmpty,
                       ),
                     ),
                   ),
@@ -216,16 +216,16 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         ),
         // Error message display
         Obx(
-          () => controller.ageValidationError.value.isNotEmpty
+              () => controller.ageValidationError.value.isNotEmpty
               ? Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: AppText(
-                    text: controller.ageValidationError.value,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.red,
-                  ),
-                )
+            padding: const EdgeInsets.only(top: 5),
+            child: AppText(
+              text: controller.ageValidationError.value,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: Colors.red,
+            ),
+          )
               : const SizedBox.shrink(),
         ),
       ],
@@ -245,7 +245,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Languages',
       child: Obx(() => CustomDropdown<String>.multiSelect(
         hintText: 'Languages',
-        initialItems: controller.languages.isNotEmpty 
+        initialItems: controller.languages.isNotEmpty
             ? controller.languages.where((lang) => languagesList.contains(lang)).toList()
             : null,
         items: languagesList,
@@ -269,9 +269,9 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Caste',
       child: Obx(() => CustomDropdown<String>.search(
         hintText: 'Caste',
-        initialItem: (controller.caste.value.isNotEmpty && 
-                     controller.castNameList.contains(controller.caste.value))
-            ? controller.caste.value 
+        initialItem: (controller.caste.value.isNotEmpty &&
+            controller.castNameList.contains(controller.caste.value))
+            ? controller.caste.value
             : null,
         items: controller.castNameList,
         onChanged: (value) {
@@ -291,9 +291,9 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Education',
       child: Obx(() => CustomDropdown<String>.search(
         hintText: 'Education',
-        initialItem: (controller.education.value.isNotEmpty && 
-                     controller.degreesList.contains(controller.education.value))
-            ? controller.education.value 
+        initialItem: (controller.education.value.isNotEmpty &&
+            controller.degreesList.contains(controller.education.value))
+            ? controller.education.value
             : null,
         items: controller.degreesList,
         onChanged: (value) {
@@ -313,9 +313,9 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Occupation',
       child: Obx(() => CustomDropdown<String>.search(
         hintText: 'Occupation',
-        initialItem: (controller.occupation.value.isNotEmpty && 
-                     controller.occupationList.contains(controller.occupation.value))
-            ? controller.occupation.value 
+        initialItem: (controller.occupation.value.isNotEmpty &&
+            controller.occupationList.contains(controller.occupation.value))
+            ? controller.occupation.value
             : null,
         items: controller.occupationList,
         onChanged: (value) {
@@ -350,8 +350,8 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         return CustomDropdown<String>(
           hintText: 'Monthly Income',
           initialItem:
-              (controller.monthlyIncome.value.isNotEmpty &&
-                  incomeItems.contains(controller.monthlyIncome.value))
+          (controller.monthlyIncome.value.isNotEmpty &&
+              incomeItems.contains(controller.monthlyIncome.value))
               ? controller.monthlyIncome.value
               : null,
           items: const [
@@ -389,11 +389,11 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
     return getDropDownListTile(
       title: 'Mother Tongue',
       child: Obx(
-        () => CustomDropdown<String>(
+            () => CustomDropdown<String>(
           hintText: 'Mother Tongue',
           initialItem:
-              (controller.motherTongue.value.isNotEmpty &&
-                  languagesList.contains(controller.motherTongue.value))
+          (controller.motherTongue.value.isNotEmpty &&
+              languagesList.contains(controller.motherTongue.value))
               ? controller.motherTongue.value
               : null,
           items: languagesList,
@@ -456,12 +456,12 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
             },
             decoration: basicInfoDecoration(
               hintStyle:
-                  controller.partnerProfile.value.aboutStateName == "State"
+              controller.partnerProfile.value.aboutStateName == "State"
                   ? null
                   : GoogleFonts.poppins(
-                      color: AppColors.blackColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                color: AppColors.blackColor,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -481,12 +481,12 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
             },
             decoration: basicInfoDecoration(
               hintStyle:
-                  controller.partnerProfile.value.aboutParentCityName == "City"
+              controller.partnerProfile.value.aboutParentCityName == "City"
                   ? null
                   : GoogleFonts.poppins(
-                      color: AppColors.blackColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                color: AppColors.blackColor,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -500,9 +500,9 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Partner Religion',
       child: Obx(() => CustomDropdown<String>(
         hintText: 'Partner Religion',
-        initialItem: (controller.religion.value.isNotEmpty && 
-                     controller.religionList.contains(controller.religion.value))
-            ? controller.religion.value 
+        initialItem: (controller.religion.value.isNotEmpty &&
+            controller.religionList.contains(controller.religion.value))
+            ? controller.religion.value
             : null,
         items: controller.religionList,
         onChanged: (value) {
@@ -522,9 +522,9 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: "Height",
       child: Obx(() => CustomDropdown<String>(
         hintText: 'Height',
-        initialItem: (controller.height.value.isNotEmpty && 
-                     controller.heightList.contains(controller.height.value))
-            ? controller.height.value 
+        initialItem: (controller.height.value.isNotEmpty &&
+            controller.heightList.contains(controller.height.value))
+            ? controller.height.value
             : null,
         items: controller.heightList,
         onChanged: (value) {
@@ -547,8 +547,8 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         return CustomDropdown<String>(
           hintText: 'Built',
           initialItem:
-              (controller.built.value.isNotEmpty &&
-                  builtItems.contains(controller.built.value))
+          (controller.built.value.isNotEmpty &&
+              builtItems.contains(controller.built.value))
               ? controller.built.value
               : null,
           items: builtItems,
@@ -578,8 +578,8 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
         return CustomDropdown<String>(
           hintText: 'Partner Complexion',
           initialItem:
-              (controller.complexion.value.isNotEmpty &&
-                  complexionItems.contains(controller.complexion.value))
+          (controller.complexion.value.isNotEmpty &&
+              complexionItems.contains(controller.complexion.value))
               ? controller.complexion.value
               : null,
           items: complexionItems,
@@ -606,9 +606,9 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Marriage Status',
       child: Obx(() => CustomDropdown<String>(
         hintText: 'Marriage Status',
-        initialItem: (controller.maritalStatus.value.isNotEmpty && 
-                     controller.maritalStatusList.contains(controller.maritalStatus.value))
-            ? controller.maritalStatus.value 
+        initialItem: (controller.maritalStatus.value.isNotEmpty &&
+            controller.maritalStatusList.contains(controller.maritalStatus.value))
+            ? controller.maritalStatus.value
             : null,
         items: controller.maritalStatusList,
         onChanged: (value) {
@@ -643,8 +643,8 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
             return CustomDropdown<String>(
               hintText: 'Drink',
               initialItem:
-                  (controller.isDrink.value.isNotEmpty &&
-                      drinkItems.contains(controller.isDrink.value))
+              (controller.isDrink.value.isNotEmpty &&
+                  drinkItems.contains(controller.isDrink.value))
                   ? controller.isDrink.value
                   : null,
               items: drinkItems,
@@ -670,8 +670,8 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
             return CustomDropdown<String>(
               hintText: 'Smoke',
               initialItem:
-                  (controller.isSmoke.value.isNotEmpty &&
-                      smokeItems.contains(controller.isSmoke.value))
+              (controller.isSmoke.value.isNotEmpty &&
+                  smokeItems.contains(controller.isSmoke.value))
                   ? controller.isSmoke.value
                   : null,
               items: smokeItems,

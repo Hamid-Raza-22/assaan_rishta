@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 
 import '../core/routes/app_routes.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/secure_storage_service.dart';
 
 
@@ -197,7 +198,8 @@ class LoginViewModel extends GetxController {
           // Decide initial destination based on partner preference flag in Firestore
           try {
             final doc = await FirebaseFirestore.instance
-                .collection('Hamid_users')
+                          .collection(EnvConfig.firebaseUsersCollection)
+
                 .doc(safeUserId.toString())
                 .get();
 

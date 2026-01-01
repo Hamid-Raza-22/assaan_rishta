@@ -12,6 +12,8 @@ mixin UserManagementRepo {
 
   int? getUserId();
 
+  Future<int> getUserRoleId();
+
   String getUserName();
 
   String getUserEmail();
@@ -34,9 +36,14 @@ mixin UserManagementRepo {
 
   Future<Either<AppError, dynamic>> deleteUserProfile();
 
-  Future<Either<AppError, dynamic>> deactivateUserProfile();
+  Future<Either<AppError, dynamic>> deactivateUserProfile({ required int userId,});
 
   Future<Either<AppError, CurrentUserProfile>> getCurrentUserProfile();
+
+  /// Get user profile by specific userId (for admin managing other users)
+  Future<Either<AppError, CurrentUserProfile>> getUserProfileById({
+    required int userId,
+  });
 
   Future<Either<AppError, String>> updateProfilePic({required String picData});
 
@@ -47,6 +54,11 @@ mixin UserManagementRepo {
 
   Future<Either<AppError, PartnerPreferenceData>> getPartnerPreference();
 
+  /// Get partner preference by specific userId (for admin managing other users)
+  Future<Either<AppError, PartnerPreferenceData>> getPartnerPreferenceById({
+    required int userId,
+  });
+
 
   Future<Either<AppError, String>> updatePartnerPreference({
     required Map<String, String> payload,
@@ -56,7 +68,7 @@ mixin UserManagementRepo {
     required String password,
   });
 
- Future<Either<AppError, String>> resetPassword({
+  Future<Either<AppError, String>> resetPassword({
     required String password,required String email,
   });
 
@@ -112,4 +124,20 @@ mixin UserManagementRepo {
   Future<Either<AppError, List<FavoritesProfiles>>> getAllFavorites();
 
   Future<Either<AppError, String>> updateBlurProfileImage({required bool blur});
+
+  Future<Either<AppError, AllProfileList>> getMatrimonialProfiles({
+    required int adminId,
+    // required int pageNo,
+    // required int pageLimit,
+  });
+
+  /// Delete user profile by userId (Admin functionality)
+  Future<Either<AppError, dynamic>> deleteUserProfileById({
+    required int userId,
+  });
+
+  /// Remove matrimonial user by userId (Admin functionality)
+  Future<Either<AppError, dynamic>> removeMatrimonialUser({
+    required int userId,
+  });
 }

@@ -25,7 +25,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
   @override
   Widget build(BuildContext context) {
     debugPrint("Building UserDetailsView with arguments: ${Get.arguments}");
-    
+
     return Scaffold(
       backgroundColor: AppColors.whiteColor,
       appBar: const PreferredSize(
@@ -138,16 +138,16 @@ class UserDetailsView extends GetView<UserDetailsController> {
             ),
             child: Column(
               children: List.generate(4, (i) =>
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(width: w * 0.35, height: 14, color: Colors.white),
-                      Container(width: w * 0.35, height: 14, color: Colors.white),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(width: w * 0.35, height: 14, color: Colors.white),
+                        Container(width: w * 0.35, height: 14, color: Colors.white),
+                      ],
+                    ),
                   ),
-                ),
               ),
             ),
           ),
@@ -161,16 +161,16 @@ class UserDetailsView extends GetView<UserDetailsController> {
             ),
             child: Column(
               children: List.generate(4, (i) =>
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(width: w * 0.35, height: 14, color: Colors.white),
-                      Container(width: w * 0.35, height: 14, color: Colors.white),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(width: w * 0.35, height: 14, color: Colors.white),
+                        Container(width: w * 0.35, height: 14, color: Colors.white),
+                      ],
+                    ),
                   ),
-                ),
               ),
             ),
           ),
@@ -211,6 +211,45 @@ class UserDetailsView extends GetView<UserDetailsController> {
                       ),
                     ],
                   ),
+                  // Admin Created Badge
+                  if (controller.profileDetails.value.profileCreatedBy != null &&
+                      controller.profileDetails.value.profileCreatedBy! > 0) ...[
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.primaryColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.verified_user,
+                              size: 14,
+                              color: AppColors.primaryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "Admin Managed Profile",
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 35),
                   // Two buttons in a row - Message and Share
                   Padding(
@@ -254,62 +293,62 @@ class UserDetailsView extends GetView<UserDetailsController> {
               ),
               // Share button positioned at top right corner
               Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.whiteColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: PopupMenuButton<String>(
-
-                  padding: const EdgeInsets.all(4),
-                  icon: const Icon(
-                    Icons.more_vert,
-                    color: AppColors.primaryColor,
-                    size: 22,
+                top: 10,
+                right: 10,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.whiteColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  onSelected: (value) {
-                    if (value == 'share') {
-                      _shareProfile(context);
-                    } else if (value == 'report') {
-                      _reportProfile();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    // ADDED: Popup background color
-                    PopupMenuItem<String>(
-                      value: 'share',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.share, size: 18,),
-                          const SizedBox(width: 8),
-                          Text('Share', style: GoogleFonts.poppins()),
-                        ],
-                      ),
+                  child: PopupMenuButton<String>(
+
+                    padding: const EdgeInsets.all(4),
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: AppColors.primaryColor,
+                      size: 22,
                     ),
-                    PopupMenuItem<String>(
-                      value: 'report',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.flag_outlined, size: 18),
-                          const SizedBox(width: 8),
-                          Text('Report', style: GoogleFonts.poppins()),
-                        ],
+                    onSelected: (value) {
+                      if (value == 'share') {
+                        _shareProfile(context);
+                      } else if (value == 'report') {
+                        _reportProfile();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      // ADDED: Popup background color
+                      PopupMenuItem<String>(
+                        value: 'share',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.share, size: 18,),
+                            const SizedBox(width: 8),
+                            Text('Share', style: GoogleFonts.poppins()),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                  color: AppColors.whiteColor, // ADDED: Set background color to white
+                      PopupMenuItem<String>(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.flag_outlined, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Report', style: GoogleFonts.poppins()),
+                          ],
+                        ),
+                      ),
+                    ],
+                    color: AppColors.whiteColor, // ADDED: Set background color to white
+                  ),
                 ),
               ),
-            ),
               const Positioned(
                 left: 0,
                 right: 0,
@@ -328,14 +367,14 @@ class UserDetailsView extends GetView<UserDetailsController> {
               builder: (context) {
                 final shouldBlur = controller.profileDetails.value.blurProfileImage ?? false;
                 debugPrint('🎯 UserDetails - shouldBlur: $shouldBlur, is_blur value: ${controller.profileDetails.value.blurProfileImage}');
-                
+
                 return BlurredProfileImage(
-                  imageProvider: (controller.profileDetails.value.profileImage != null && 
-                          controller.profileDetails.value.profileImage!.isNotEmpty)
+                  imageProvider: (controller.profileDetails.value.profileImage != null &&
+                      controller.profileDetails.value.profileImage!.isNotEmpty)
                       ? NetworkImage(controller.profileDetails.value.profileImage!) as ImageProvider
                       : AssetImage(
-                          controller.getGenderBasedPlaceholder(controller.profileDetails.value.gender),
-                        ) as ImageProvider,
+                    controller.getGenderBasedPlaceholder(controller.profileDetails.value.gender),
+                  ) as ImageProvider,
                   shouldBlur: shouldBlur,
                   isCircular: true,
                   width: 90,
@@ -354,7 +393,7 @@ class UserDetailsView extends GetView<UserDetailsController> {
 
   void _shareProfile(BuildContext context) async {
     final bool isLoggedIn =
-        controller.useCase.userManagementRepo.getUserLoggedInStatus();
+    controller.useCase.userManagementRepo.getUserLoggedInStatus();
 
     if (!isLoggedIn) {
       Get.dialog(
@@ -466,7 +505,7 @@ Don't have the app? Download now:
 
   void _reportProfile() {
     final bool isLoggedIn =
-        controller.useCase.userManagementRepo.getUserLoggedInStatus();
+    controller.useCase.userManagementRepo.getUserLoggedInStatus();
 
     if (!isLoggedIn) {
       Get.dialog(
@@ -647,7 +686,8 @@ Don't have the app? Download now:
       ),
       fontSize: 18,
       onTap: () {
-        if (controller.totalConnects.value > 0) {
+        // If already connected/chatting, allow messaging without checking connects
+        if (controller.isAlreadyConnected.value || controller.totalConnects.value > 0) {
           controller.sendMessageToOtherUser(context);
         } else {
           showDialog(
@@ -748,7 +788,7 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Name',
                 subtitle:
-                    '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
+                '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
               ),
               getListTile(
                 title: 'Gender',
@@ -831,7 +871,7 @@ Don't have the app? Download now:
               getListTile(
                 title: 'About Life Partner',
                 subtitle:
-                    controller.profileDetails.value.userDiWohtiKaTaruf ?? "--",
+                controller.profileDetails.value.userDiWohtiKaTaruf ?? "--",
               ),
             ],
           ),
@@ -845,7 +885,7 @@ Don't have the app? Download now:
   getVideoInfo() {
     bool hasTiktokLink =
         controller.profileDetails.value.tiktokLink != null &&
-        controller.profileDetails.value.tiktokLink!.isNotEmpty;
+            controller.profileDetails.value.tiktokLink!.isNotEmpty;
 
     debugPrint("Video URL: ${controller.profileDetails.value.tiktokLink}");
 
@@ -1085,7 +1125,7 @@ Don't have the app? Download now:
                           .value
                           .position
                           .inMilliseconds /
-                      controller.videoController!.value.duration.inMilliseconds;
+                          controller.videoController!.value.duration.inMilliseconds;
                   return FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: progress.clamp(0.0, 1.0),
@@ -1502,7 +1542,7 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Parent Country',
                 subtitle:
-                    controller.profileDetails.value.parentCountryName ?? "--",
+                controller.profileDetails.value.parentCountryName ?? "--",
               ),
             ],
           ),
@@ -1512,12 +1552,12 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Parent State',
                 subtitle:
-                    controller.profileDetails.value.parentStateName ?? "--",
+                controller.profileDetails.value.parentStateName ?? "--",
               ),
               getListTile(
                 title: 'Parent City',
                 subtitle:
-                    controller.profileDetails.value.parentCityName ?? "--",
+                controller.profileDetails.value.parentCityName ?? "--",
               ),
             ],
           ),
@@ -1533,7 +1573,7 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Father\'s Occupation',
                 subtitle:
-                    controller.profileDetails.value.fatherOccupation ?? "--",
+                controller.profileDetails.value.fatherOccupation ?? "--",
               ),
             ],
           ),
@@ -1549,7 +1589,7 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Mother Occupation',
                 subtitle:
-                    controller.profileDetails.value.motherOccupation ?? "--",
+                controller.profileDetails.value.motherOccupation ?? "--",
               ),
             ],
           ),
@@ -1633,12 +1673,12 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Age',
                 subtitle:
-                    '${controller.profileDetails.value.partnerAgeFrom ?? "-"} from ${controller.profileDetails.value.partnerAgeTo ?? "-"}',
+                '${controller.profileDetails.value.partnerAgeFrom ?? "-"} from ${controller.profileDetails.value.partnerAgeTo ?? "-"}',
               ),
               getListTile(
                 title: 'Languages',
                 subtitle:
-                    controller.profileDetails.value.partnerLanguages ?? "--",
+                controller.profileDetails.value.partnerLanguages ?? "--",
               ),
             ],
           ),
@@ -1704,7 +1744,7 @@ Don't have the app? Download now:
               getListTile(
                 title: 'Marital Status ',
                 subtitle:
-                    controller.profileDetails.value.partnerMaritalStatus ??
+                controller.profileDetails.value.partnerMaritalStatus ??
                     "--",
               ),
             ],

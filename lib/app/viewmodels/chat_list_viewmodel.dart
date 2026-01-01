@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../domain/export.dart';
 import 'chat_viewmodel.dart';
 
@@ -59,7 +60,7 @@ class ChatListController extends GetxController {
         final conversationId = getConversationId(currentUserId, user.id);
 
         final undelivered = await FirebaseFirestore.instance
-            .collection('Hamid_chats')
+            .collection(EnvConfig.firebaseChatsCollection)
             .doc(conversationId)
             .collection('messages')
             .where('toId', isEqualTo: currentUserId)
@@ -101,7 +102,7 @@ class ChatListController extends GetxController {
   Future<void> _loadDeletionRecords() async {
     try {
       final deletionSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('deleted_chats')
           .get();
@@ -136,7 +137,7 @@ class ChatListController extends GetxController {
       // Get the latest message for this user
       final chatId = getConversationId(currentUserId, userId);
       final lastMessageSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(chatId)
           .collection('messages')
           .orderBy('sent', descending: true)
@@ -312,7 +313,7 @@ class ChatListController extends GetxController {
 
       // Get undelivered messages
       final undelivered = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(chatId)
           .collection('messages')
           .where('toId', isEqualTo: currentUserId)
@@ -403,11 +404,13 @@ class ChatListController extends GetxController {
     try {
       debugPrint('🗑️ Deleting chat with ${user.name}...');
 
-      // ADDED: Clear cached messages from ChatViewModel
+      // ADDED: Clear cached messages from ChatViewModel and Hive
       if (Get.isRegistered<ChatViewModel>()) {
         final chatController = Get.find<ChatViewModel>();
         chatController.cachedMessagesPerUser.remove(user.id);
-        debugPrint('🧹 Cleared cached messages for user: ${user.id}');
+        // CRITICAL: Also clear Hive cache to prevent flash of deleted messages
+        await chatController.clearHiveCacheForUser(user.id);
+        debugPrint('🧹 Cleared cached messages (memory + Hive) for user: ${user.id}');
       }
 
       // Stop listening to this user's messages
@@ -429,7 +432,7 @@ class ChatListController extends GetxController {
       // Remove from my_users
       batch.delete(
         FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(currentUserId)
             .collection('my_users')
             .doc(user.id),
@@ -438,7 +441,7 @@ class ChatListController extends GetxController {
       // Store deletion record
       batch.set(
         FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(currentUserId)
             .collection('deleted_chats')
             .doc(user.id),
@@ -492,7 +495,7 @@ class ChatListController extends GetxController {
   Future<void> clearDeletionRecord(String userId) async {
     try {
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('deleted_chats')
           .doc(userId)
@@ -531,7 +534,7 @@ class ChatListController extends GetxController {
     }
 
     _myUsersSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .doc(currentUserId)
         .collection('my_users')
         .orderBy('last_message_time', descending: true)
@@ -565,7 +568,7 @@ class ChatListController extends GetxController {
     _allUsersSubscription?.cancel();
 
     _allUsersSubscription = FirebaseFirestore.instance
-        .collection('Hamid_users')
+        .collection(EnvConfig.firebaseUsersCollection)
         .where('id', whereIn: userIds)
         .snapshots()
         .listen(
@@ -575,14 +578,14 @@ class ChatListController extends GetxController {
         for (var doc in snapshot.docs) {
           try {
             final user = ChatUser.fromJson(doc.data());
-            
+
             // Check if user has at least 1 message
             final hasMessages = await _userHasMessages(user.id);
             if (!hasMessages) {
               debugPrint('⏭️ Skipping user ${user.name} - no messages yet');
               continue; // Skip users without messages
             }
-            
+
             newUsers.add(user);
 
             // Setup message listener for each user
@@ -631,28 +634,28 @@ class ChatListController extends GetxController {
   Future<bool> _userHasMessages(String userId) async {
     try {
       final chatId = getConversationId(currentUserId, userId);
-      
+
       // Check if any message exists in this conversation
       final messagesSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(chatId)
           .collection('messages')
           .limit(1)
           .get();
-      
+
       // Also check deletion timestamp - if deleted, check for new messages after deletion
       final deletionTime = deletionTimestamps[userId];
       if (deletionTime != null && messagesSnapshot.docs.isNotEmpty) {
         final message = messagesSnapshot.docs.first.data();
         final messageTime = int.parse(message['sent'] ?? '0');
         final deletedAt = int.parse(deletionTime);
-        
+
         // Only count messages after deletion
         if (messageTime <= deletedAt) {
           return false;
         }
       }
-      
+
       return messagesSnapshot.docs.isNotEmpty;
     } catch (e) {
       debugPrint('❌ Error checking user messages: $e');
@@ -684,7 +687,7 @@ class ChatListController extends GetxController {
     final chatId = getConversationId(currentUserId, user.id);
 
     _messageListeners[user.id] = FirebaseFirestore.instance
-        .collection('Hamid_chats')
+        .collection(EnvConfig.firebaseChatsCollection)
         .doc(chatId)
         .collection('messages')
         .orderBy('sent', descending: true)
@@ -726,7 +729,7 @@ class ChatListController extends GetxController {
         debugPrint('❌ Error listening to messages: $error');
       },
     );
-    }
+  }
 
   void _updateUserPositionIfNeeded(String userId, String messageTime) {
     final currentIndex = chatUsers.indexWhere((u) => u.id == userId);
@@ -759,7 +762,7 @@ class ChatListController extends GetxController {
       final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
 
       await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(conversationId)
           .collection('messages')
           .doc(messageId)
@@ -856,18 +859,18 @@ class ChatListController extends GetxController {
       _loadDeletionRecords();
     });
   }
-  
+
   // Method to handle new user added to chat
   Future<void> onNewUserAdded(String userId) async {
     try {
       debugPrint('👤 New user added to chat: $userId');
-      
+
       // Wait a bit for Firebase to sync
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Force refresh to get the new user
       forceRefresh();
-      
+
       debugPrint('✅ Chat list updated with new user');
     } catch (e) {
       debugPrint('❌ Error handling new user: $e');

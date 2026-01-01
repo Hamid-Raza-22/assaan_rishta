@@ -45,7 +45,12 @@ class SignupViewModel extends GetxController {
   var selectedGender = 'Male'.obs;
   var isFormValid = false.obs;
   RxBool isTermsAgree = true.obs;
-  
+  RxBool isProfileBlur = false.obs; // Profile blur option for female users
+
+  // Admin dashboard registration tracking
+  RxBool isFromDashboard = false.obs;
+  int profileCreatedBy = 0;
+
   // Photo picker
   final ImagePicker _picker = ImagePicker();
   Rx<File?> profilePhoto = Rx<File?>(null);
@@ -111,7 +116,7 @@ class SignupViewModel extends GetxController {
         maxWidth: 1080,
         maxHeight: 1080,
       );
-      
+
       if (pickedFile != null) {
         profilePhoto.value = File(pickedFile.path);
         photoError.value = '';
@@ -130,7 +135,7 @@ class SignupViewModel extends GetxController {
         maxWidth: 1080,
         maxHeight: 1080,
       );
-      
+
       if (pickedFile != null) {
         profilePhoto.value = File(pickedFile.path);
         photoError.value = '';
@@ -258,8 +263,13 @@ class SignupViewModel extends GetxController {
     cityId = 0;
     isTermsAgree.value = true;
     isFormValid.value = false;
+    isProfileBlur.value = false;
     dobController.value = DateTime.now();
-    
+
+    // Reset admin dashboard tracking
+    isFromDashboard.value = false;
+    profileCreatedBy = 0;
+
     // Clear photo
     profilePhoto.value = null;
     photoError.value = '';
@@ -972,8 +982,9 @@ class SignupViewModel extends GetxController {
       userKaTaruf: aboutYourSelfTEC.text,
       userDiWohtiKaTaruf: aboutYourPartnerTEC.text,
       roleId: 2,
-      profilePhotoPath: profilePhoto.value?.path, // Include photo path if available
-      profilePhotoBase64: photoBase64, // Include base64 photo for server upload
+      // profilePhotoBase64: photoBase64,
+      // profileBlur: isProfileBlur.value,
+      profileCreatedBy: isFromDashboard.value && profileCreatedBy > 0 ? profileCreatedBy : null,
     );
 
     final response = await userManagementUseCase.signUp(signUpModel: model);
@@ -1003,6 +1014,7 @@ class SignupViewModel extends GetxController {
   void waitForAdminApproval() {
     Get.defaultDialog(
       title: '',
+      barrierDismissible: false,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1011,9 +1023,39 @@ class SignupViewModel extends GetxController {
           const Text('Awaiting Approval',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
+          // Urdu Text
           const Text(
-            'Your profile is pending admin approval.',
+            'برائے مہربانی انتظار فرمائیں۔ ہمارا نمائندہ جلد آپ سے رابطہ کرے گا۔\nآپ کی تصدیق کے بعد آپ کا اکاؤنٹ منظور کر لیا جائے گا۔',
             textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          // English Text
+          const Text(
+            'Please wait, our representative will call you soon.\nAfter your verification, your account will be approved.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, height: 1.5, color: Colors.black54),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.schedule, size: 18, color: Colors.orange),
+                const SizedBox(width: 8),
+                const Text(
+                  'Call Timing: 9:00 AM - 6:00 PM\n(Monday - Saturday)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           CustomButton(
@@ -1022,9 +1064,33 @@ class SignupViewModel extends GetxController {
             isEnable: true,
             fontColor: AppColors.whiteColor,
             onTap: () {
+              // Check if registration was from dashboard
+              final wasFromDashboard = isFromDashboard.value;
+
               // Clear form data for next signup
               clearFormData();
-              Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
+
+              if (wasFromDashboard) {
+                // Admin registered user - navigate to bottom nav with dashboard tab selected
+                Get.offAllNamed(AppRoutes.BOTTOM_NAV, arguments: {'initialIndex': 4});
+                Get.snackbar(
+                  'User Registered',
+                  'User has been registered successfully. They will be notified after approval.',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.green.withOpacity(0.9),
+                  colorText: Colors.white,
+                  duration: const Duration(seconds: 3),
+                );
+              } else {
+                // Regular user signup - navigate to guest mode
+                Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+                Get.snackbar(
+                  'Guest Mode',
+                  'You are in Guest Mode. Please log in after your account is approved.',
+                  snackPosition: SnackPosition.BOTTOM,
+                  duration: const Duration(seconds: 4),
+                );
+              }
             },
           ),
         ],

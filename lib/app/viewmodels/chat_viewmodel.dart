@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:rxdart/rxdart.dart';
 import '../core/export.dart';
+import '../core/services/env_config_service.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/hive_message_service.dart';
 import '../data/repositories/chat_repository.dart';
@@ -18,14 +19,14 @@ import 'chat_list_viewmodel.dart';
 class ChatViewModel extends GetxController with WidgetsBindingObserver {
   // Hive service for persistent storage
   final _hiveService = HiveMessageService();
-  
+
   // Deduplication tracking for Hive saves
   final Map<String, ({int messageCount, DateTime timestamp})> _lastHiveSave = {};
-  
+
   // PERFORMANCE: Track recently marked messages to prevent duplicate marking
   final Set<String> _recentlyMarkedAsRead = {};
   Timer? _markAsReadCleanupTimer;
-  
+
   // FIXED: Persistent cache that survives app restarts
   final RxBool isOtherUserTyping = false.obs;
   StreamSubscription? _typingStatusSubscription;
@@ -197,7 +198,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
     }
   }
   // Clear image from all caches
-_clearImageFromCache(String imageUrl) {
+  _clearImageFromCache(String imageUrl) {
     try {
       // Clear from CachedNetworkImage cache
       CachedNetworkImage.evictFromCache(imageUrl);
@@ -240,22 +241,22 @@ _clearImageFromCache(String imageUrl) {
   Future<void> cacheMessages(String userId, List<Message> messages) async {
     // Update reactive cache (always update memory)
     cachedMessagesPerUser[userId] = messages;
-    
+
     // PERFORMANCE: Throttle Hive saves (500ms cooldown)
     // Note: HiveMessageService now does incremental saves internally
     // So we only throttle the frequency, not the content
     final now = DateTime.now();
     final lastSave = _lastHiveSave[userId];
-    
-    if (lastSave != null && 
+
+    if (lastSave != null &&
         now.difference(lastSave.timestamp).inMilliseconds < 500) {
       debugPrint('⏭️ Throttled Hive save for user $userId (${now.difference(lastSave.timestamp).inMilliseconds}ms since last save)');
       return;
     }
-    
+
     // Save to Hive (incremental - only new/changed messages saved internally)
     await _hiveService.saveMessages(userId, messages);
-    
+
     // Track this save
     _lastHiveSave[userId] = (messageCount: messages.length, timestamp: now);
 
@@ -288,32 +289,32 @@ _clearImageFromCache(String imageUrl) {
     return _repo.getAllMessages(user).asyncMap((snapshot) async {
       final allMessages = snapshot.docs
           .map((doc) {
-            final data = doc.data();
-            final message = Message.fromJson(data);
-            
-            // Ensure status is properly set from Firestore data
-            if (data['status'] != null) {
-              try {
-                message.status = MessageStatus.values.firstWhere(
+        final data = doc.data();
+        final message = Message.fromJson(data);
+
+        // Ensure status is properly set from Firestore data
+        if (data['status'] != null) {
+          try {
+            message.status = MessageStatus.values.firstWhere(
                   (e) => e.name == data['status'],
-                  orElse: () {
-                    // Fallback to determining status from timestamps
-                    if (data['read'] != null && data['read'].toString().isNotEmpty) {
-                      return MessageStatus.read;
-                    } else if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
-                      return MessageStatus.delivered;
-                    } else {
-                      return MessageStatus.sent;
-                    }
-                  },
-                );
-              } catch (e) {
-                debugPrint('⚠️ Error parsing status: $e');
-              }
-            }
-            
-            return message;
-          })
+              orElse: () {
+                // Fallback to determining status from timestamps
+                if (data['read'] != null && data['read'].toString().isNotEmpty) {
+                  return MessageStatus.read;
+                } else if (data['delivered'] != null && data['delivered'].toString().isNotEmpty) {
+                  return MessageStatus.delivered;
+                } else {
+                  return MessageStatus.sent;
+                }
+              },
+            );
+          } catch (e) {
+            debugPrint('⚠️ Error parsing status: $e');
+          }
+        }
+
+        return message;
+      })
           .toList();
       // Mark new incoming messages as delivered
       processMessageStatuses(allMessages, user.id);
@@ -397,11 +398,11 @@ _clearImageFromCache(String imageUrl) {
     try {
       // First check Hive for locally stored deletion time
       String? deletionTime = await _hiveService.getDeletionTime(userId);
-      
+
       // If not in Hive, check Firestore
       if (deletionTime == null) {
         final deletionDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(_repo.currentUserId)
             .collection('deleted_chats')
             .doc(userId)
@@ -443,6 +444,22 @@ _clearImageFromCache(String imageUrl) {
     }).toList();
   }
 
+  // PUBLIC: Load deletion record for a specific user (used before showing cached messages)
+  Future<void> loadDeletionRecordForUser(String userId) async {
+    // Use cached result if available
+    if (_persistentDeletionCache.containsKey(userId)) {
+      currentChatDeletionTime.value = _persistentDeletionCache[userId];
+      return;
+    }
+    // Load from Firestore/Hive
+    await _loadDeletionRecord(userId);
+  }
+
+  // PUBLIC: Apply deletion filter to messages (used for filtering cached messages)
+  List<Message> applyDeletionFilterToMessages(List<Message> messages, String userId) {
+    return _applyDeletionFilter(messages, userId);
+  }
+
   // FIXED: Check deletion record with cache
   Future<void> checkDeletionRecord() async {
     if (selectedUser.value == null) return;
@@ -468,7 +485,7 @@ _clearImageFromCache(String imageUrl) {
     try {
       // Clear from Firestore
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_repo.currentUserId)
           .collection('deleted_chats')
           .doc(userId)
@@ -524,7 +541,7 @@ _clearImageFromCache(String imageUrl) {
 
       try {
         final userDoc = await FirebaseFirestore.instance
-            .collection('Hamid_users')
+            .collection(EnvConfig.firebaseUsersCollection)
             .doc(pendingChatUserId!)
             .get();
 
@@ -646,12 +663,12 @@ _clearImageFromCache(String imageUrl) {
               isViewed: oldMessage.isViewed,
               reactions: oldMessage.reactions,
             );
-            
+
             // Replace with new object to trigger reactive update
             final updatedMessages = List<Message>.from(messages);
             updatedMessages[index] = updatedMessage;
             messages.assignAll(updatedMessages);
-            
+
             // Update cache
             if (selectedUser.value != null) {
               await cacheMessages(selectedUser.value!.id, updatedMessages);
@@ -682,11 +699,11 @@ _clearImageFromCache(String imageUrl) {
           isViewed: oldMessage.isViewed,
           reactions: oldMessage.reactions,
         );
-        
+
         final updatedMessages = List<Message>.from(messages);
         updatedMessages[index] = failedMessage;
         messages.assignAll(updatedMessages);
-        
+
         if (selectedUser.value != null) {
           await cacheMessages(selectedUser.value!.id, updatedMessages);
         }
@@ -709,7 +726,7 @@ _clearImageFromCache(String imageUrl) {
 
 
   // FIXED: Better first message handling with status tracking
-  Future<void> sendFirstMessage(String text) async {
+  Future<void> sendFirstMessage(String text, {String? profileIdForConnects}) async {
     if (selectedUser.value == null) {
       debugPrint('❌ ERROR: No selected user for first message');
       throw Exception('Selected user not set');
@@ -748,6 +765,7 @@ _clearImageFromCache(String imageUrl) {
         text.trim(),
         Type.text,
         messageId: time,
+        profileIdForConnects: profileIdForConnects,
         onStatusUpdate: (status) async {
           // Update the message status in the list
           final index = messages.indexWhere((m) => m.sent == time);
@@ -768,12 +786,12 @@ _clearImageFromCache(String imageUrl) {
               isViewed: oldMessage.isViewed,
               reactions: oldMessage.reactions,
             );
-            
+
             // Replace with new object to trigger reactive update
             final updatedMessages = List<Message>.from(messages);
             updatedMessages[index] = updatedMessage;
             messages.assignAll(updatedMessages);
-            
+
             // Update cache
             if (selectedUser.value != null) {
               await cacheMessages(selectedUser.value!.id, updatedMessages);
@@ -810,11 +828,11 @@ _clearImageFromCache(String imageUrl) {
           isViewed: oldMessage.isViewed,
           reactions: oldMessage.reactions,
         );
-        
+
         final updatedMessages = List<Message>.from(messages);
         updatedMessages[index] = failedMessage;
         messages.assignAll(updatedMessages);
-        
+
         if (selectedUser.value != null) {
           await cacheMessages(selectedUser.value!.id, updatedMessages);
         }
@@ -875,7 +893,7 @@ _clearImageFromCache(String imageUrl) {
       } else {
         // Even if selectedUser is null, clear everything
         messages.clear();
-       // currentChatUserId = null;
+        // currentChatUserId = null;
         currentChatDeletionTime.value = null;
         hasCachedMessages.value = false;
 
@@ -900,6 +918,18 @@ _clearImageFromCache(String imageUrl) {
       debugPrint('✅ Chat exited successfully - selectedUser: ${selectedUser.value?.id}, currentChatUserId: $currentChatUserId');
     } catch (e) {
       debugPrint('❌ Error exiting chat: $e');
+    }
+  }
+
+  // CRITICAL: Clear Hive cache for a specific user (called when chat is deleted)
+  Future<void> clearHiveCacheForUser(String userId) async {
+    try {
+      await _hiveService.clearMessages(userId);
+      await _hiveService.saveDeletionTime(userId, DateTime.now().millisecondsSinceEpoch.toString());
+      _persistentDeletionCache[userId] = DateTime.now().millisecondsSinceEpoch.toString();
+      debugPrint('🧹 Cleared Hive cache for user: $userId');
+    } catch (e) {
+      debugPrint('❌ Error clearing Hive cache: $e');
     }
   }
 
@@ -991,7 +1021,7 @@ _clearImageFromCache(String imageUrl) {
     final baseStream = _repo.getAllMessages(user);
     return baseStream.asyncMap((snapshot) async {
       final deletionDoc = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(_repo.currentUserId)
           .collection('deleted_chats')
           .doc(user.id)
@@ -1021,7 +1051,7 @@ _clearImageFromCache(String imageUrl) {
   // PERFORMANCE: Public method to mark messages as recently marked (for batch operations)
   void markAsRecentlyMarked(String messageId) {
     _recentlyMarkedAsRead.add(messageId);
-    
+
     // Auto-cleanup after 3 seconds
     _markAsReadCleanupTimer?.cancel();
     _markAsReadCleanupTimer = Timer(const Duration(seconds: 3), () {
@@ -1035,13 +1065,13 @@ _clearImageFromCache(String imageUrl) {
     try {
       if (message.fromId == _repo.currentUserId) return;
       if (message.read.isNotEmpty) return;
-      
+
       // PERFORMANCE: Prevent duplicate marking within 3 seconds
       if (_recentlyMarkedAsRead.contains(message.sent)) {
         debugPrint('⏭️ Skipped duplicate mark-as-read for message ${message.sent} (already marked recently)');
         return;
       }
-      
+
       // Track this message as recently marked
       markAsRecentlyMarked(message.sent);
 
@@ -1141,7 +1171,7 @@ _clearImageFromCache(String imageUrl) {
       debugPrint('📝 Adding chat user: $uid');
       final result = await _repo.addChatUser(uid);
       debugPrint('✅ Chat user added: $result');
-      
+
       // Refresh chat list if user was added successfully
       if (result && Get.isRegistered<ChatListController>()) {
         final chatListController = Get.find<ChatListController>();
@@ -1150,7 +1180,7 @@ _clearImageFromCache(String imageUrl) {
         chatListController.forceRefresh();
         debugPrint('🔄 Chat list refreshed after adding new user');
       }
-      
+
       return result;
     } catch (e) {
       debugPrint('❌ Error adding chat user: $e');
@@ -1212,7 +1242,7 @@ _clearImageFromCache(String imageUrl) {
   }
 
   // Helper to force clear all chat state
- forceClearChatState() {
+  forceClearChatState() {
     debugPrint('🧹 Force clearing all chat state');
     selectedUser.value = null;
     // currentChatUserId = null;
@@ -1251,7 +1281,7 @@ _clearImageFromCache(String imageUrl) {
       final chatId = getConversationId(currentUserId, otherUserId);
 
       final lastMessage = await FirebaseFirestore.instance
-          .collection('Hamid_chats')
+          .collection(EnvConfig.firebaseChatsCollection)
           .doc(chatId)
           .collection('messages')
           .orderBy('sent', descending: true)
@@ -1276,7 +1306,7 @@ _clearImageFromCache(String imageUrl) {
 
       final currentUserId = _repo.currentUserId;
       final myUsersSnapshot = await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
           .collection('my_users')
           .get();
@@ -1288,7 +1318,7 @@ _clearImageFromCache(String imageUrl) {
         if (data['last_message_time'] == null) {
           final chatId = getConversationId(currentUserId, otherUserId);
           final lastMessageSnapshot = await FirebaseFirestore.instance
-              .collection('Hamid_chats')
+              .collection(EnvConfig.firebaseChatsCollection)
               .doc(chatId)
               .collection('messages')
               .orderBy('sent', descending: true)
@@ -1316,7 +1346,7 @@ _clearImageFromCache(String imageUrl) {
     try {
       final lastMessageTime = await getActualLastMessageTime(userId);
       await FirebaseFirestore.instance
-          .collection('Hamid_users')
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .update({
         'last_message': lastMessageTime,
