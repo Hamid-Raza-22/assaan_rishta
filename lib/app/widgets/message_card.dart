@@ -162,6 +162,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     final isViewedOnce =
         widget.message.isViewOnce == true && widget.message.isViewed == true;
     final isRepliedMessage = widget.message.msg.contains('↪️');
+    final isSystemNotification = widget.message.msg.contains('💡') && (widget.message.msg.contains('Connect') || widget.message.msg.contains('connection'));
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
@@ -223,6 +224,8 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                       HapticFeedback.selectionClick();
                     },
                     onLongPress: () {
+                      // System notifications are non-interactive - no long-press actions
+                      if (isSystemNotification) return;
                       if (!widget.isSelectionMode && widget.message.type != Type.viewOnceImage) {
                         _animationController.forward().then((_) {
                           _animationController.reverse();
@@ -236,7 +239,16 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                     onTapCancel: () => _animationController.reverse(),
                     child: Container(
                       decoration: BoxDecoration(
-                        gradient: isMe
+                        gradient: isSystemNotification
+                            ? LinearGradient(
+                          colors: [
+                            const Color(0xFFFFF9C4),
+                            const Color(0xFFFFF59D),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                            : isMe
                             ? LinearGradient(
                           colors: isRepliedMessage
                               ? [
@@ -271,8 +283,13 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        // Add border for replied messages
-                        border: isRepliedMessage
+                        // Add border for replied messages or system notifications
+                        border: isSystemNotification
+                            ? Border.all(
+                          color: const Color(0xFFFDD835).withOpacity(0.5),
+                          width: 1.5,
+                        )
+                            : isRepliedMessage
                             ? Border.all(
                           color: isMe
                               ? Colors.white.withOpacity(0.3)
@@ -314,6 +331,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
     String messageText = widget.message.msg;
     String? replyContext;
     String actualMessage = messageText;
+    final isSystemNotification = messageText.contains('💡') && messageText.contains('Connect');
 
     // Parse reply if exists
     if (isRepliedMessage) {
@@ -391,7 +409,9 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
               style: GoogleFonts.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w400,
-                color: isMe ? Colors.white : const Color(0xFF2D3748),
+                color: isSystemNotification 
+                    ? const Color(0xFF6D4C41)
+                    : isMe ? Colors.white : const Color(0xFF2D3748),
                 height: 1.4,
               ),
               textAlign: TextAlign.start,

@@ -275,6 +275,8 @@ class AppPages {
           final originalProfileId = args['originalProfileId'] as int?;
           final originalProfileName = args['originalProfileName'] as String?;
           final originalProfileImage = args['originalProfileImage'] as String?;
+          // Flag for Admin viewing their own created profile (input should be disabled)
+          final isAdminViewingOwnProfile = args['isAdminViewingOwnProfile'] as bool? ?? false;
 
           if (chatUser != null) {
             return ChattingView(
@@ -287,6 +289,7 @@ class AppPages {
               originalProfileId: originalProfileId,
               originalProfileName: originalProfileName,
               originalProfileImage: originalProfileImage,
+              isAdminViewingOwnProfile: isAdminViewingOwnProfile,
             );
           }
         }
