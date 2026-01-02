@@ -38,6 +38,8 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   final int? originalProfileId;
   final String? originalProfileName;
   final String? originalProfileImage;
+  // Flag for Admin viewing their own created profile (input should be disabled)
+  final bool isAdminViewingOwnProfile;
   // Track if user has clicked Continue Chat
   final RxBool hasConfirmedAdminChat = false.obs;
   // Track if admin chat message is being sent (for loading state)
@@ -70,6 +72,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     this.originalProfileId,
     this.originalProfileName,
     this.originalProfileImage,
+    this.isAdminViewingOwnProfile = false,
   });
 
   // Dependencies
@@ -1602,6 +1605,8 @@ class ChattingView extends StatefulWidget {  // Changed to StatefulWidget
   final int? originalProfileId;
   final String? originalProfileName;
   final String? originalProfileImage;
+  // Flag for Admin viewing their own created profile (input should be disabled)
+  final bool isAdminViewingOwnProfile;
 
   const ChattingView({
     super.key,
@@ -1613,6 +1618,7 @@ class ChattingView extends StatefulWidget {  // Changed to StatefulWidget
     this.originalProfileId,
     this.originalProfileName,
     this.originalProfileImage,
+    this.isAdminViewingOwnProfile = false,
   });
 
   @override
@@ -1652,6 +1658,7 @@ class _ChattingViewState extends State<ChattingView> {
         originalProfileId: widget.originalProfileId,
         originalProfileName: widget.originalProfileName,
         originalProfileImage: widget.originalProfileImage,
+        isAdminViewingOwnProfile: widget.isAdminViewingOwnProfile,
       ),
       tag: controllerTag,
     );
@@ -2183,6 +2190,10 @@ class _ChattingViewState extends State<ChattingView> {
       // Send message - this will create the chat and send the first message
       await controller.createUserChat(autoMessage);
 
+      // Send system notification about connect deduction from other user
+      await Future.delayed(const Duration(milliseconds: 800));
+      await _sendSystemNotificationFromOtherUser(controller, '💡 Your 1 connection has been deducted successfully.');
+
       // Hide system message AFTER message is sent successfully
       controller.hasConfirmedAdminChat.value = true;
 
@@ -2199,6 +2210,47 @@ class _ChattingViewState extends State<ChattingView> {
     } finally {
       // Always reset loading state
       controller.isSendingAdminChat.value = false;
+    }
+  }
+
+  /// Send a system notification message that appears to come from the other user
+  Future<void> _sendSystemNotificationFromOtherUser(
+      ChattingViewController controller, String messageText) async {
+    try {
+      final currentUserId = controller.useCase.getUserId().toString();
+      final otherUserId = controller.user.id;
+      final conversationId = controller.chatController.getConversationId(
+        currentUserId,
+        otherUserId,
+      );
+
+      final time = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Create message data as if it's from the other user
+      final messageData = {
+        'toId': currentUserId,
+        'msg': messageText,
+        'read': '',
+        'type': Type.text.name,
+        'fromId': otherUserId,
+        'sent': time,
+        'status': MessageStatus.sent.name,
+        'delivered': '',
+        'isViewOnce': false,
+        'isViewed': false,
+      };
+
+      // Send to Firestore
+      await FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseChatsCollection)
+          .doc(conversationId)
+          .collection('messages')
+          .doc(time)
+          .set(messageData);
+
+      debugPrint('✅ System notification sent from other user');
+    } catch (e) {
+      debugPrint('❌ Error sending system notification: $e');
     }
   }
 
@@ -2444,6 +2496,10 @@ class _ChattingViewState extends State<ChattingView> {
 
   Widget _buildBottomSection(ChattingViewController controller) {
     return Obx(() {
+      // Show disabled input for Admin viewing their own created profile
+      if (controller.isAdminViewingOwnProfile) {
+        return _buildDisabledInputSection(controller);
+      }
       return controller.isAnyBlocked
           ? _buildBlockContainer(controller)
       // : _buildChatInput(controller);
@@ -2451,9 +2507,74 @@ class _ChattingViewState extends State<ChattingView> {
     });
   }
 
-  // Replace your existing _buildChatInput method in chatting_view.dart with this:
-// Enhanced chat input widget
-// In chatting_view.dart - Replace the _buildChatInputWithReply method
+  /// Build disabled input section for Admin viewing their own created profile
+  Widget _buildDisabledInputSection(ChattingViewController controller) {
+    final Size chatMq = MediaQuery.of(context).size;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: chatMq.height * .01,
+        horizontal: chatMq.width * .025,
+      ),
+      child: Row(
+        children: [
+          // Disabled attachment button
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F5).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.camera_alt,
+              color: Colors.grey.withOpacity(0.4),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Disabled text input
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F2F5).withOpacity(0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: TextField(
+                enabled: false,
+                decoration: InputDecoration(
+                  hintText: 'You cannot message your own profile',
+                  hintStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey.withOpacity(0.6),
+                    fontSize: 13,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+
+          // Disabled send button
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F5).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.send,
+              color: Colors.grey.withOpacity(0.4),
+              size: 28,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildChatInputWithReply(ChattingViewController controller) {
     final Size chatMq = MediaQuery.of(context).size;
