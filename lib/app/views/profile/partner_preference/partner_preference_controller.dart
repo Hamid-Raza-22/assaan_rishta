@@ -72,10 +72,10 @@ class PartnerPreferenceController extends GetxController {
 
   var maritalStatus = "".obs;
   List<String> maritalStatusList = [
-    "single",
-    "married",
-    "divorced",
-    "widow/widower"
+    "Single",
+    "Married",
+    "Divorced",
+    "Widow/Widower"
   ];
 
   var userDiWohtiKaTarufTEC = TextEditingController();
