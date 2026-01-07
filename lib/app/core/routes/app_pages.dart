@@ -127,6 +127,12 @@ class AppPages {
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(
+      name: AppRoutes.VENDOR_EDIT_PROFILE_VIEW,
+      page: () => const VendorEditProfileView(),
+      transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
       name: AppRoutes.PARTNER_PREFERENCE_VIEW,
       page: () => const PartnerPreferenceView(),
       transition: Transition.circularReveal,

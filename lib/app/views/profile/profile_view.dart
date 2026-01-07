@@ -50,95 +50,193 @@ class ProfileView extends GetView<ProfileController> {
   }
 
   getTopUserInfo(context) {
-    if (controller.isLoading.isFalse) {
-      return Stack(
-        children: [
-          Container(
-            height: 165,
-            margin: const EdgeInsets.only(top: 60),
-            decoration: const BoxDecoration(
-              color: AppColors.profileContainerColor,
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-            child: Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 50),
-                    AppText(
-                      text: controller.getUserName(),
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AppText(
-                          text:
-                              'Complete Your Profile: ${controller.profileCompleteCount} %',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-                  ],
-                ),
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  top: -50,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    radius: 40,
+    return Obx(() {
+      // Show shimmer while loading
+      if (controller.isLoading.value) {
+        return profileShimmer(context);
+      }
+
+      // For Matrimonial users - show shimmer until vendor profile loads
+      if (controller.isMatrimonialUser.value) {
+        if (controller.vendorProfile.value == null) {
+          return profileShimmer(context);
+        }
+        return _buildVendorProfileInfo(context);
+      }
+
+      // For Rishta users - show user profile info
+      return _buildUserProfileInfo(context);
+    });
+  }
+
+  /// Build Vendor Profile Info for Matrimonial users
+  Widget _buildVendorProfileInfo(context) {
+    final vendor = controller.vendorProfile.value!;
+    return Stack(
+      children: [
+        Container(
+          height: 165,
+          margin: const EdgeInsets.only(top: 60),
+          decoration: const BoxDecoration(
+            color: AppColors.profileContainerColor,
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 50),
+                  AppText(
+                    text: vendor.venderBusinessName ?? 'Vendor',
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  AppText(
+                    text: vendor.vendorCategoryName ?? 'Matrimonial',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.primaryColor,
+                  ),
+                  const SizedBox(height: 4),
+                  AppText(
+                    text: vendor.location,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.fontLightColor,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+              const Positioned(
+                left: 0,
+                right: 0,
+                top: -50,
+                child: CircleAvatar(backgroundColor: Colors.white, radius: 40),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: GestureDetector(
+            onTap: () => _showCupertinoSheet(context),
+            child: CircleAvatar(
+              radius: 45,
+              backgroundColor: Colors.white,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(45),
+                child: vendor.logo != null && vendor.logo!.isNotEmpty
+                    ? ImageHelper(
+                        image: vendor.logo!,
+                        imageType: ImageType.network,
+                        height: 90,
+                        width: 90,
+                        boxFit: BoxFit.cover,
+                      )
+                    : ImageHelper(
+                        image: AppAssets.imagePlaceholder,
+                        imageType: ImageType.asset,
+                        height: 90,
+                        width: 90,
+                      ),
+              ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            child: DisplayImage(
-              imagePath: controller.profileDetails.value.profileImage != null
-                  ? controller.profileDetails.value.profileImage!
-                  : AppAssets.imagePlaceholder,
-              shouldBlur: controller.profileDetails.value.blurProfileImage ?? false,
-              onPressed: () {
-                _showCupertinoSheet(context);
-              },
-            ),
-            // child: ClipRRect(
-            //   borderRadius: BorderRadius.circular(30),
-            //   child: GestureDetector(
-            //     onTap: () {
-            //       _showCupertinoSheet(context);
-            //     },
-            //     child: ImageHelper(
-            //       image: controller.profileDetails.value.profileImage != null
-            //           ? controller.profileDetails.value.profileImage!
-            //           : AppAssets.imagePlaceholder,
-            //       imageType:
-            //           controller.profileDetails.value.profileImage != null
-            //               ? ImageType.network
-            //               : ImageType.asset,
-            //       imageShape: ImageShape.circle,
-            //       boxFit: BoxFit.contain,
-            //       height: 90,
-            //       width: 90,
-            //     ),
-            //   ),
-            // ),
+        ),
+      ],
+    );
+  }
+
+  /// Build User Profile Info for Rishta users
+  Widget _buildUserProfileInfo(context) {
+    return Stack(
+      children: [
+        Container(
+          height: 165,
+          margin: const EdgeInsets.only(top: 60),
+          decoration: const BoxDecoration(
+            color: AppColors.profileContainerColor,
+            borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
-        ],
-      );
-    } else {
-      return profileShimmer(context);
-    }
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 50),
+                  AppText(
+                    text: controller.getUserName(),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AppText(
+                        text:
+                            'Complete Your Profile: ${controller.profileCompleteCount} %',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
+              const Positioned(
+                left: 0,
+                right: 0,
+                top: -50,
+                child: CircleAvatar(backgroundColor: Colors.white, radius: 40),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: DisplayImage(
+            imagePath: controller.profileDetails.value.profileImage != null
+                ? controller.profileDetails.value.profileImage!
+                : AppAssets.imagePlaceholder,
+            shouldBlur:
+                controller.profileDetails.value.blurProfileImage ?? false,
+            onPressed: () {
+              _showCupertinoSheet(context);
+            },
+          ),
+          // child: ClipRRect(
+          //   borderRadius: BorderRadius.circular(30),
+          //   child: GestureDetector(
+          //     onTap: () {
+          //       _showCupertinoSheet(context);
+          //     },
+          //     child: ImageHelper(
+          //       image: controller.profileDetails.value.profileImage != null
+          //           ? controller.profileDetails.value.profileImage!
+          //           : AppAssets.imagePlaceholder,
+          //       imageType:
+          //           controller.profileDetails.value.profileImage != null
+          //               ? ImageType.network
+          //               : ImageType.asset,
+          //       imageShape: ImageShape.circle,
+          //       boxFit: BoxFit.contain,
+          //       height: 90,
+          //       width: 90,
+          //     ),
+          //   ),
+          // ),
+        ),
+      ],
+    );
   }
 
   Future<void> _showCupertinoSheet(context) async {
@@ -178,262 +276,243 @@ class ProfileView extends GetView<ProfileController> {
   }
 
   _getSettingsContainer({context}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.profileContainerColor,
-        borderRadius: const BorderRadius.all(Radius.circular(10.0)),
-        border: Border.all(
-          width: 1.0,
-          color: const Color.fromARGB(255, 234, 234, 234),
+    return Obx(() {
+      final isMatrimonial = controller.isMatrimonialUser.value;
+
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColors.profileContainerColor,
+          borderRadius: const BorderRadius.all(Radius.circular(10.0)),
+          border: Border.all(
+            width: 1.0,
+            color: const Color.fromARGB(255, 234, 234, 234),
+          ),
         ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 20.0, top: 10),
-            child: AppText(
-              text: 'Others',
-              color: AppColors.fontLightColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 20.0, top: 10),
+              child: AppText(
+                text: 'Others',
+                color: AppColors.fontLightColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
-          ),
-          ClickableListTile(
-            text: 'My Profile',
-            icon: Icons.person_outline,
-            onTap: () {
-              Get.toNamed(AppRoutes.PROFILE_DETAIL_VIEW);
-              // Get.to(
-              //   () => const ProfileDetailsView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-            },
-          ),
-          // Blur Profile Toggle - Only for Female Users
-          // if (controller.profileDetails.value.gender?.toLowerCase() == 'female')
-          //   Obx(() => InkWell(
-          //     onTap: () {
-          //       // Toggle on tap of entire tile
-          //       final currentValue = controller.profileDetails.value.blurProfileImage ?? false;
-          //       controller.toggleBlurProfileImage(!currentValue);
-          //     },
-          //     child: ListTile(
-          //       leading: const Icon(
-          //         Icons.blur_on,
-          //         color: AppColors.greyColor,
-          //         size: 25,
-          //       ),
-          //       title: Text(
-          //         'Blur Profile Picture',
-          //         style: GoogleFonts.poppins(
-          //           fontWeight: FontWeight.w400,
-          //           fontSize: 14,
-          //           color: AppColors.blackColor,
-          //         ),
-          //       ),
-          //       subtitle: Text(
-          //         'Hide your photo from others',
-          //         style: GoogleFonts.poppins(
-          //           fontSize: 12,
-          //           fontWeight: FontWeight.w400,
-          //           color: Colors.grey[600],
-          //         ),
-          //       ),
-          //       trailing: CupertinoSwitch(
-          //         value: controller.profileDetails.value.blurProfileImage ?? false,
-          //         onChanged: (value) {
-          //           controller.toggleBlurProfileImage(value);
-          //         },
-          //         activeColor: AppColors.primaryColor,
-          //       ),
-          //     ),
-          //   )),
-          ClickableListTile(
-            text: 'Edit Profile',
-            icon: Icons.edit_outlined,
-            onTap: () {
-              Get.toNamed(AppRoutes.PROFILE_EDIT_VIEW)!.then((onValue) {
-                controller.getCurrentUserProfiles();
-              });
+            ClickableListTile(
+              text: 'My Profile',
+              icon: Icons.person_outline,
+              onTap: () {
+                Get.toNamed(AppRoutes.PROFILE_DETAIL_VIEW);
+              },
+            ),
+            ClickableListTile(
+              text: 'Edit Profile',
+              icon: Icons.edit_outlined,
+              onTap: () {
+                // Navigate to appropriate edit profile based on user type
+                final route = isMatrimonial
+                    ? AppRoutes.VENDOR_EDIT_PROFILE_VIEW
+                    : AppRoutes.PROFILE_EDIT_VIEW;
+                Get.toNamed(route)!.then((onValue) {
+                  if (isMatrimonial) {
+                    controller.getVendorOwnProfile();
+                  } else {
+                    controller.getCurrentUserProfiles();
+                  }
+                });
+              },
+            ),
+            // Partner Preference - Hidden for Matrimonial users
+            if (!isMatrimonial)
+              ClickableListTile(
+                text: 'Partner Preference',
+                icon: Icons.person_add_alt_1_outlined,
+                onTap: () {
+                  Get.toNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
+                  // Get.to(
+                  //   () => const ProfileDetailsView(),
+                  //   binding: AppBindings(),
+                  //   transition: Transition.circularReveal,
+                  //   duration: const Duration(milliseconds: 500),
+                  // );
+                  // },
+                  // ),
+                  // Blur Profile Toggle - Only for Female Users
+                  // if (controller.profileDetails.value.gender?.toLowerCase() == 'female')
+                  //   Obx(() => InkWell(
+                  //     onTap: () {
+                  //       // Toggle on tap of entire tile
+                  //       final currentValue = controller.profileDetails.value.blurProfileImage ?? false;
+                  //       controller.toggleBlurProfileImage(!currentValue);
+                  //     },
+                  //     child: ListTile(
+                  //       leading: const Icon(
+                  //         Icons.blur_on,
+                  //         color: AppColors.greyColor,
+                  //         size: 25,
+                  //       ),
+                  //       title: Text(
+                  //         'Blur Profile Picture',
+                  //         style: GoogleFonts.poppins(
+                  //           fontWeight: FontWeight.w400,
+                  //           fontSize: 14,
+                  //           color: AppColors.blackColor,
+                  //         ),
+                  //       ),
+                  //       subtitle: Text(
+                  //         'Hide your photo from others',
+                  //         style: GoogleFonts.poppins(
+                  //           fontSize: 12,
+                  //           fontWeight: FontWeight.w400,
+                  //           color: Colors.grey[600],
+                  //         ),
+                  //       ),
+                  //       trailing: CupertinoSwitch(
+                  //         value: controller.profileDetails.value.blurProfileImage ?? false,
+                  //         onChanged: (value) {
+                  //           controller.toggleBlurProfileImage(value);
+                  //         },
+                  //         activeColor: AppColors.primaryColor,
+                  //       ),
+                  //     ),
+                  //   )),
+                },
+              ),
+            // Favorites - Hidden for Matrimonial users
+            if (!isMatrimonial)
+              ClickableListTile(
+                text: 'Favorites',
+                iconPath: AppAssets.icFavorites,
+                imageType: ImageType.svg,
+                onTap: () {
+                  Get.toNamed(AppRoutes.FAVORITES_VIEW);
+                },
+              ),
+            // Buy Connects - Hidden for Matrimonial users
+            if (!isMatrimonial)
+              ClickableListTile(
+                text: 'Buy Connects',
+                iconPath: AppAssets.icReferEarn,
+                imageType: ImageType.svg,
+                onTap: () => Get.toNamed(AppRoutes.BUY_CONNECTS_VIEW),
+              ),
+            // Transaction History - Hidden for Matrimonial users
+            if (!isMatrimonial)
+              ClickableListTile(
+                text: 'Transaction History',
+                icon: Icons.history,
+                onTap: () {
+                  Get.toNamed(
+                    AppRoutes.TRANSACTION_HISTORY_VIEW,
+                    arguments: controller.getUserName(),
+                  );
+                },
+              ),
+            // Connects History - Hidden for Matrimonial users
+            if (!isMatrimonial)
+              ClickableListTile(
+                text: 'Connects History',
+                icon: Icons.history,
+                onTap: () {
+                  Get.toNamed(
+                    AppRoutes.CONNECTS_HISTORY_VIEW,
+                    arguments: controller.getUserName(),
+                  );
+                },
+              ),
+            ClickableListTile(
+              text: 'Change Password',
+              icon: Icons.lock_outline,
+              onTap: () {
+                Get.toNamed(AppRoutes.CHANGE_PASSWORD_VIEW);
 
-              // Get.to(
-              //   () => const EditProfileView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // )!
-              //     .then((onValue) {
-              //   controller.getCurrentUserProfiles();
-              // });
-            },
-          ),
-          ClickableListTile(
-            text: 'Partner Preference',
-            icon: Icons.person_add_alt_1_outlined,
-            onTap: () {
-              Get.toNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
+                // Get.to(
+                //   () => const ChangePasswordView(),
+                //   binding: AppBindings(),
+                //   transition: Transition.circularReveal,
+                //   duration: const Duration(milliseconds: 500),
+                // );
+              },
+            ),
+            ClickableListTile(
+              text: 'Contact Us',
+              icon: Icons.contact_emergency_outlined,
+              onTap: () {
+                Get.toNamed(AppRoutes.CONTACT_US_VIEW);
 
-              // Get.to(
-              //   () => const PartnerPreferenceView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-            },
-          ),
-          ClickableListTile(
-            text: 'Favorites',
-            iconPath: AppAssets.icFavorites,
-            imageType: ImageType.svg,
-            onTap: () {
-              Get.toNamed(AppRoutes.FAVORITES_VIEW);
+                // Get.to(
+                //   () => const ContactUsView(),
+                //   binding: AppBindings(),
+                //   transition: Transition.circularReveal,
+                //   duration: const Duration(milliseconds: 500),
+                // );
+              },
+            ),
+            ClickableListTile(
+              text: 'About Us',
+              iconPath: AppAssets.icTermsOfServices,
+              imageType: ImageType.asset,
+              onTap: () {
+                Get.toNamed(AppRoutes.ABOUT_US_VIEW);
 
-              // Get.to(
-              //   () => const FavoritesView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-            },
-          ),
-          ClickableListTile(
-            text: 'Buy Connects',
-            iconPath: AppAssets.icReferEarn,
-            imageType: ImageType.svg,
-            onTap: () =>
-              Get.toNamed(AppRoutes.BUY_CONNECTS_VIEW)
+                // Get.to(
+                //   () => const AboutUsView(),
+                //   binding: AppBindings(),
+                //   transition: Transition.circularReveal,
+                //   duration: const Duration(milliseconds: 500),
+                // );
+              },
+            ),
 
-              // Get.to(
-              //   () => const BuyConnectsView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-
-          ),
-          ClickableListTile(
-            text: 'Transaction History',
-            icon: Icons.history,
-            onTap: () {
-              Get.toNamed(AppRoutes.TRANSACTION_HISTORY_VIEW, arguments: controller.getUserName());
-
-              //   Get.to(
-              //     () => const TransactionHistoryView(),
-              //     binding: AppBindings(),
-              //     transition: Transition.circularReveal,
-              //     duration: const Duration(milliseconds: 500),
-              //     arguments: controller.getUserName(),
-              //   );
-            },
-          ),        ClickableListTile(
-            text: 'Connects History',
-            icon: Icons.history,
-            onTap: () {
-              Get.toNamed(AppRoutes.CONNECTS_HISTORY_VIEW, arguments: controller.getUserName());
-
-              //   Get.to(
-              //     () => const TransactionHistoryView(),
-              //     binding: AppBindings(),
-              //     transition: Transition.circularReveal,
-              //     duration: const Duration(milliseconds: 500),
-              //     arguments: controller.getUserName(),
-              //   );
-            },
-          ),
-          ClickableListTile(
-            text: 'Change Password',
-            icon: Icons.lock_outline,
-            onTap: () {
-              Get.toNamed(AppRoutes.CHANGE_PASSWORD_VIEW);
-
-              // Get.to(
-              //   () => const ChangePasswordView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-            },
-          ),
-          ClickableListTile(
-            text: 'Contact Us',
-            icon: Icons.contact_emergency_outlined,
-            onTap: () {
-              Get.toNamed(AppRoutes.CONTACT_US_VIEW);
-
-              // Get.to(
-              //   () => const ContactUsView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-            },
-          ),
-          ClickableListTile(
-            text: 'About Us',
-            iconPath: AppAssets.icTermsOfServices,
-            imageType: ImageType.asset,
-            onTap: () {
-              Get.toNamed(AppRoutes.ABOUT_US_VIEW);
-
-              // Get.to(
-              //   () => const AboutUsView(),
-              //   binding: AppBindings(),
-              //   transition: Transition.circularReveal,
-              //   duration: const Duration(milliseconds: 500),
-              // );
-            },
-          ),
-
-          ClickableListTile(
-            text: 'Privacy Policy',
-            icon: Icons.privacy_tip_outlined,
-            onTap: () {
-              Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE);
-
-            },
-          ),
-          ClickableListTile(
-            text: 'User Guide',
-            iconPath: AppAssets.icTermsOfServices,
-            imageType: ImageType.asset,
-            onTap: () {
-              Get.toNamed(AppRoutes.USER_GUIDE_VIEW);
-            },
-          ),
-          ClickableListTile(
-            text: 'Delete Profile',
-            textColor: AppColors.redColor,
-            icon: Icons.delete_outline,
-            onTap: () {
-              onDeleteProfile(context);
-            },
-          ),
-          // ClickableListTile(
-          //   text: 'Deactivate Profile',
-          //   textColor: AppColors.redColor,
-          //   icon: Icons.power_settings_new,
-          //   onTap: () {
-          //     onDeactivateProfile(context);
-          //   },
-          // ),
-          ClickableListTile(
-            text: 'Logout',
-            iconPath: AppAssets.icLogout,
-            imageType: ImageType.asset,
-            textColor: AppColors.redColor,
-            onTap: () {
-              onLogout(context);
-            },
-          ),
-          getVersionNameWidget(),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
+            ClickableListTile(
+              text: 'Privacy Policy',
+              icon: Icons.privacy_tip_outlined,
+              onTap: () {
+                Get.toNamed(AppRoutes.IN_APP_WEB_VIEW_SITE);
+              },
+            ),
+            ClickableListTile(
+              text: 'User Guide',
+              iconPath: AppAssets.icTermsOfServices,
+              imageType: ImageType.asset,
+              onTap: () {
+                Get.toNamed(AppRoutes.USER_GUIDE_VIEW);
+              },
+            ),
+            ClickableListTile(
+              text: 'Delete Profile',
+              textColor: AppColors.redColor,
+              icon: Icons.delete_outline,
+              onTap: () {
+                onDeleteProfile(context);
+              },
+            ),
+            // ClickableListTile(
+            //   text: 'Deactivate Profile',
+            //   textColor: AppColors.redColor,
+            //   icon: Icons.power_settings_new,
+            //   onTap: () {
+            //     onDeactivateProfile(context);
+            //   },
+            // ),
+            ClickableListTile(
+              text: 'Logout',
+              iconPath: AppAssets.icLogout,
+              imageType: ImageType.asset,
+              textColor: AppColors.redColor,
+              onTap: () {
+                onLogout(context);
+              },
+            ),
+            getVersionNameWidget(),
+            const SizedBox(height: 20),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> onDeactivateProfile(BuildContext context) async {
@@ -700,8 +779,7 @@ class ProfileView extends GetView<ProfileController> {
                   child: GestureDetector(
                     onTap: () async {
                       // Show confirmation dialog first (optional)
-                        await controller.handleLogout(context);
-
+                      await controller.handleLogout(context);
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 10),

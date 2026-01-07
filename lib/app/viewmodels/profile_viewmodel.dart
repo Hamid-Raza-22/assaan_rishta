@@ -24,13 +24,48 @@ class ProfileController extends GetxController {
   final authService = AuthService.instance;
 
   var profileDetails = CurrentUserProfile().obs;
+  var vendorProfile = Rx<VendorOwnProfile?>(null);
   RxInt profileCompleteCount = 0.obs;
+  
+  /// Check if current user is a Matrimonial vendor (role_id == 3)
+  RxBool isMatrimonialUser = false.obs;
 
   @override
   void onInit() {
-    getCurrentUserProfiles();
-    getProfileCompletionCount();
+    _checkUserRole();
     super.onInit();
+  }
+
+  /// Check user role and load appropriate profile
+  Future<void> _checkUserRole() async {
+    final roleId = await userManagementUseCases.getUserRoleId();
+    isMatrimonialUser.value = roleId == 3;
+    debugPrint('👤 User role_id: $roleId, isMatrimonial: ${isMatrimonialUser.value}');
+    
+    if (isMatrimonialUser.value) {
+      await getVendorOwnProfile();
+    } else {
+      await getCurrentUserProfiles();
+      await getProfileCompletionCount();
+    }
+  }
+
+  /// Get Vendor Own Profile for Matrimonial users
+  Future<void> getVendorOwnProfile() async {
+    isLoading.value = true;
+    final response = await userManagementUseCases.getVendorOwnProfile();
+    response.fold(
+      (error) {
+        debugPrint('❌ Error getting vendor profile: ${error.description}');
+        isLoading.value = false;
+      },
+      (success) {
+        vendorProfile.value = success;
+        debugPrint('✅ Vendor profile loaded: ${success.venderBusinessName}');
+        isLoading.value = false;
+        update();
+      },
+    );
   }
 
   getUserName() {

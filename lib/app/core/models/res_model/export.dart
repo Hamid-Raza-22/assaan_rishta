@@ -19,6 +19,7 @@ export 'vendor_packages.dart';
 export 'vendor_questions.dart';
 export 'vendor_services.dart';
 export 'vendor_videos.dart';
+export 'vendor_own_profile.dart';
 
 export 'all_chats_ofa_user.dart';
 export 'all_messages_ofa_chat.dart';

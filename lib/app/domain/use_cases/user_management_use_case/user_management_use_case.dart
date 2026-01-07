@@ -538,4 +538,32 @@ class UserManagementUseCase {
       },
     );
   }
+
+  /// Get Vendor Own Profile for Matrimonial users
+  Future<Either<AppError, VendorOwnProfile>> getVendorOwnProfile() async {
+    final response = await userManagementRepo.getVendorOwnProfile();
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
+
+  /// Update Vendor Profile for Matrimonial users
+  Future<Either<AppError, String>> updateVendorProfile({
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await userManagementRepo.updateVendorProfile(payload: payload);
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
 }

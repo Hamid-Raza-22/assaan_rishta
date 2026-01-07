@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:assaan_rishta/app/core/routes/app_routes.dart';
 import 'package:assaan_rishta/app/core/services/deep_link_handler.dart';
+import 'package:assaan_rishta/app/core/services/secure_storage_service.dart';
 import 'package:assaan_rishta/app/core/utils/developer_mode_checker.dart';
 import 'package:assaan_rishta/app/viewmodels/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -74,8 +75,16 @@ class SplashController extends BaseController {
         final bool isPreferenceUpdated =
             data != null && (data['is_preference_updated'] == true);
 
-        if (isPreferenceUpdated) {
-          debugPrint('🏠 Navigating to Home');
+        // Check if user is Matrimonial (role_id == 3) - skip partner preferences
+        final secureStorage = SecureStorageService();
+        final roleId = await secureStorage.getUserRoleId();
+        final isMatrimonialUser = roleId == 3;
+        
+        debugPrint('👤 User role_id: $roleId, isMatrimonial: $isMatrimonialUser');
+
+        if (isPreferenceUpdated || isMatrimonialUser) {
+          // Matrimonial users should never see partner preference screen
+          debugPrint('🏠 Navigating to Home${isMatrimonialUser ? " (Matrimonial user - skipping partner prefs)" : ""}');
           Get.offNamed(AppRoutes.BOTTOM_NAV);
         } else {
           debugPrint('⚙️ Navigating to Partner Preference');

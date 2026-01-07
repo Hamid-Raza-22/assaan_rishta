@@ -196,4 +196,14 @@ class EndPoints {
     return '${baseUrl}Users/GetAll_mat_Profiles/$adminId';
     // return '${baseUrl}Users/GetAll_mat_Profiles/$adminId/$pageNo/$pageLimit';
   }
+
+  /// Get Vendor Own Profile for Matrimonial users
+  String getVendorOwnProfileUrl({required int userId}) {
+    return '${baseUrl}Users/GetVendorOwnProfile/$userId';
+  }
+
+  /// Update Vendor Profile for Matrimonial users
+  String updateVendorProfileUrl() {
+    return '${baseUrl}Users/UpdateVendorProfile';
+  }
 }
