@@ -254,24 +254,24 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
                 fontWeight: FontWeight.w400,
                 color: AppColors.fontLightColor.withOpacity(0.7),
               ),
-              const SizedBox(height: 8),
-              // Selection indicator
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? AppColors.primaryColor : Colors.transparent,
-                  border: Border.all(
-                    color: isSelected ? AppColors.primaryColor : Colors.grey[400]!,
-                    width: 2,
-                  ),
-                ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
-                    : null,
-              ),
+              // const SizedBox(height: 6),
+              // // Selection indicator
+              // AnimatedContainer(
+              //   duration: const Duration(milliseconds: 250),
+              //   width: 20,
+              //   height: 20,
+              //   decoration: BoxDecoration(
+              //     shape: BoxShape.circle,
+              //     color: isSelected ? AppColors.primaryColor : Colors.transparent,
+              //     border: Border.all(
+              //       color: isSelected ? AppColors.primaryColor : Colors.grey[400]!,
+              //       width: 2,
+              //     ),
+              //   ),
+              //   child: isSelected
+              //       ? const Icon(Icons.check, size: 13, color: Colors.white)
+              //       : null,
+              // ),
             ],
           ),
         ),
