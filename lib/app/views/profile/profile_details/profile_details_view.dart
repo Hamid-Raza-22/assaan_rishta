@@ -22,14 +22,14 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
           body: SafeArea(
             child: controller.isLoading.isFalse
                 ? ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                    children: [
-                      const SizedBox(height: 10),
-                      getProfileInfo(),
-                      const SizedBox(height: 10),
-                      //add height and state
-                    ],
-                  )
+              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              children: [
+                const SizedBox(height: 10),
+                getProfileInfo(),
+                const SizedBox(height: 10),
+                //add height and state
+              ],
+            )
                 : profileShimmer(context),
           ),
         );
@@ -48,6 +48,114 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
   }
 
   getProfileInfo() {
+    return Obx(() {
+      // Show vendor profile for Matrimonial users
+      if (controller.isMatrimonialUser.value) {
+        return _getVendorProfileInfo();
+      }
+      // Show user profile for Rishta users
+      return _getUserProfileInfo();
+    });
+  }
+
+  /// Vendor Profile Info for Matrimonial users
+  Widget _getVendorProfileInfo() {
+    final vendor = controller.vendorProfile.value;
+    if (vendor == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: AppColors.profileContainerColor,
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          const AppText(
+            text: "Business Information",
+            color: AppColors.blackColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              getListTile(
+                title: 'Business Name',
+                subtitle: vendor.venderBusinessName ?? '--',
+              ),
+              getListTile(
+                title: 'Category',
+                subtitle: vendor.vendorCategoryName ?? '--',
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              getListTile(
+                title: 'Email',
+                subtitle: vendor.venderEmail ?? '--',
+              ),
+              getListTile(
+                title: 'Phone',
+                subtitle: vendor.venderPhone ?? '--',
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              getListTile(
+                title: 'Country',
+                subtitle: vendor.vendorCountryName ?? '--',
+              ),
+              getListTile(
+                title: 'State',
+                subtitle: vendor.vendorStateName ?? '--',
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              getListTile(
+                title: 'City',
+                subtitle: vendor.vendorCityName ?? '--',
+              ),
+              getListTile(
+                title: 'Service Charges',
+                subtitle: vendor.serviceCharges ?? '--',
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              getListTile(
+                title: 'Address',
+                subtitle: vendor.venderAddress ?? '--',
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              getListTile(
+                title: 'About Company',
+                subtitle: vendor.aboutCompany ?? '--',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// User Profile Info for Rishta users
+  Widget _getUserProfileInfo() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -70,7 +178,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Name',
                 subtitle:
-                    '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
+                '${controller.profileDetails.value.firstName} ${controller.profileDetails.value.lastName}',
               ),
               getListTile(
                 title: 'Gender',
@@ -166,7 +274,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'About Life Partner',
                 subtitle:
-                    controller.profileDetails.value.userDiWohtiKaTaruf ?? "--",
+                controller.profileDetails.value.userDiWohtiKaTaruf ?? "--",
               ),
             ],
           ),
@@ -273,7 +381,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Born in Country',
                 subtitle:
-                    controller.profileDetails.value.bornCountryName ?? "--",
+                controller.profileDetails.value.bornCountryName ?? "--",
               ),
             ],
           ),
@@ -287,7 +395,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Born in City',
                 subtitle:
-                    controller.profileDetails.value.bornInCityName ?? "--",
+                controller.profileDetails.value.bornInCityName ?? "--",
               ),
             ],
           ),
@@ -301,7 +409,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Residential Type',
                 subtitle:
-                    controller.profileDetails.value.residentialType ?? "--",
+                controller.profileDetails.value.residentialType ?? "--",
               ),
             ],
           ),
@@ -315,7 +423,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Relocate',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.relocate),
+                getStringBool(controller.profileDetails.value.relocate),
               ),
             ],
           ),
@@ -329,8 +437,8 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Cell Phone Protection',
                 subtitle:
-                    controller.profileDetails.value.cellPhoneProtectionStatus ??
-                        "--",
+                controller.profileDetails.value.cellPhoneProtectionStatus ??
+                    "--",
               ),
             ],
           ),
@@ -443,7 +551,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Parent\'s Country',
                 subtitle:
-                    controller.profileDetails.value.parentCountryName ?? "--",
+                controller.profileDetails.value.parentCountryName ?? "--",
               ),
             ],
           ),
@@ -453,12 +561,12 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Parent\'s State',
                 subtitle:
-                    controller.profileDetails.value.parentStateName ?? "--",
+                controller.profileDetails.value.parentStateName ?? "--",
               ),
               getListTile(
                 title: 'Parent\'s City',
                 subtitle:
-                    controller.profileDetails.value.parentCityName ?? "--",
+                controller.profileDetails.value.parentCityName ?? "--",
               ),
             ],
           ),
@@ -468,12 +576,12 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Father Alive',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.fatherAlive),
+                getStringBool(controller.profileDetails.value.fatherAlive),
               ),
               getListTile(
                 title: 'Father\'s Occupation',
                 subtitle:
-                    controller.profileDetails.value.fatherOccupation ?? "--",
+                controller.profileDetails.value.fatherOccupation ?? "--",
               ),
             ],
           ),
@@ -483,12 +591,12 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Mother Alive',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.motherAlive),
+                getStringBool(controller.profileDetails.value.motherAlive),
               ),
               getListTile(
                 title: 'Mother\'s Occupation',
                 subtitle:
-                    controller.profileDetails.value.motherOccupation ?? "--",
+                controller.profileDetails.value.motherOccupation ?? "--",
               ),
             ],
           ),
@@ -502,7 +610,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Siblings',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.silings),
+                getStringBool(controller.profileDetails.value.silings),
               ),
             ],
           ),
@@ -525,7 +633,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Married Brothers',
                 subtitle:
-                    controller.profileDetails.value.marriedBrother.toString(),
+                controller.profileDetails.value.marriedBrother.toString(),
               ),
               getListTile(
                 title: 'Married Sisters',
@@ -559,7 +667,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Fasting',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.fasting),
+                getStringBool(controller.profileDetails.value.fasting),
               ),
               getListTile(
                 title: 'Zakat',
@@ -573,7 +681,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Drink',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.isDrink),
+                getStringBool(controller.profileDetails.value.isDrink),
               ),
               getListTile(
                 title: 'Drink Routine',
@@ -587,7 +695,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Smoke',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.isSmoke),
+                getStringBool(controller.profileDetails.value.isSmoke),
               ),
               getListTile(
                 title: 'Smoke Routine',
@@ -649,7 +757,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Handicapped',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.handicapped),
+                getStringBool(controller.profileDetails.value.handicapped),
               ),
             ],
           ),
@@ -663,8 +771,8 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Eye Problem',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.eyeProblem) ??
-                        "--",
+                getStringBool(controller.profileDetails.value.eyeProblem) ??
+                    "--",
               ),
             ],
           ),
@@ -674,7 +782,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Eye Defect',
                 subtitle:
-                    controller.profileDetails.value.eyeProblemDefect ?? "--",
+                controller.profileDetails.value.eyeProblemDefect ?? "--",
               ),
               getListTile(
                 title: 'Health Problem',
@@ -703,12 +811,12 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Which Medicines',
                 subtitle:
-                    controller.profileDetails.value.whichMedicines ?? "--",
+                controller.profileDetails.value.whichMedicines ?? "--",
               ),
               getListTile(
                 title: 'Do Exercise',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.doExercise),
+                getStringBool(controller.profileDetails.value.doExercise),
               ),
             ],
           ),
@@ -722,7 +830,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Visit Gym',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.visitGym),
+                getStringBool(controller.profileDetails.value.visitGym),
               ),
             ],
           ),
@@ -757,8 +865,8 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Pakistani Driving License Number',
                 subtitle:
-                    controller.profileDetails.value.pakiDrivingLicenseNo ??
-                        "--",
+                controller.profileDetails.value.pakiDrivingLicenseNo ??
+                    "--",
               ),
             ],
           ),
@@ -768,12 +876,12 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Pakistani Passport',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.pakiPassport),
+                getStringBool(controller.profileDetails.value.pakiPassport),
               ),
               getListTile(
                 title: 'Pakistani Passport Number',
                 subtitle:
-                    controller.profileDetails.value.pakiPassportNo ?? "--",
+                controller.profileDetails.value.pakiPassportNo ?? "--",
               ),
             ],
           ),
@@ -783,7 +891,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Pakistani Tax',
                 subtitle:
-                    getStringBool(controller.profileDetails.value.pakiTax),
+                getStringBool(controller.profileDetails.value.pakiTax),
               ),
               getListTile(
                 title: 'Pakistani Tax Number',
@@ -802,7 +910,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'Social Security Number',
                 subtitle:
-                    controller.profileDetails.value.socialSecurityNo ?? "--",
+                controller.profileDetails.value.socialSecurityNo ?? "--",
               ),
             ],
           ),
@@ -817,7 +925,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'International Driving License Number',
                 subtitle: controller
-                        .profileDetails.value.internationalDrivingLicenseNo ??
+                    .profileDetails.value.internationalDrivingLicenseNo ??
                     "--",
               ),
             ],
@@ -833,8 +941,8 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               getListTile(
                 title: 'International Passport Number',
                 subtitle:
-                    controller.profileDetails.value.internationalPassportNo ??
-                        "--",
+                controller.profileDetails.value.internationalPassportNo ??
+                    "--",
               ),
             ],
           ),

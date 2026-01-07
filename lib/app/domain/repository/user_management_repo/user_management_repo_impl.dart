@@ -1037,4 +1037,73 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+
+  @override
+  Future<Either<AppError, VendorOwnProfile>> getVendorOwnProfile() async {
+    try {
+      final userId = getUserId();
+      if (userId == null) {
+        return Left(AppError(title: "Error", description: "User not logged in"));
+      }
+      
+      debugPrint('📱 getVendorOwnProfile - Fetching vendor profile for userId: $userId');
+      final response = await _networkHelper.get(
+        _endPoints.getVendorOwnProfileUrl(userId: userId),
+      );
+      
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        final data = jsonDecode(response.body);
+        debugPrint('✅ getVendorOwnProfile - Success');
+        return Right(VendorOwnProfile.fromJson(data));
+      }
+      
+      return Left(
+        AppError(
+          title: "Error",
+          description: "Failed to fetch vendor profile. Status: ${response.statusCode}",
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ getVendorOwnProfile - Error: $e');
+      return Left(
+        AppError(
+          title: "Error",
+          description: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> updateVendorProfile({
+    required Map<String, dynamic> payload,
+  }) async {
+    try {
+      debugPrint('📝 updateVendorProfile - Updating vendor profile');
+      final response = await _networkHelper.post(
+        _endPoints.updateVendorProfileUrl(),
+        body: payload,
+      );
+      
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        debugPrint('✅ updateVendorProfile - Success');
+        return Right(response.body);
+      }
+      
+      return Left(
+        AppError(
+          title: "Update Failed",
+          description: "Failed to update vendor profile. Status: ${response.statusCode}",
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ updateVendorProfile - Error: $e');
+      return Left(
+        AppError(
+          title: "Error",
+          description: e.toString(),
+        ),
+      );
+    }
+  }
 }

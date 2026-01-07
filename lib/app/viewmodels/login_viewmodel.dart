@@ -63,7 +63,7 @@ class LoginViewModel extends GetxController {
     return null;
   }
 
- login(context) async {
+  login(context) async {
     if (!formKey.currentState!.validate()) return;
 
     // if (!agreeToTerms.value) {
@@ -142,11 +142,54 @@ class LoginViewModel extends GetxController {
           final safeUserId = success.userId ?? 0;
           final safeName = "${success.firstName ?? ''} ${success.lastName ?? ''}";
           final safeEmail = success.email ?? '';
+          final roleId = success.roleId ?? 0;
 
-          debugPrint('👤 User data: ID=$safeUserId, Name=$safeName, Email=$safeEmail');
+          debugPrint('👤 User data: ID=$safeUserId, Name=$safeName, Email=$safeEmail, RoleId=$roleId');
 
-          // SAVE USER DATA SECURELY using SecureStorageService
+          // ========== CRITICAL: STRICT ROLE-BASED LOGIN VALIDATION ==========
           final secureStorage = SecureStorageService();
+          final loginAsMatrimonialValue = await secureStorage.read('login_as_matrimonial');
+          final isMatrimonialLogin = loginAsMatrimonialValue == 'true';
+          final isMatrimonialAccount = roleId == 3;
+
+          debugPrint('🔐 Login as Matrimonial: $isMatrimonialLogin, RoleId: $roleId, isMatrimonialAccount: $isMatrimonialAccount');
+
+          // BLOCK: Rishta user trying to login as Matrimonial
+          if (isMatrimonialLogin && !isMatrimonialAccount) {
+            isLoading.value = false;
+            Get.snackbar(
+              'Login Blocked',
+              'This account is registered as a Rishta User. Please log in using the Rishta User option.',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 4),
+              margin: const EdgeInsets.all(10),
+            );
+            debugPrint('❌ LOGIN BLOCKED: Rishta account cannot login as Matrimonial');
+            return;
+          }
+
+          // BLOCK: Matrimonial user trying to login as Rishta User
+          if (!isMatrimonialLogin && isMatrimonialAccount) {
+            isLoading.value = false;
+            Get.snackbar(
+              'Login Blocked',
+              'This account is registered as a Matrimonial account. Please log in using the Matrimonial option.',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 4),
+              margin: const EdgeInsets.all(10),
+            );
+            debugPrint('❌ LOGIN BLOCKED: Matrimonial account cannot login as Rishta User');
+            return;
+          }
+
+          debugPrint('✅ Role validation passed - proceeding with login');
+          // ========== END ROLE VALIDATION ==========
+
+          // SAVE USER DATA SECURELY
           await secureStorage.saveUserPassword(passwordController.text);
           await secureStorage.saveUserSession(
             userId: safeUserId,
@@ -154,6 +197,7 @@ class LoginViewModel extends GetxController {
             name: safeName,
             pic: AppConstants.profileImg,
           );
+          await secureStorage.saveUserRoleId(roleId);
 
           debugPrint('💾 User data saved securely');
 
@@ -184,37 +228,38 @@ class LoginViewModel extends GetxController {
             message: "Login successfully",
           );
 
-
-
           update();
-          
+
           // Refresh BottomNavController to reset tab index after login
-          // This fixes the issue where guest mode tabs (4 tabs) get mixed with logged-in tabs (5 tabs)
           if (Get.isRegistered<BottomNavController>()) {
             final bottomNavController = Get.find<BottomNavController>();
             bottomNavController.refreshAfterLogin();
           }
-          
-          // Decide initial destination based on partner preference flag in Firestore
-          try {
-            final doc = await FirebaseFirestore.instance
-                          .collection(EnvConfig.firebaseUsersCollection)
 
-                .doc(safeUserId.toString())
-                .get();
-
-            final data = doc.data();
-            final bool isPreferenceUpdated =
-                data != null && (data['is_preference_updated'] == true);
-
-            if (isPreferenceUpdated) {
-              Get.offAllNamed(AppRoutes.BOTTOM_NAV);
-            } else {
-              Get.offAllNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
-            }
-          } catch (e) {
-            // On error fallback to home
+          // Matrimonial users should NEVER see partner preference screen
+          if (isMatrimonialAccount) {
+            debugPrint('🏠 Matrimonial user - navigating directly to dashboard');
             Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+          } else {
+            // Rishta users - check partner preference flag
+            try {
+              final doc = await FirebaseFirestore.instance
+                  .collection(EnvConfig.firebaseUsersCollection)
+                  .doc(safeUserId.toString())
+                  .get();
+
+              final data = doc.data();
+              final bool isPreferenceUpdated =
+                  data != null && (data['is_preference_updated'] == true);
+
+              if (isPreferenceUpdated) {
+                Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+              } else {
+                Get.offAllNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
+              }
+            } catch (e) {
+              Get.offAllNamed(AppRoutes.BOTTOM_NAV);
+            }
           }
           isLoading.value = false;
         } catch (e) {

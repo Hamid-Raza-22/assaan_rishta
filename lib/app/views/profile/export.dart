@@ -9,6 +9,8 @@ export 'change_password/change_password_view.dart';
 
 export 'edit_profile/edit_profile_controller.dart';
 export 'edit_profile/edit_profile_view.dart';
+export 'edit_profile/vendor_edit_profile_controller.dart';
+export 'edit_profile/vendor_edit_profile_view.dart';
 
 export 'favorites/favorites_controller.dart';
 export 'favorites/favorites_view.dart';

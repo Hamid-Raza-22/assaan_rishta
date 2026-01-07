@@ -140,4 +140,12 @@ mixin UserManagementRepo {
   Future<Either<AppError, dynamic>> removeMatrimonialUser({
     required int userId,
   });
+
+  /// Get Vendor Own Profile for Matrimonial users
+  Future<Either<AppError, VendorOwnProfile>> getVendorOwnProfile();
+
+  /// Update Vendor Profile for Matrimonial users
+  Future<Either<AppError, String>> updateVendorProfile({
+    required Map<String, dynamic> payload,
+  });
 }
