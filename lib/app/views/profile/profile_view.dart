@@ -90,20 +90,25 @@ class ProfileView extends GetView<ProfileController> {
                   const SizedBox(height: 50),
                   AppText(
                     text: vendor.venderBusinessName ?? 'Vendor',
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.w500,
                   ),
                   const SizedBox(height: 6),
-                  AppText(
-                    text: vendor.vendorCategoryName ?? 'Matrimonial',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.primaryColor,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AppText(
+                        text: vendor.vendorCategoryName ?? 'Matrimonial',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.primaryColor,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   AppText(
                     text: vendor.location,
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w400,
                     color: AppColors.fontLightColor,
                   ),
@@ -123,31 +128,46 @@ class ProfileView extends GetView<ProfileController> {
           left: 0,
           right: 0,
           top: 0,
-          child: GestureDetector(
-            onTap: () => _showCupertinoSheet(context),
-            child: CircleAvatar(
-              radius: 45,
-              backgroundColor: Colors.white,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(45),
-                child: vendor.logo != null && vendor.logo!.isNotEmpty
-                    ? ImageHelper(
-                        image: vendor.logo!,
-                        imageType: ImageType.network,
-                        height: 90,
-                        width: 90,
-                        boxFit: BoxFit.cover,
-                      )
-                    : ImageHelper(
-                        image: AppAssets.imagePlaceholder,
-                        imageType: ImageType.asset,
-                        height: 90,
-                        width: 90,
-                      ),
-              ),
-            ),
+          child: DisplayImage(
+            imagePath: vendor.logo != null
+                ? vendor.logo!
+                : AppAssets.imagePlaceholder,
+            shouldBlur:
+            controller.profileDetails.value.blurProfileImage ?? false,
+            onPressed: () {
+              _showCupertinoSheet(context);
+            },
           ),
         ),
+        // Positioned(
+        //   left: 0,
+        //   right: 0,
+        //   top: 0,
+        //   child: GestureDetector(
+        //     onTap: () => _showCupertinoSheet(context),
+        //     child: CircleAvatar(
+        //       radius: 45,
+        //       backgroundColor: Colors.white,
+        //       child: ClipRRect(
+        //         borderRadius: BorderRadius.circular(45),
+        //         child: vendor.logo != null && vendor.logo!.isNotEmpty
+        //             ? ImageHelper(
+        //                 image: vendor.logo!,
+        //                 imageType: ImageType.network,
+        //                 height: 90,
+        //                 width: 90,
+        //                 boxFit: BoxFit.cover,
+        //               )
+        //             : ImageHelper(
+        //                 image: AppAssets.imagePlaceholder,
+        //                 imageType: ImageType.asset,
+        //                 height: 90,
+        //                 width: 90,
+        //               ),
+        //       ),
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }

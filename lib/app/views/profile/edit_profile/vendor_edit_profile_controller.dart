@@ -1,11 +1,13 @@
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl_phone_field/phone_number.dart';
 
 import '../../../core/export.dart';
 import '../../../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../../../domain/use_cases/system_config_use_case/system_config_use_case.dart';
 import '../../../utils/exports.dart';
+import '../../../viewmodels/signup_viewmodel.dart';
 
 /// Controller for Vendor Edit Profile (Matrimonial users)
 /// Uses same field designs as EditProfileController
@@ -20,6 +22,7 @@ class VendorEditProfileController extends GetxController {
   
   // Form key
   final formKey = GlobalKey<FormState>();
+  final generalInfoFormKey = GlobalKey<FormState>();
   
   // Text controllers for editable fields
   final businessNameController = TextEditingController();
@@ -30,6 +33,48 @@ class VendorEditProfileController extends GetxController {
   
   // Service Charges toggle
   RxBool serviceChargesEnabled = false.obs;
+  
+  // Phone validation
+  var countryCode = 'PK'.obs;
+  var phoneNumber = ''.obs;
+  
+  // Phone validation rules (same as EditProfileController)
+  final Map<String, PhoneValidationRule> phoneValidationRules = {
+    'PK': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'Pakistan'),
+    'IN': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'India'),
+    'US': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'United States'),
+    'GB': PhoneValidationRule(minLength: 10, maxLength: 11, countryName: 'United Kingdom'),
+    'SA': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'Saudi Arabia'),
+    'AE': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'UAE'),
+    'CA': PhoneValidationRule(minLength: 10, maxLength: 10, countryName: 'Canada'),
+    'AU': PhoneValidationRule(minLength: 9, maxLength: 9, countryName: 'Australia'),
+  };
+  
+  /// Validate phone number with PhoneNumber object from IntlPhoneField
+  String? validatePhone(PhoneNumber? phone) {
+    if (phone == null || phone.number.isEmpty) {
+      return 'Phone number is required';
+    }
+    
+    final rule = phoneValidationRules[phone.countryISOCode];
+    if (rule != null) {
+      if (phone.number.length < rule.minLength) {
+        return 'Phone number must be at least ${rule.minLength} digits for ${rule.countryName}';
+      }
+      if (phone.number.length > rule.maxLength) {
+        return 'Phone number must be at most ${rule.maxLength} digits for ${rule.countryName}';
+      }
+    } else {
+      // Default validation for countries not in the list
+      if (phone.number.length < 7) {
+        return 'Phone number is too short';
+      }
+      if (phone.number.length > 15) {
+        return 'Phone number is too long';
+      }
+    }
+    return null;
+  }
   
   // Location - same approach as EditProfileController
   List<AllCountries> countryList = [];
@@ -216,11 +261,19 @@ class VendorEditProfileController extends GetxController {
     );
   }
 
-  /// Update location info
-  Future<void> updateLocationInfo(BuildContext context) async {
+  /// Update all profile info (business info + location) with single button
+  Future<void> updateAllProfile(BuildContext context) async {
     if (vendorProfile.value == null) return;
     
-    if (selectedCountryName.isEmpty || stateController.value == null || cityController.value == null) {
+    // Get existing values from profile if user hasn't changed them
+    final countryName = selectedCountryName.isNotEmpty 
+        ? selectedCountryName 
+        : vendorProfile.value?.vendorCountryName ?? '';
+    final stateName = stateController.value?.name ?? vendorProfile.value?.vendorStateName ?? '';
+    final cityName = cityController.value?.name ?? vendorProfile.value?.vendorCityName ?? '';
+    
+    // Validate location fields - check both new selections and existing profile values
+    if (countryName.isEmpty || stateName.isEmpty || cityName.isEmpty) {
       AppUtils.failedData(
         title: "Validation Error",
         message: "Please select Country, State and City",
@@ -230,12 +283,18 @@ class VendorEditProfileController extends GetxController {
     
     AppUtils.onLoading(context);
     
+    // Combined payload with all fields - use existing values if not changed
     final payload = {
       'Vender_ID': vendorProfile.value!.venderId,
-      'VendorCountryName': selectedCountryName,
-      'VendorStateName': stateController.value?.name ?? '',
-      'VendorCityName': cityController.value?.name ?? '',
-      'cityid': selectedCityId,
+      'Vender_business_name': businessNameController.text.trim(),
+      'Vender_phone': phoneNumber.value.isNotEmpty ? phoneNumber.value : phoneController.text.trim(),
+      'Vender_address': addressController.text.trim(),
+      'about_company': aboutCompanyController.text.trim(),
+      'service_charges': serviceChargesEnabled.value ? 'true' : 'false',
+      'VendorCountryName': countryName,
+      'VendorStateName': stateName,
+      'VendorCityName': cityName,
+      'cityid': selectedCityId > 0 ? selectedCityId : null,
     };
 
     final response = await userManagementUseCases.updateVendorProfile(payload: payload);
@@ -243,18 +302,18 @@ class VendorEditProfileController extends GetxController {
     response.fold(
       (error) {
         AppUtils.dismissLoader(context);
-        debugPrint('❌ Error updating location: ${error.description}');
+        debugPrint('❌ Error updating profile: ${error.description}');
         AppUtils.failedData(
           title: "Update Failed",
-          message: error.description.isNotEmpty ? error.description : "Failed to update location",
+          message: error.description.isNotEmpty ? error.description : "Failed to update profile",
         );
       },
       (success) {
         AppUtils.dismissLoader(context);
-        debugPrint('✅ Location updated successfully');
+        debugPrint('✅ Profile updated successfully');
         AppUtils.successData(
           title: "Success",
-          message: "Location updated successfully",
+          message: "Profile updated successfully",
         );
         loadVendorProfile();
       },

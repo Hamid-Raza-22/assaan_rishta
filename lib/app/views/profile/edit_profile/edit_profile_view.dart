@@ -274,6 +274,13 @@ class EditProfileView extends GetView<EditProfileController> {
                   decimal: false,
                   signed: false,
                 ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  NoSpaceInputFormatter(),
+                  LengthLimitingTextInputFormatter(
+                    controller.phoneValidationRules[controller.countryCode.value]?.maxLength ?? 15,
+                  ),
+                ],
                 flagsButtonMargin: const EdgeInsets.only(left: 10),
                 decoration: InputDecoration(
                   hintText: 'Mobile Number',
@@ -303,6 +310,18 @@ class EditProfileView extends GetView<EditProfileController> {
                 disableLengthCheck: true, // We handle validation ourselves
                 validator: controller.validatePhone, // Use proper validator with PhoneNumber
                 onChanged: (phone) {
+                  // Get max length for current country
+                  final rule = controller.phoneValidationRules[phone.countryISOCode];
+                  final maxLength = rule?.maxLength ?? 15;
+                  
+                  // Trim if exceeds max length
+                  if (phone.number.length > maxLength) {
+                    controller.mobileTEC.text = phone.number.substring(0, maxLength);
+                    controller.mobileTEC.selection = TextSelection.fromPosition(
+                      TextPosition(offset: maxLength),
+                    );
+                  }
+                  
                   controller.countryCode.value = phone.countryISOCode;
                   controller.phoneNumber.value = phone.completeNumber;
                 },
@@ -312,6 +331,7 @@ class EditProfileView extends GetView<EditProfileController> {
                   
                   // Clear phone field for better UX
                   controller.mobileTEC.clear();
+                  controller.update();
                 },
               ),
             ],
@@ -2605,4 +2625,32 @@ Widget getDropDownListTile({
             child
           ],
         );
+}
+
+/// Custom input formatter that removes spaces from input
+/// Also handles pasted text with spaces by cleaning them
+class NoSpaceInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove all spaces from the input (handles both typing and pasting)
+    final newText = newValue.text.replaceAll(' ', '');
+    
+    if (newText == newValue.text) {
+      return newValue;
+    }
+    
+    // Adjust cursor position after removing spaces
+    final cursorOffset = newValue.selection.baseOffset - 
+        (newValue.text.length - newText.length);
+    
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: cursorOffset.clamp(0, newText.length),
+      ),
+    );
+  }
 }
