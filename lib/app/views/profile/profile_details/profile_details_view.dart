@@ -129,7 +129,7 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
               ),
               getListTile(
                 title: 'Service Charges',
-                subtitle: vendor.serviceCharges ?? '--',
+                subtitle: _getServiceChargesDisplay(vendor.serviceCharges),
               ),
             ],
           ),
@@ -982,6 +982,14 @@ class ProfileDetailsView extends GetView<ProfileDetailsController> {
     } else {
       return "No";
     }
+  }
+
+  /// Helper to display service charges as Yes/No instead of true/false
+  String _getServiceChargesDisplay(String? value) {
+    if (value == null || value.isEmpty) return '--';
+    if (value.toLowerCase() == 'true' || value == '1') return 'Yes';
+    if (value.toLowerCase() == 'false' || value == '0') return 'No';
+    return value;
   }
 }
 

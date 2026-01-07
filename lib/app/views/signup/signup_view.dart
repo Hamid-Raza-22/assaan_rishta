@@ -134,6 +134,13 @@ SignupView({super.key});
                   decimal: false,
                   signed: false,
                 ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  NoSpaceInputFormatter(),
+                  LengthLimitingTextInputFormatter(
+                    controller.phoneValidationRules[controller.countryISOCode.value]?.maxLength ?? 15,
+                  ),
+                ],
                 flagsButtonMargin: const EdgeInsets.only(left: 10),
                 decoration: InputDecoration(
                   hintText: 'Mobile Number',
@@ -367,6 +374,34 @@ SignupView({super.key});
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Custom input formatter that removes spaces from input
+/// Also handles pasted text with spaces by cleaning them
+class NoSpaceInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove all spaces from the input (handles both typing and pasting)
+    final newText = newValue.text.replaceAll(' ', '');
+    
+    if (newText == newValue.text) {
+      return newValue;
+    }
+    
+    // Adjust cursor position after removing spaces
+    final cursorOffset = newValue.selection.baseOffset - 
+        (newValue.text.length - newText.length);
+    
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: cursorOffset.clamp(0, newText.length),
       ),
     );
   }

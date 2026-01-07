@@ -1,8 +1,10 @@
 import 'package:animated_custom_dropdown/custom_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/export.dart';
@@ -24,7 +26,7 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
       },
       builder: (_) {
         return Scaffold(
-          resizeToAvoidBottomInset: false,
+          resizeToAvoidBottomInset: true,
           backgroundColor: Colors.white,
           appBar: _appBar(),
           body: SafeArea(
@@ -34,9 +36,7 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
                       padding: const EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 20.0),
                       child: Column(
                         children: [
-                          _getBusinessInfo(context),
-                          const SizedBox(height: 16),
-                          _getLocationInfo(context),
+                          _getProfileInfo(context),
                         ],
                       ),
                     ),
@@ -58,8 +58,8 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
     );
   }
 
-  /// Business Information Section
-  Widget _getBusinessInfo(BuildContext context) {
+  /// Combined Profile Information Section with single update button
+  Widget _getProfileInfo(BuildContext context) {
     return Form(
       key: controller.formKey,
       child: Container(
@@ -109,17 +109,187 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
                 ),
               ],
             ),
-            // Phone
-            Row(
+            // Mobile No - IntlPhoneField (same as edit_profile.dart)
+            const SizedBox(height: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                getEditListTile(
-                  title: 'Phone',
-                  subtitle: controller.vendorProfile.value?.venderPhone ?? '',
-                  tec: controller.phoneController,
-                  keyboardType: TextInputType.phone,
+                const AppText(
+                  text: 'Mobile No',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.blackColor,
+                ),
+                const SizedBox(height: 5),
+                IntlPhoneField(
+                  controller: controller.phoneController,
+                  style: GoogleFonts.poppins(
+                    color: AppColors.blackColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  dropdownTextStyle: GoogleFonts.poppins(
+                    color: AppColors.blackColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  dropdownIconPosition: IconPosition.trailing,
+                  dropdownIcon: const Icon(
+                    CupertinoIcons.chevron_down,
+                    size: 16,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                  textInputAction: TextInputAction.next,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: false,
+                    signed: false,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _NoSpaceInputFormatter(),
+                    LengthLimitingTextInputFormatter(
+                      controller.phoneValidationRules[controller.countryCode.value]?.maxLength ?? 15,
+                    ),
+                  ],
+                  flagsButtonMargin: const EdgeInsets.only(left: 10),
+                  decoration: InputDecoration(
+                    hintText: 'Mobile Number',
+                    filled: true,
+                    fillColor: AppColors.fillFieldColor,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.borderColor,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.red),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red),
+                    ),
+                  ),
+                  cursorColor: AppColors.primaryColor,
+                  initialCountryCode: controller.countryCode.value,
+                  disableLengthCheck: true,
+                  validator: controller.validatePhone,
+                  onChanged: (phone) {
+                    // Get max length for current country
+                    final rule = controller.phoneValidationRules[phone.countryISOCode];
+                    final maxLength = rule?.maxLength ?? 15;
+                    
+                    // Trim if exceeds max length
+                    if (phone.number.length > maxLength) {
+                      controller.phoneController.text = phone.number.substring(0, maxLength);
+                      controller.phoneController.selection = TextSelection.fromPosition(
+                        TextPosition(offset: maxLength),
+                      );
+                    }
+                    
+                    controller.countryCode.value = phone.countryISOCode;
+                    controller.phoneNumber.value = phone.completeNumber;
+                  },
+                  onCountryChanged: (country) {
+                    controller.countryCode.value = country.code;
+                    controller.phoneController.clear();
+                    controller.update();
+                  },
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            // Location Information Section
+            const AppText(
+              text: "Location Information",
+              color: AppColors.blackColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+            ),
+            const SizedBox(height: 10),
+            // Country Dropdown
+            Row(
+              children: [
+                getDropDownListTile(
+                  title: 'Country',
+                  child: CustomDropdown<AllCountries>.search(
+                    hintText: controller.selectedCountryName.isNotEmpty 
+                        ? controller.selectedCountryName 
+                        : controller.vendorProfile.value?.vendorCountryName ?? 'Select Country',
+                    items: controller.countryList,
+                    onChanged: (value) {
+                      if (value != null) {
+                        controller.onCountryChanged(value, context);
+                      }
+                    },
+                    decoration: basicInfoDecoration(
+                      hintStyle: GoogleFonts.poppins(
+                        color: AppColors.blackColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // State Dropdown
+            Row(
+              children: [
+                getDropDownListTile(
+                  title: 'State',
+                  child: CustomDropdown<AllStates>.search(
+                    hintText: controller.stateController.value?.name ?? 
+                        controller.vendorProfile.value?.vendorStateName ?? 'Select State',
+                    items: controller.stateList,
+                    controller: controller.stateController,
+                    onChanged: (value) {
+                      if (value != null) {
+                        controller.onStateChanged(value, context);
+                      }
+                    },
+                    decoration: basicInfoDecoration(
+                      hintStyle: GoogleFonts.poppins(
+                        color: AppColors.blackColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // City Dropdown
+            Row(
+              children: [
+                getDropDownListTile(
+                  title: 'City',
+                  child: CustomDropdown<AllCities>.search(
+                    hintText: controller.cityController.value?.name ?? 
+                        controller.vendorProfile.value?.vendorCityName ?? 'Select City',
+                    items: controller.cityList,
+                    controller: controller.cityController,
+                    onChanged: (value) {
+                      if (value != null) {
+                        controller.onCityChanged(value);
+                      }
+                    },
+                    decoration: basicInfoDecoration(
+                      hintStyle: GoogleFonts.poppins(
+                        color: AppColors.blackColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             // Address
             Row(
               children: [
@@ -190,126 +360,19 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
               ],
             ),
             const SizedBox(height: 20),
+            // Single Update Button for all fields
             CustomButton(
-              text: "Update Business Info",
+              text: "Update Profile",
               fontColor: AppColors.whiteColor,
               isGradient: true,
               onTap: () {
                 if (controller.formKey.currentState!.validate()) {
-                  controller.updateVendorProfile(context);
+                  controller.updateAllProfile(context);
                 }
               },
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Location Information Section - Same design as EditProfileView
-  Widget _getLocationInfo(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.profileContainerColor,
-        borderRadius: BorderRadius.all(Radius.circular(20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 10),
-          const AppText(
-            text: "Location Information",
-            color: AppColors.blackColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-          const SizedBox(height: 10),
-          // Country Dropdown - Same as EditProfileView
-          Row(
-            children: [
-              getDropDownListTile(
-                title: 'Country',
-                child: CustomDropdown<AllCountries>.search(
-                  hintText: controller.selectedCountryName.isNotEmpty 
-                      ? controller.selectedCountryName 
-                      : controller.vendorProfile.value?.vendorCountryName ?? 'Select Country',
-                  items: controller.countryList,
-                  onChanged: (value) {
-                    if (value != null) {
-                      controller.onCountryChanged(value, context);
-                    }
-                  },
-                  decoration: basicInfoDecoration(
-                    hintStyle: GoogleFonts.poppins(
-                      color: AppColors.blackColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // State Dropdown - Same as EditProfileView
-          Row(
-            children: [
-              getDropDownListTile(
-                title: 'State',
-                child: CustomDropdown<AllStates>.search(
-                  hintText: controller.stateController.value?.name ?? 
-                      controller.vendorProfile.value?.vendorStateName ?? 'Select State',
-                  items: controller.stateList,
-                  controller: controller.stateController,
-                  onChanged: (value) {
-                    if (value != null) {
-                      controller.onStateChanged(value, context);
-                    }
-                  },
-                  decoration: basicInfoDecoration(
-                    hintStyle: GoogleFonts.poppins(
-                      color: AppColors.blackColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // City Dropdown - Same as EditProfileView
-          Row(
-            children: [
-              getDropDownListTile(
-                title: 'City',
-                child: CustomDropdown<AllCities>.search(
-                  hintText: controller.cityController.value?.name ?? 
-                      controller.vendorProfile.value?.vendorCityName ?? 'Select City',
-                  items: controller.cityList,
-                  controller: controller.cityController,
-                  onChanged: (value) {
-                    if (value != null) {
-                      controller.onCityChanged(value);
-                    }
-                  },
-                  decoration: basicInfoDecoration(
-                    hintStyle: GoogleFonts.poppins(
-                      color: AppColors.blackColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          CustomButton(
-            text: "Update Location",
-            fontColor: AppColors.whiteColor,
-            isGradient: true,
-            onTap: () => controller.updateLocationInfo(context),
-          ),
-        ],
       ),
     );
   }
@@ -330,6 +393,34 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
             borderRadius: 10,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Custom input formatter that removes spaces from input
+/// Also handles pasted text with spaces by cleaning them
+class _NoSpaceInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove all spaces from the input (handles both typing and pasting)
+    final newText = newValue.text.replaceAll(' ', '');
+    
+    if (newText == newValue.text) {
+      return newValue;
+    }
+    
+    // Adjust cursor position after removing spaces
+    final cursorOffset = newValue.selection.baseOffset - 
+        (newValue.text.length - newText.length);
+    
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: cursorOffset.clamp(0, newText.length),
       ),
     );
   }

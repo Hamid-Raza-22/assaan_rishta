@@ -1,6 +1,7 @@
 // forgot_password_view.dart - UPDATED WITH PHONE VALIDATION
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -94,6 +95,11 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                             decimal: false,
                             signed: false,
                           ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            _NoSpaceInputFormatter(),
+                            LengthLimitingTextInputFormatter(15),
+                          ],
                           flagsButtonMargin: const EdgeInsets.only(left: 10),
                           decoration: InputDecoration(
                             hintText: 'Enter Number',
@@ -188,6 +194,34 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Custom input formatter that removes spaces from input
+/// Also handles pasted text with spaces by cleaning them
+class _NoSpaceInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove all spaces from the input (handles both typing and pasting)
+    final newText = newValue.text.replaceAll(' ', '');
+    
+    if (newText == newValue.text) {
+      return newValue;
+    }
+    
+    // Adjust cursor position after removing spaces
+    final cursorOffset = newValue.selection.baseOffset - 
+        (newValue.text.length - newText.length);
+    
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: cursorOffset.clamp(0, newText.length),
+      ),
     );
   }
 }
