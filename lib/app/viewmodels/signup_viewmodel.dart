@@ -982,7 +982,7 @@ class SignupViewModel extends GetxController {
       userKaTaruf: aboutYourSelfTEC.text,
       userDiWohtiKaTaruf: aboutYourPartnerTEC.text,
       roleId: 2,
-      // profilePhotoBase64: photoBase64,
+      profilePhotoBase64: photoBase64,
       // profileBlur: isProfileBlur.value,
       profileCreatedBy: isFromDashboard.value && profileCreatedBy > 0 ? profileCreatedBy : null,
     );
