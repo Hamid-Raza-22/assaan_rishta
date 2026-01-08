@@ -329,12 +329,14 @@ class UserManagementRepoImpl implements UserManagementRepo {
     required String picData,
   }) async {
     try {
+      final userRoleId = await getUserRoleId();
+      final userType = userRoleId == 3 ? "3" : "2";
       final response = await _networkHelper.postMultipartData(
         _endPoints.updateProfileUrl(),
         fields: {
           'picData': picData,
           'userId': _storageRepo.getInt(StorageKeys.userId).toString(),
-          'role_id': '2',
+          'role_id': userType,
         },
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -476,12 +478,16 @@ class UserManagementRepoImpl implements UserManagementRepo {
     required String password,
   }) async {
     try {
+      // Get user role ID to determine user_type
+      final userRoleId = await getUserRoleId();
+      final userType = userRoleId == 3 ? "vendor" : "user";
+      
       final response = await _networkHelper.post(
         _endPoints.updatePasswordUrl(),
         body: {
           "password": password,
           "user_id": _storageRepo.getInt(StorageKeys.userId),
-          "user_type": "user",
+          "user_type": userType,
         },
         headers: {
           "Content-Type": "application/json",
@@ -503,17 +509,22 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+
   @override
   Future<Either<AppError, String>> resetPassword({
     required String password,required String email,
   }) async {
     try {
+      // Get user role ID to determine user_type
+      final userRoleId = await getUserRoleId();
+      final userType = userRoleId == 3 ? "vendor" : "user";
+      
       final response = await _networkHelper.post(
         _endPoints.resetPasswordUrl(),
         body: {
           "password": password,
           "email": email,
-          "user_type": "user",
+          "user_type": userType,
         },
         headers: {
           "Content-Type": "application/json",
