@@ -29,7 +29,7 @@ SignupView({super.key});
       preferredSize: Size(double.infinity, 40),
       child: CustomAppBar(
         isBack: true,
-        title: "Create Account",
+        title: "Sign Up",
       ),
     );
   }
@@ -49,16 +49,15 @@ SignupView({super.key});
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
-                // child: Text(
-                //   'Create Account',
-                //   style: TextStyle(
-                //     fontSize: 28,
-                //     fontWeight: FontWeight.bold,
-                //     color: Colors.black,
-                //   ),
-                // ),
+                child: AppText(
+                  text:'Create Account',
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+
+                ),
               ),
-              SizedBox(height: 8),
+              SizedBox(height:12),
               Center(
                 child: AppText(
                   text: 'Sign up to keep exploring profiles\naround the world',
@@ -72,11 +71,11 @@ SignupView({super.key});
               ),
               SizedBox(height: 25),
 
-              // Profile Photo Picker
-              Center(
-                child: ProfilePhotoPicker(controller: controller),
-              ),
-              SizedBox(height: 20),
+              // // Profile Photo Picker
+              // Center(
+              //   child: ProfilePhotoPicker(controller: controller),
+              // ),
+              // SizedBox(height: 20),
 
               Row(
                 children: [

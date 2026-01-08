@@ -360,6 +360,42 @@ class UserManagementRepoImpl implements UserManagementRepo {
   }
 
   @override
+  Future<Either<AppError, String>> updateUserProfilePic({
+    required String picData,
+    required int userId,
+  }) async {
+    try {
+      final userRoleId = await getUserRoleId();
+      final userType = userRoleId == 3 ? "3" : "2";
+      final response = await _networkHelper.postMultipartData(
+        _endPoints.updateProfileUrl(),
+        fields: {
+          'picData': picData,
+          'userId': userId.toString(),
+          'role_id': "2",
+        },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      );
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return Right(response.body.toString());
+      }
+      return Left(
+        AppError(
+          title: response.statusCode.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppError(
+          title: e.toString(),
+        ),
+      );
+    }
+  }
+
+  @override
   Future<Either<AppError, String>> updateProfileInfo({
     required String endPoint,
     required Map<String, dynamic> payload,

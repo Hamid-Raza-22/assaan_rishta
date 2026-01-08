@@ -6,6 +6,7 @@ import '../../core/libraries/image_loader/image_helper.dart';
 import '../../core/routes/app_routes.dart';
 import '../../utils/exports.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class DashboardView extends GetView<DashboardController> {
   const DashboardView({super.key});
@@ -19,8 +20,10 @@ class DashboardView extends GetView<DashboardController> {
       },
       builder: (_) {
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
+          appBar: _appBar(context),
+          backgroundColor: AppColors.whiteColor,
           body: SafeArea(
+
             child: controller.isLoading.value
                 ? const Center(
                     child: CircularProgressIndicator(
@@ -32,7 +35,7 @@ class DashboardView extends GetView<DashboardController> {
                     color: AppColors.primaryColor,
                     child: CustomScrollView(
                       slivers: [
-                        _buildAppBar(context),
+                        // _buildAppBar(context),
                         SliverPadding(
                           padding: const EdgeInsets.all(16),
                           sliver: SliverList(
@@ -58,50 +61,62 @@ class DashboardView extends GetView<DashboardController> {
       },
     );
   }
-
-  SliverAppBar _buildAppBar(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 60,
-      floating: true,
-      pinned: true,
-      elevation: 0,
-      backgroundColor: AppColors.primaryColor,
-      automaticallyImplyLeading: false,
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.dashboard_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            "Matrimonial Dashboard",
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+  _appBar(BuildContext context) {
+    return PreferredSize(
+      preferredSize: const Size(double.infinity, 40),
+      child: CustomAppBar(
+        isBack: false,
+        title: "Dashboard",
+        actions: [
+          // Obx(
+          //   () => Padding(
+          //     padding: const EdgeInsets.only(right: 15.0),
+          //     child: FeaturedChip(
+          //       isEnabled: controller.isFeaturedEnabled.value,
+          //       onTap: () => controller.toggleFeatured(),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
-      actions: [
-        IconButton(
-          onPressed: () => controller.refreshDashboard(),
-          icon: const Icon(Icons.refresh, color: Colors.white),
-          tooltip: "Refresh",
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
+  // SliverAppBar _buildAppBar(BuildContext context) {
+  //   return SliverAppBar(
+  //     expandedHeight: 60,
+  //     floating: true,
+  //     pinned: true,
+  //     elevation: 0,
+  //     backgroundColor: AppColors.primaryColor,
+  //     automaticallyImplyLeading: false,
+  //     title: Row(
+  //       children: [
+  //         Image.asset(
+  //           AppAssets.appLogoPng,
+  //           height: 40,
+  //           width: 40,
+  //         ),
+  //         const SizedBox(width: 12),
+  //         Text(
+  //           "Dashboard",
+  //           style: GoogleFonts.poppins(
+  //             fontSize: 18,
+  //             fontWeight: FontWeight.w600,
+  //             color: Colors.white,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //     actions: [
+  //       IconButton(
+  //         onPressed: () => controller.refreshDashboard(),
+  //         icon: const Icon(Icons.refresh, color: Colors.white),
+  //         tooltip: "Refresh",
+  //       ),
+  //       const SizedBox(width: 8),
+  //     ],
+  //   );
+  // }
 
   Widget _buildWelcomeCard(BuildContext context) {
     return Container(
@@ -513,8 +528,8 @@ class DashboardView extends GetView<DashboardController> {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
-      elevation: 1,
-      shadowColor: Colors.grey.withOpacity(0.2),
+      elevation:10,
+      shadowColor: Colors.grey,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),

@@ -46,28 +46,27 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
       },
       builder: (_) {
         return Scaffold(
+
           backgroundColor: Colors.white,
           appBar: PreferredSize(
             preferredSize: const Size(double.infinity, 56),
             child: AppBar(
-              backgroundColor: AppColors.primaryColor,
+              backgroundColor: AppColors.whiteColor,
               elevation: 0,
               leading: IconButton(
                 onPressed: () => Get.back(),
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
               ),
-              title: Text(
-                "Matrimonial Profiles",
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
+              title: AppText(
+                text: "Matrimonial Profiles",
+                 fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                  color: Colors.black,
               ),
               actions: [
                 IconButton(
                   onPressed: () => controller.refreshProfiles(),
-                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  icon: const Icon(Icons.refresh, color: Colors.black),
                   tooltip: "Refresh",
                 ),
               ],
@@ -135,24 +134,24 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
               color: Colors.red.shade300,
             ),
             const SizedBox(height: 16),
-            Text(
+            AppText( text:
               "Something went wrong",
-              style: GoogleFonts.poppins(
+
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: AppColors.blackColor,
-              ),
+
             ),
             const SizedBox(height: 8),
-            Text(
+            AppText( text:
               controller.errorMessage.value,
 
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
+
                 fontSize: 14,
                 color: AppColors.fontLightColor,
               ),
-            ),
+
             const SizedBox(height: 24),
             CustomButton(
               text: "Retry",
@@ -181,23 +180,23 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
               color: Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
-            Text(
+            AppText( text:
               "No Profiles Found",
-              style: GoogleFonts.poppins(
+
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: AppColors.blackColor,
               ),
-            ),
+
             const SizedBox(height: 8),
-            Text(
+            AppText( text:
               "You haven't created any matrimonial profiles yet.",
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
+
                 fontSize: 14,
                 color: AppColors.fontLightColor,
               ),
-            ),
+
             const SizedBox(height: 24),
             CustomButton(
               text: "Refresh",
@@ -242,15 +241,15 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 74),
-                    Text(
+                    AppText( text:
                       '${user.name}',
                       textAlign: TextAlign.center,
                       maxLines: 2,
-                      style: GoogleFonts.poppins(
+
                         fontSize: 24,
                         fontWeight: FontWeight.w500,
                       ),
-                    ),
+
                     const SizedBox(height: 8),
                     // Admin Created Badge
                     Center(
@@ -275,13 +274,13 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                               color: AppColors.primaryColor,
                             ),
                             const SizedBox(width: 4),
-                            Text(
+                            AppText( text:
                               "Admin Created",
-                              style: GoogleFonts.poppins(
+
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
                                 color: AppColors.primaryColor,
-                              ),
+
                             ),
                           ],
                         ),
@@ -368,13 +367,13 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                                       color: AppColors.primaryColor,
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
+                                    AppText( text:
                                       'Edit Profile',
-                                      style: GoogleFonts.poppins(
+
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
-                                    ),
+
                                   ],
                                 ),
                               ),
@@ -388,13 +387,13 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                                       color: Colors.pink,
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
+                                    AppText( text:
                                       'Partner Preferences',
-                                      style: GoogleFonts.poppins(
+
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
-                                    ),
+
                                   ],
                                 ),
                               ),
@@ -409,14 +408,14 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                                       color: Colors.red,
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
+                                    AppText( text:
                                       'Delete Profile',
-                                      style: GoogleFonts.poppins(
+
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                         color: Colors.red,
                                       ),
-                                    ),
+
                                   ],
                                 ),
                               ),
@@ -444,42 +443,45 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
             left: 0,
             right: 0,
             top: 0,
-            child: Column(
-              children: [
-                Container(
-                  height: 100,
-                  width: 100,
-                  decoration: BoxDecoration(
-                    color: AppColors.whiteColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withValues(alpha: 0.5),
-                        spreadRadius: 3,
-                        blurRadius: 7,
-                        offset: const Offset(0, 3),
+            child: GestureDetector(
+              onTap: () => controller.showImagePickerSheet(context, user),
+              child: Column(
+                children: [
+                  Container(
+                    height: 100,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.whiteColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withValues(alpha: 0.5),
+                          spreadRadius: 3,
+                          blurRadius: 7,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: BlurredProfileImage(
+                        imageProvider: (user.profileImage != null &&
+                                user.profileImage!.isNotEmpty)
+                            ? NetworkImage(user.profileImage!) as ImageProvider
+                            : AssetImage(
+                                controller.getGenderBasedPlaceholder(user.gender),
+                              ) as ImageProvider,
+                        shouldBlur: user.blurProfileImage ?? false,
+                        isCircular: true,
+                        width: 90,
+                        height: 90,
+                        boxFit: BoxFit.cover,
+                        blurSigma: 10.0,
                       ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(5),
-                    child: BlurredProfileImage(
-                      imageProvider: (user.profileImage != null &&
-                              user.profileImage!.isNotEmpty)
-                          ? NetworkImage(user.profileImage!) as ImageProvider
-                          : AssetImage(
-                              controller.getGenderBasedPlaceholder(user.gender),
-                            ) as ImageProvider,
-                      shouldBlur: user.blurProfileImage ?? false,
-                      isCircular: true,
-                      width: 90,
-                      height: 90,
-                      boxFit: BoxFit.cover,
-                      blurSigma: 10.0,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
