@@ -2191,7 +2191,7 @@ class _ChattingViewState extends State<ChattingView> {
       await controller.createUserChat(autoMessage);
 
       // Send system notification about connect deduction from other user
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(const Duration(milliseconds: 300));
       await _sendSystemNotificationFromOtherUser(controller, '💡 Your 1 connection has been deducted successfully.');
 
       // Hide system message AFTER message is sent successfully
