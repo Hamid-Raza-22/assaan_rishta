@@ -242,8 +242,8 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                         gradient: isSystemNotification
                             ? LinearGradient(
                           colors: [
-                            const Color(0xFFFFF9C4),
-                            const Color(0xFFFFF59D),
+                            const Color(0xFFBFBDBD),
+                            const Color(0xFF8A8888),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -286,7 +286,7 @@ class _ProfessionalMessageCardState extends State<ProfessionalMessageCard>
                         // Add border for replied messages or system notifications
                         border: isSystemNotification
                             ? Border.all(
-                          color: const Color(0xFFFDD835).withOpacity(0.5),
+                          color: const Color(0xFF685003).withOpacity(0.5),
                           width: 1.5,
                         )
                             : isRepliedMessage
