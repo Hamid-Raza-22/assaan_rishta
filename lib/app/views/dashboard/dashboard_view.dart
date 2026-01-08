@@ -68,15 +68,11 @@ class DashboardView extends GetView<DashboardController> {
         isBack: false,
         title: "Dashboard",
         actions: [
-          // Obx(
-          //   () => Padding(
-          //     padding: const EdgeInsets.only(right: 15.0),
-          //     child: FeaturedChip(
-          //       isEnabled: controller.isFeaturedEnabled.value,
-          //       onTap: () => controller.toggleFeatured(),
-          //     ),
-          //   ),
-          // ),
+          IconButton(
+            onPressed: () => controller.refreshDashboard(),
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: "Refresh",
+          ),
         ],
       ),
     );
@@ -153,9 +149,9 @@ class DashboardView extends GetView<DashboardController> {
               backgroundColor: Colors.white,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(32),
-                child: controller.userImage.isNotEmpty
+                child: Obx(() => controller.userImage.value.isNotEmpty
                     ? ImageHelper(
-                        image: controller.userImage,
+                        image: controller.userImage.value,
                         imageType: ImageType.network,
                         height: 64,
                         width: 64,
@@ -166,7 +162,7 @@ class DashboardView extends GetView<DashboardController> {
                         imageType: ImageType.asset,
                         height: 64,
                         width: 64,
-                      ),
+                      )),
               ),
             ),
           ),

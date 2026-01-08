@@ -17,6 +17,7 @@ import '../core/services/secure_storage_service.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import 'auth_service.dart';
+import 'dashboard_viewmodel.dart';
 
 class ProfileController extends GetxController {
   final userManagementUseCases = Get.find<UserManagementUseCase>();
@@ -592,8 +593,21 @@ class ProfileController extends GetxController {
         AppUtils.dismissLoader(Get.context!);
 
         try {
-          await getCurrentUserProfiles();
-          String? newImageUrl = profileDetails.value.profileImage;
+          // Refresh appropriate profile based on user type
+          if (isMatrimonialUser.value) {
+            await getVendorOwnProfile();
+            // Also refresh dashboard to update welcome card image
+            if (Get.isRegistered<DashboardController>()) {
+              Get.find<DashboardController>().refreshDashboard();
+            }
+          } else {
+            await getCurrentUserProfiles();
+          }
+          
+          // Get new image URL based on user type
+          String? newImageUrl = isMatrimonialUser.value 
+              ? vendorProfile.value?.logo 
+              : profileDetails.value.profileImage;
 
           debugPrint('📱 Profile updated successfully');
           debugPrint('🔗 New image URL from API: $newImageUrl');

@@ -12,6 +12,8 @@ import '../core/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
 import '../widgets/app_text.dart';
+import 'dashboard_viewmodel.dart';
+import 'profile_viewmodel.dart';
 
 class MatrimonialProfilesController extends BaseController {
   final userManagementUseCases = Get.find<UserManagementUseCase>();
@@ -420,6 +422,18 @@ class MatrimonialProfilesController extends BaseController {
             
             // Refresh profiles to show updated image
             refreshProfiles();
+            
+            // Also refresh dashboard to update welcome card image
+            if (Get.isRegistered<DashboardController>()) {
+              final dashboardController = Get.find<DashboardController>();
+              dashboardController.getUserProfile();
+            }
+            
+            // Also refresh profile view to update profile image
+            if (Get.isRegistered<ProfileController>()) {
+              final profileController = Get.find<ProfileController>();
+              profileController.getVendorOwnProfile();
+            }
             
             Get.snackbar(
               'Image Updated',

@@ -129,6 +129,7 @@ class ProfileView extends GetView<ProfileController> {
           right: 0,
           top: 0,
           child: DisplayImage(
+
             imagePath: vendor.logo != null
                 ? vendor.logo!
                 : AppAssets.imagePlaceholder,
