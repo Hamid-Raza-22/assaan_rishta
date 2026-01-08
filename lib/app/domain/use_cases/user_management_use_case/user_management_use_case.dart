@@ -162,6 +162,26 @@ class UserManagementUseCase {
     );
   }
 
+  /// Update profile pic for a specific user (for admin managing other users)
+  Future<Either<AppError, String>> updateUserProfilePic({
+    required String picData,
+    required int userId,
+  }) async {
+    final response = await userManagementRepo.updateUserProfilePic(
+      picData: picData,
+      userId: userId,
+    );
+
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
+
   Future<Either<AppError, String>> updateProfileInfoPic({
     required String endPoint,
     required Map<String, dynamic> payload,

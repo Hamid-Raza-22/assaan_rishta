@@ -47,6 +47,12 @@ mixin UserManagementRepo {
 
   Future<Either<AppError, String>> updateProfilePic({required String picData});
 
+  /// Update profile pic for a specific user (for admin managing other users)
+  Future<Either<AppError, String>> updateUserProfilePic({
+    required String picData,
+    required int userId,
+  });
+
   Future<Either<AppError, String>> updateProfileInfo({
     required String endPoint,
     required Map<String, dynamic> payload,

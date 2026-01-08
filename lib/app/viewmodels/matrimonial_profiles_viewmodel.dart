@@ -1,11 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/base/export.dart';
 import '../core/export.dart';
 import '../domain/export.dart';
 import '../utils/exports.dart';
+import '../widgets/app_text.dart';
 
 class MatrimonialProfilesController extends BaseController {
   final userManagementUseCases = Get.find<UserManagementUseCase>();
@@ -15,6 +21,8 @@ class MatrimonialProfilesController extends BaseController {
   RxBool isLoading = false.obs;
   RxBool isError = false.obs;
   RxString errorMessage = ''.obs;
+  
+  final ImagePicker _picker = ImagePicker();
 
   int pageNo = 1;
   int totalCounts = 0;
@@ -330,6 +338,109 @@ class MatrimonialProfilesController extends BaseController {
         message: "An unexpected error occurred. Please try again.",
       );
       debugPrint('❌ Error deleting profile: $e');
+    }
+  }
+
+  /// Show cupertino action sheet for image selection
+  void showImagePickerSheet(BuildContext context, ProfilesList user) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: const AppText(
+          text: 'Select Profile Image',
+          color: AppColors.blackColor,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        message: Text(
+          'Choose image for ${user.name ?? "User"}',
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: <Widget>[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _pickImageForUser(user, ImageSource.camera);
+            },
+            child: const Text('Camera'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _pickImageForUser(user, ImageSource.gallery);
+            },
+            child: const Text('Gallery'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const AppText(text: 'Cancel', color: AppColors.redColor),
+        ),
+      ),
+    );
+  }
+
+  /// Pick image for a specific user and upload via API
+  Future<void> _pickImageForUser(ProfilesList user, ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 50,
+      );
+      
+      if (pickedFile != null && user.userId != null) {
+        // Convert image to base64
+        final File imageFile = File(pickedFile.path);
+        final List<int> imageBytes = await imageFile.readAsBytes();
+        final String base64String = base64Encode(imageBytes);
+        
+        // Show loading
+        AppUtils.onLoading(Get.context!);
+        
+        // Upload via API
+        final response = await userManagementUseCases.updateUserProfilePic(
+          picData: base64String,
+          userId: user.userId!,
+        );
+        
+        response.fold(
+          (error) {
+            AppUtils.dismissLoader(Get.context!);
+            debugPrint('❌ Error updating profile image: ${error.description}');
+            AppUtils.failedData(
+              title: "Update Failed",
+              message: "Failed to update profile image. Please try again.",
+            );
+          },
+          (success) {
+            AppUtils.dismissLoader(Get.context!);
+            debugPrint('✅ Profile image updated for user ${user.userId}');
+            
+            // Refresh profiles to show updated image
+            refreshProfiles();
+            
+            Get.snackbar(
+              'Image Updated',
+              'Profile image updated for ${user.name ?? "User"}',
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: AppColors.greenColor,
+              colorText: Colors.white,
+              duration: const Duration(seconds: 2),
+              margin: const EdgeInsets.all(10),
+              borderRadius: 10,
+            );
+          },
+        );
+      }
+    } catch (e) {
+      AppUtils.dismissLoader(Get.context!);
+      debugPrint('❌ Error picking image: $e');
+      AppUtils.failedData(
+        title: "Error",
+        message: "Failed to pick image. Please try again.",
+      );
     }
   }
 

@@ -5,6 +5,7 @@ import '../core/base/export.dart';
 import '../core/routes/app_routes.dart';
 import '../domain/use_cases/user_management_use_case/user_management_use_case.dart';
 import '../core/services/secure_storage_service.dart';
+import '../core/export.dart';
 import 'signup_viewmodel.dart';
 
 class DashboardController extends BaseController {
@@ -16,6 +17,9 @@ class DashboardController extends BaseController {
   String userImage = "";
   String userRole = "";
   int userId = 0;
+  
+  // Vendor profile for matrimonial users
+  Rx<VendorOwnProfile?> vendorProfile = Rx<VendorOwnProfile?>(null);
   
   // Dashboard stats
   int totalProfiles = 0;
@@ -46,9 +50,12 @@ class DashboardController extends BaseController {
         (error) {
           debugPrint('❌ Error getting user profile: $error');
         },
-        (success) {
+        (success) async {
           if (success.roleId == 3) {
             userRole = success.roleName ?? "Administrator";
+            
+            // Fetch vendor profile for matrimonial users to get logo
+            await _fetchVendorProfile();
             
             // Fetch dashboard stats
             _fetchDashboardStats();
@@ -60,6 +67,29 @@ class DashboardController extends BaseController {
     } finally {
       isLoading.value = false;
       update();
+    }
+  }
+
+  /// Fetch vendor profile for matrimonial users
+  Future<void> _fetchVendorProfile() async {
+    try {
+      final response = await userManagementUseCases.getVendorOwnProfile();
+      response.fold(
+        (error) {
+          debugPrint('❌ Error fetching vendor profile: ${error.description}');
+        },
+        (success) {
+          vendorProfile.value = success;
+          // Update user image with vendor logo
+          if (success.logo != null && success.logo!.isNotEmpty) {
+            userImage = success.logo!;
+          }
+          debugPrint('✅ Vendor profile fetched successfully');
+          update();
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Error in _fetchVendorProfile: $e');
     }
   }
 
