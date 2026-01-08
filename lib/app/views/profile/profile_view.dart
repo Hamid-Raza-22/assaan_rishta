@@ -502,6 +502,7 @@ class ProfileView extends GetView<ProfileController> {
                 Get.toNamed(AppRoutes.USER_GUIDE_VIEW);
               },
             ),
+            if (!isMatrimonial)
             ClickableListTile(
               text: 'Delete Profile',
               textColor: AppColors.redColor,
