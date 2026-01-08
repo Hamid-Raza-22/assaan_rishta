@@ -14,7 +14,7 @@ class DashboardController extends BaseController {
   
   // User info
   String userName = "";
-  String userImage = "";
+  RxString userImage = "".obs;
   String userRole = "";
   int userId = 0;
   
@@ -42,26 +42,29 @@ class DashboardController extends BaseController {
       final secureStorage = SecureStorageService();
       userId = int.tryParse(await secureStorage.getUserId() ?? "0") ?? 0;
       userName = await secureStorage.getUserName() ?? "";
-      userImage = await secureStorage.getUserPic() ?? "";
+      userImage.value = await secureStorage.getUserPic() ?? "";
       
       // Get donor claims to verify role
       final response = await userManagementUseCases.getDonorClaims();
+      
+      bool isMatrimonial = false;
       response.fold(
         (error) {
           debugPrint('❌ Error getting user profile: $error');
         },
-        (success) async {
+        (success) {
           if (success.roleId == 3) {
             userRole = success.roleName ?? "Administrator";
-            
-            // Fetch vendor profile for matrimonial users to get logo
-            await _fetchVendorProfile();
-            
-            // Fetch dashboard stats
-            _fetchDashboardStats();
+            isMatrimonial = true;
           }
         },
       );
+      
+      // Fetch vendor profile for matrimonial users (outside fold to properly await)
+      if (isMatrimonial) {
+        await _fetchVendorProfile();
+        _fetchDashboardStats();
+      }
     } catch (e) {
       debugPrint('❌ Error in getUserProfile: $e');
     } finally {
@@ -80,9 +83,13 @@ class DashboardController extends BaseController {
         },
         (success) {
           vendorProfile.value = success;
+          debugPrint('🖼️ Vendor logo from API: ${success.logo}');
           // Update user image with vendor logo
           if (success.logo != null && success.logo!.isNotEmpty) {
-            userImage = success.logo!;
+            userImage.value = success.logo!;
+            debugPrint('🖼️ userImage updated to: ${userImage.value}');
+          } else {
+            debugPrint('⚠️ Vendor logo is null or empty');
           }
           debugPrint('✅ Vendor profile fetched successfully');
           update();
@@ -91,6 +98,11 @@ class DashboardController extends BaseController {
     } catch (e) {
       debugPrint('❌ Error in _fetchVendorProfile: $e');
     }
+  }
+
+  /// Refresh dashboard - call this to reload vendor profile
+  Future<void> refreshDashboard() async {
+    await getUserProfile();
   }
 
   Future<void> _fetchDashboardStats() async {
@@ -139,7 +151,7 @@ class DashboardController extends BaseController {
   }
   
   /// Refresh dashboard data
-  Future<void> refreshDashboard() async {
-    await getUserProfile();
-  }
+  // Future<void> refreshDashboard() async {
+  //   await getUserProfile();
+  // }
 }
