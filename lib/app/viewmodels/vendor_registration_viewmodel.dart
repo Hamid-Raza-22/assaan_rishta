@@ -478,7 +478,6 @@ class VendorRegistrationViewModel extends GetxController {
       'role_id': 3,
       "Vender_cat_ID": 1,// Always 3 for Matrimonial
       'logo': logoBase64 ?? '',
-
     };
 
 
