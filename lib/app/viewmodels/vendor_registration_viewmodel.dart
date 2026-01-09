@@ -481,6 +481,7 @@ class VendorRegistrationViewModel extends GetxController {
 
     };
 
+
     debugPrint('📦 Vendor Registration Payload: $payload');
 
     final response = await userManagementUseCase.registerVendor(payload: payload);
