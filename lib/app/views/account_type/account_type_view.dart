@@ -344,17 +344,17 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
           fontSize: 18,
           onTap: () => controller.navigateToLogin(),
         ),
-        const SizedBox(height: 12),
-        CustomButton(
-          text: "Create Account (Matrimonial)",
-          isGradient: false,
-          backgroundColor: Colors.white,
-          fontColor: AppColors.primaryColor,
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-          borderColor: AppColors.primaryColor,
-          onTap: () => controller.navigateToMatrimonialSignup(),
-        ),
+        // const SizedBox(height: 12),
+        // CustomButton(
+        //   text: "Create Account (Matrimonial)",
+        //   isGradient: false,
+        //   backgroundColor: Colors.white,
+        //   fontColor: AppColors.primaryColor,
+        //   fontWeight: FontWeight.w600,
+        //   fontSize: 18,
+        //   borderColor: AppColors.primaryColor,
+        //   onTap: () => controller.navigateToMatrimonialSignup(),
+        // ),
       ],
     );
   }
