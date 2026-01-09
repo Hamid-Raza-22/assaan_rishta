@@ -20,6 +20,7 @@ import '../../views/profile/export.dart';
 import '../../views/profile/user_guide/user_guide.dart';
 import '../../views/signup/address_preferences_view.dart';
 import '../../views/signup/basic_info_view.dart';
+import '../../views/signup/matrimonial_signup_view.dart';
 import '../../views/signup/signup_view.dart';
 import '../../views/user_details/user_details_view.dart';
 import '../../views/vendor/export.dart';
@@ -130,6 +131,12 @@ class AppPages {
       name: AppRoutes.VENDOR_EDIT_PROFILE_VIEW,
       page: () => const VendorEditProfileView(),
       transition: Transition.circularReveal,
+      transitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: AppRoutes.MATRIMONIAL_SIGNUP,
+      page: () => MatrimonialSignupView(),
+      transition: Transition.rightToLeft,
       transitionDuration: Duration(milliseconds: 200),
     ),
     GetPage(

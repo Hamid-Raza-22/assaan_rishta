@@ -206,4 +206,9 @@ class EndPoints {
   String updateVendorProfileUrl() {
     return '${baseUrl}Users/UpdateVendorProfile';
   }
+
+  /// Register Vendor (Matrimonial Account)
+  String registerVendorUrl() {
+    return '${baseUrl}vendor/registervender';
+  }
 }

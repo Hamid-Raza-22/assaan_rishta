@@ -154,4 +154,9 @@ mixin UserManagementRepo {
   Future<Either<AppError, String>> updateVendorProfile({
     required Map<String, dynamic> payload,
   });
+
+  /// Register Vendor (Matrimonial Account)
+  Future<Either<AppError, String>> registerVendor({
+    required Map<String, dynamic> payload,
+  });
 }

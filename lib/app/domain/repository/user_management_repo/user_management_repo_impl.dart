@@ -1153,4 +1153,81 @@ class UserManagementRepoImpl implements UserManagementRepo {
       );
     }
   }
+
+  @override
+  Future<Either<AppError, String>> registerVendor({
+    required Map<String, dynamic> payload,
+  }) async {
+    try {
+      debugPrint('📝 registerVendor - Registering new vendor (Matrimonial)');
+      debugPrint('📦 Payload: $payload');
+      
+      final response = await _networkHelper.post(
+        _endPoints.registerVendorUrl(),
+        isEncode: true,
+        body: payload,
+        headers: {"Content-Type": "application/json"},
+      );
+      
+      debugPrint('📡 Response Status: ${response.statusCode}');
+      debugPrint('📡 Response Body: ${response.body}');
+      
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        final responseBody = response.body.toString();
+        
+        // Check for backend exceptions/errors in response body
+        if (responseBody.toLowerCase().contains("exception") ||
+            responseBody.toLowerCase().contains("error") ||
+            responseBody.contains("System.") ||
+            responseBody.contains("IndexOutOfRange")) {
+          debugPrint('❌ registerVendor - Backend error in response');
+          return Left(
+            AppError(
+              title: "Server Error",
+              description: "Registration failed. Please try again or contact support.",
+            ),
+          );
+        }
+        
+        // Check for duplicate/existing vendor
+        if (responseBody.toLowerCase().contains("exists") ||
+            responseBody.toLowerCase().contains("duplicate")) {
+          return Left(
+            AppError(
+              title: "Vendor Already Exists",
+              description: "An account with this email or phone number already exists",
+            ),
+          );
+        }
+        
+        debugPrint('✅ registerVendor - Success');
+        return Right(responseBody);
+      }
+      
+      // Handle 409 Conflict (commonly used for duplicates)
+      if (response.statusCode == 409) {
+        return Left(
+          AppError(
+            title: "Duplicate Account",
+            description: "This email or phone number is already registered",
+          ),
+        );
+      }
+      
+      return Left(
+        AppError(
+          title: "Registration Failed",
+          description: "Failed to register vendor. Status: ${response.statusCode}",
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ registerVendor - Error: $e');
+      return Left(
+        AppError(
+          title: "Error",
+          description: e.toString(),
+        ),
+      );
+    }
+  }
 }
