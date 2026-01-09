@@ -158,7 +158,7 @@ class LoginView extends GetView<LoginViewModel> {
                   )),
                 ],
               ),
-              SizedBox(height: 40),
+              SizedBox(height: 50),
               Obx(() => CustomButton(
                 text: "Login",
                 isLoading: controller.isLoading.value,
@@ -200,26 +200,26 @@ class LoginView extends GetView<LoginViewModel> {
               //   ],
               // )),
               SizedBox(height: 30),
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Don't have an account? ",
-                        style:
-                        TextStyle(color: Colors.grey[600], fontSize: 14)),
-                    GestureDetector(
-                      onTap: () {
-                        Get.toNamed('/signup');
-                      },
-                      child: Text('Register here',
-                          style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500)),
-                    ),
-                  ],
-                ),
-              )
+              // Center(
+              //   child: Row(
+              //     mainAxisAlignment: MainAxisAlignment.center,
+              //     children: [
+              //       Text("Don't have an account? ",
+              //           style:
+              //           TextStyle(color: Colors.grey[600], fontSize: 14)),
+              //       GestureDetector(
+              //         onTap: () {
+              //           Get.toNamed('/signup');
+              //         },
+              //         child: Text('Register here',
+              //             style: TextStyle(
+              //                 color: Colors.red,
+              //                 fontSize: 14,
+              //                 fontWeight: FontWeight.w500)),
+              //       ),
+              //     ],
+              //   ),
+              // )
             ],
           ),
         ),

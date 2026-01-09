@@ -513,42 +513,47 @@ class EditProfileController extends GetxController {
           message: "General information updated.",
         );
 
-        // FIXED: Update Firebase chat collection with correct collection name
-        try {
-          final userId = useCases.getUserId().toString();
-          final fullName = '${firstNameTEC.text.trim()} ${lastNameTEC.text.trim()}';
-          final aboutText = userKaTarufTEC.text.trim();
+        // BLOCKED: Skip Firebase update when Matrimonial user is editing profile
+        if (!isAdminManaging) {
+          // Only update Firebase for regular users editing their own profile
+          try {
+            final userId = useCases.getUserId().toString();
+            final fullName = '${firstNameTEC.text.trim()} ${lastNameTEC.text.trim()}';
+            final aboutText = userKaTarufTEC.text.trim();
 
-          debugPrint('🔄 Updating Firebase for user: $userId');
-          debugPrint('📝 New name: $fullName');
-          debugPrint('📝 New about: $aboutText');
+            debugPrint('🔄 Updating Firebase for user: $userId');
+            debugPrint('📝 New name: $fullName');
+            debugPrint('📝 New about: $aboutText');
 
-          // Update in the correct Hamid_users collection
-          await FirebaseFirestore.instance
-              .collection(EnvConfig.firebaseUsersCollection)
-              .doc(userId)
-              .update({
-            'name': fullName,
-            'about': aboutText.isNotEmpty ? aboutText : "Hey, I am using We Chat !!",
-            'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
-          });
+            // Update in the correct Hamid_users collection
+            await FirebaseFirestore.instance
+                .collection(EnvConfig.firebaseUsersCollection)
+                .doc(userId)
+                .update({
+              'name': fullName,
+              'about': aboutText.isNotEmpty ? aboutText : "Hey, I am using We Chat !!",
+              'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+            });
 
-          debugPrint('✅ Firebase updated successfullyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy');
+            debugPrint('✅ Firebase updated successfully');
 
-          // Force update in local profile
-          profileDetails.value.firstName = firstNameTEC.text;
-          profileDetails.value.lastName = lastNameTEC.text;
-          profileDetails.value.userKaTaruf = userKaTarufTEC.text;
+          } catch (e) {
+            debugPrint('❌ Error updating Firebase: $e');
 
-        } catch (e) {
-          debugPrint('❌ Error updating Firebase: $e');
-
-          // Show error to user
-          AppUtils.successData(
-            title: "Warning",
-            message: "Profile updated but chat data sync failed. Please restart the app.",
-          );
+            // Show error to user
+            AppUtils.successData(
+              title: "Warning",
+              message: "Profile updated but chat data sync failed. Please restart the app.",
+            );
+          }
+        } else {
+          debugPrint('🚫 Firebase update BLOCKED - Matrimonial user editing profile');
         }
+
+        // Force update in local profile
+        profileDetails.value.firstName = firstNameTEC.text;
+        profileDetails.value.lastName = lastNameTEC.text;
+        profileDetails.value.userKaTaruf = userKaTarufTEC.text;
 
         update();
       },
@@ -652,23 +657,27 @@ class EditProfileController extends GetxController {
           message: "Personal information updated.",
         );
 
-        // FIXED: Update about in Firebase if profile name changed
-        try {
-          if (profileNameTEC.text.trim().isNotEmpty) {
-            final userId = useCases.getUserId().toString();
+        // BLOCKED: Skip Firebase update when Matrimonial user is editing profile
+        if (!isAdminManaging) {
+          try {
+            if (profileNameTEC.text.trim().isNotEmpty) {
+              final userId = useCases.getUserId().toString();
 
-            await FirebaseFirestore.instance
-                .collection(EnvConfig.firebaseUsersCollection)
-                .doc(userId)
-                .update({
-              'about': profileNameTEC.text.trim(),
-              'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
-            });
+              await FirebaseFirestore.instance
+                  .collection(EnvConfig.firebaseUsersCollection)
+                  .doc(userId)
+                  .update({
+                'about': profileNameTEC.text.trim(),
+                'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+              });
 
-            debugPrint('✅ Profile name updated in Firebase');
+              debugPrint('✅ Profile name updated in Firebase');
+            }
+          } catch (e) {
+            debugPrint('❌ Error updating profile name in Firebase: $e');
           }
-        } catch (e) {
-          debugPrint('❌ Error updating profile name in Firebase: $e');
+        } else {
+          debugPrint('🚫 Firebase update BLOCKED - Matrimonial user editing profile');
         }
 
         update();
@@ -701,23 +710,27 @@ class EditProfileController extends GetxController {
           message: "About my self information updated.",
         );
 
-        // FIXED: Update about in Firebase
-        try {
-          final userId = useCases.getUserId().toString();
+        // BLOCKED: Skip Firebase update when Matrimonial user is editing profile
+        if (!isAdminManaging) {
+          try {
+            final userId = useCases.getUserId().toString();
 
-          await FirebaseFirestore.instance
-              .collection(EnvConfig.firebaseUsersCollection)
-              .doc(userId)
-              .update({
-            'about': aboutMyselfTEC.text.trim().isEmpty
-                ? "Hey, I am using We Chat !!"
-                : aboutMyselfTEC.text.trim(),
-            'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
-          });
+            await FirebaseFirestore.instance
+                .collection(EnvConfig.firebaseUsersCollection)
+                .doc(userId)
+                .update({
+              'about': aboutMyselfTEC.text.trim().isEmpty
+                  ? "Hey, I am using We Chat !!"
+                  : aboutMyselfTEC.text.trim(),
+              'last_active': DateTime.now().millisecondsSinceEpoch.toString(),
+            });
 
-          debugPrint('✅ About myself updated in Firebase');
-        } catch (e) {
-          debugPrint('❌ Error updating about in Firebase: $e');
+            debugPrint('✅ About myself updated in Firebase');
+          } catch (e) {
+            debugPrint('❌ Error updating about in Firebase: $e');
+          }
+        } else {
+          debugPrint('🚫 Firebase update BLOCKED - Matrimonial user editing profile');
         }
 
         update();

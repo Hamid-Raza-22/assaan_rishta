@@ -586,4 +586,19 @@ class UserManagementUseCase {
       },
     );
   }
+
+  /// Register Vendor (Matrimonial Account)
+  Future<Either<AppError, String>> registerVendor({
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await userManagementRepo.registerVendor(payload: payload);
+    return response.fold(
+          (error) {
+        return Left(error);
+      },
+          (success) {
+        return Right(success);
+      },
+    );
+  }
 }

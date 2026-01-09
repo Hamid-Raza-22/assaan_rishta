@@ -40,6 +40,7 @@ abstract class AppRoutes {
   static const String ACCOUNT_DEACTIVATED = '/account-deactivated';
   static const String MATRIMONIAL_PROFILES = '/matrimonial-profiles';
   static const String VENDOR_EDIT_PROFILE_VIEW = '/vendor-edit-profile-view';
+  static const String MATRIMONIAL_SIGNUP = '/matrimonial-signup';
 
   // Helper method for dynamic chat route with user ID
   static String chattingViewWithUser(String userId) => '/chatting_view/$userId';

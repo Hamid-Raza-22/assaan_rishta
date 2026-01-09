@@ -331,7 +331,7 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
     );
   }
 
-  /// Matrimonial: Only Login button
+  /// Matrimonial: Login + Create Account buttons
   Widget _buildMatrimonialButtons() {
     return Column(
       key: const ValueKey('matrimonial_buttons'),
@@ -344,32 +344,17 @@ class AccountTypeView extends GetView<AccountTypeViewModel> {
           fontSize: 18,
           onTap: () => controller.navigateToLogin(),
         ),
-        // const SizedBox(height: 12),
-        // Info text for matrimonial users
-        // Container(
-        //   padding: const EdgeInsets.all(12),
-        //   decoration: BoxDecoration(
-        //     color: Colors.blue[50],
-        //     borderRadius: BorderRadius.circular(10),
-        //     border: Border.all(color: Colors.blue[200]!),
-        //   ),
-        //   child: Row(
-        //     children: [
-        //       Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-        //       const SizedBox(width: 10),
-        //       Expanded(
-        //         child: Text(
-        //           "Matrimonial accounts are for registered vendors only.",
-        //           style: TextStyle(
-        //             fontSize: 13,
-        //             color: Colors.blue[800],
-        //             fontWeight: FontWeight.w500,
-        //           ),
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // ),
+        const SizedBox(height: 12),
+        CustomButton(
+          text: "Create Account (Matrimonial)",
+          isGradient: false,
+          backgroundColor: Colors.white,
+          fontColor: AppColors.primaryColor,
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          borderColor: AppColors.primaryColor,
+          onTap: () => controller.navigateToMatrimonialSignup(),
+        ),
       ],
     );
   }

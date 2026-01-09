@@ -1,4 +1,5 @@
 import 'package:assaan_rishta/app/viewmodels/signup_viewmodel.dart';
+import 'package:assaan_rishta/app/viewmodels/vendor_registration_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/routes/app_routes.dart';
@@ -40,6 +41,18 @@ class AccountTypeViewModel extends GetxController {
     final signupController = Get.find<SignupViewModel>();
     signupController.clearFormData();
     Get.toNamed(AppRoutes.SIGNUP);
+  }
+
+  /// Navigate to Matrimonial Signup (Vendor Registration)
+  void navigateToMatrimonialSignup() {
+    // Initialize VendorRegistrationViewModel if not already registered
+    if (!Get.isRegistered<VendorRegistrationViewModel>()) {
+      Get.put(VendorRegistrationViewModel());
+    } else {
+      final vendorController = Get.find<VendorRegistrationViewModel>();
+      vendorController.clearFormData();
+    }
+    Get.toNamed(AppRoutes.MATRIMONIAL_SIGNUP);
   }
 
   void navigateToLogin() {
