@@ -378,6 +378,7 @@ class UserManagementRepoImpl implements UserManagementRepo {
           'Content-Type': 'multipart/form-data',
         },
       );
+
       if (response.statusCode >= 200 && response.statusCode <= 299) {
         return Right(response.body.toString());
       }
