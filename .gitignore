@@ -50,6 +50,10 @@ app.*.map.json
 *.env
 !.env.example
 
+# Firebase Service Account (generated during CI/CD)
+assets/firebase_service_account.json
+firebase_service_account.json
+
 # Sensitive files
 #*.jks
 #*.keystore
