@@ -47,6 +47,28 @@ jobs:
       - name: Create .env file
         run: |
           echo "${{ secrets.ENV_FILE }}" > .env
+      
+      # 6.1 Create Firebase FCM Service Account JSON (for push notifications)
+      - name: Create Firebase FCM Service Account JSON
+        run: |
+          echo '${{ secrets.FIREBASE_FCM_SERVICE_ACCOUNT_JSON }}' > assets/firebase_service_account.json
+          
+          # Verify the JSON file
+          if [ -f "assets/firebase_service_account.json" ]; then
+            echo "✅ Firebase FCM service account file created"
+            # Check if it has the required fields (without showing values)
+            grep -q "private_key" assets/firebase_service_account.json && echo "✅ private_key field found" || echo "❌ private_key MISSING"
+            grep -q "client_email" assets/firebase_service_account.json && echo "✅ client_email field found" || echo "❌ client_email MISSING"
+          else
+            echo "❌ Failed to create Firebase FCM service account file"
+          fi
+          
+      # 6.2 Debug: Verify .env file
+      - name: Verify .env file
+        run: |
+          echo "✅ .env file created with $(wc -l < .env) lines"
+          grep -q "FIREBASE_API_KEY" .env && echo "✅ FIREBASE_API_KEY exists" || echo "❌ FIREBASE_API_KEY MISSING"
+          grep -q "BASE_URL" .env && echo "✅ BASE_URL exists" || echo "❌ BASE_URL MISSING"
 
       # 7. Create service account JSON from secrets
       - name: Create service account JSON
