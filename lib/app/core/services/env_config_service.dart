@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Environment Configuration Service
@@ -6,10 +8,30 @@ class EnvConfig {
   // Private constructor to prevent instantiation
   EnvConfig._();
 
+  // Cached Firebase service account from JSON file
+  static Map<String, dynamic>? _cachedFirebaseServiceAccount;
+
   /// Initialize environment variables
   /// Must be called before accessing any environment variables
   static Future<void> init() async {
     await dotenv.load(fileName: ".env");
+    
+    // Try to load Firebase service account from JSON file (for production builds)
+    await _loadFirebaseServiceAccountFromAsset();
+  }
+
+  /// Load Firebase service account from asset file (created by GitHub Actions)
+  static Future<void> _loadFirebaseServiceAccountFromAsset() async {
+    try {
+      final jsonString = await rootBundle.loadString('assets/firebase_service_account.json');
+      _cachedFirebaseServiceAccount = json.decode(jsonString) as Map<String, dynamic>;
+      // ignore: avoid_print
+      print('✅ Firebase service account loaded from asset file');
+    } catch (e) {
+      // File doesn't exist (debug build) - will fall back to .env
+      // ignore: avoid_print
+      print('ℹ️ Firebase service account asset not found, using .env fallback');
+    }
   }
 
   // API Configuration
@@ -75,7 +97,18 @@ class EnvConfig {
       dotenv.env['FIREBASE_SERVICE_ACCOUNT_UNIVERSE_DOMAIN'] ?? 'googleapis.com';
 
   /// Get Firebase Service Account JSON for googleapis_auth
+  /// Priority: 1) JSON asset file (production), 2) .env variables (debug)
   static Map<String, String> getFirebaseServiceAccountJson() {
+    // Use cached JSON file if available (production builds via GitHub Actions)
+    if (_cachedFirebaseServiceAccount != null) {
+      // ignore: avoid_print
+      print('🔑 Using Firebase service account from asset file');
+      return _cachedFirebaseServiceAccount!.map((key, value) => MapEntry(key, value.toString()));
+    }
+    
+    // Fallback to .env variables (debug builds)
+    // ignore: avoid_print
+    print('🔑 Using Firebase service account from .env');
     return {
       "type": firebaseServiceAccountType,
       "project_id": firebaseServiceAccountProjectId,
