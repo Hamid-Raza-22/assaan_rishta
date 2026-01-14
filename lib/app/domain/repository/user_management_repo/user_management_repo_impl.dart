@@ -1131,6 +1131,7 @@ class UserManagementRepoImpl implements UserManagementRepo {
       final response = await _networkHelper.post(
         _endPoints.updateVendorProfileUrl(),
         body: payload,
+        headers: {"Content-Type": "application/json"},
       );
       
       if (response.statusCode >= 200 && response.statusCode <= 299) {

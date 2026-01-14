@@ -89,26 +89,26 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
               ],
             ),
             // Email (Read-only)
-            Row(
-              children: [
-                Expanded(
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const AppText(
-                      text: 'Email (Cannot be changed)',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.blackColor,
-                    ),
-                    subtitle: CustomFormField(
-                      tec: controller.emailController,
-                      readOnly: true,
-                      fillColor: Colors.grey[200],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            // Row(
+            //   children: [
+            //     Expanded(
+            //       child: ListTile(
+            //         contentPadding: EdgeInsets.zero,
+            //         title: const AppText(
+            //           text: 'Email (Cannot be changed)',
+            //           fontSize: 14,
+            //           fontWeight: FontWeight.w500,
+            //           color: AppColors.blackColor,
+            //         ),
+            //         subtitle: CustomFormField(
+            //           tec: controller.emailController,
+            //           readOnly: true,
+            //           fillColor: Colors.grey[200],
+            //         ),
+            //       ),
+            //     ),
+            //   ],
+            // ),
             // Mobile No - IntlPhoneField (same as edit_profile.dart)
             const SizedBox(height: 10),
             Column(
@@ -212,31 +212,42 @@ class VendorEditProfileView extends GetView<VendorEditProfileController> {
               fontSize: 18,
             ),
             const SizedBox(height: 10),
-            // Country Dropdown
-            Row(
-              children: [
-                getDropDownListTile(
-                  title: 'Country',
-                  child: CustomDropdown<AllCountries>.search(
-                    hintText: controller.selectedCountryName.isNotEmpty 
-                        ? controller.selectedCountryName 
-                        : controller.vendorProfile.value?.vendorCountryName ?? 'Select Country',
-                    items: controller.countryList,
-                    onChanged: (value) {
-                      if (value != null) {
-                        controller.onCountryChanged(value, context);
-                      }
-                    },
-                    decoration: basicInfoDecoration(
-                      hintStyle: GoogleFonts.poppins(
-                        color: AppColors.blackColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            // Country - Fixed to Pakistan (read-only display)
+            // Row(
+            //   children: [
+            //     Expanded(
+            //       child: Column(
+            //         crossAxisAlignment: CrossAxisAlignment.start,
+            //         children: [
+            //           const AppText(
+            //             text: 'Country',
+            //             fontSize: 14,
+            //             fontWeight: FontWeight.w500,
+            //             color: AppColors.blackColor,
+            //           ),
+            //           const SizedBox(height: 5),
+            //           Container(
+            //             width: double.infinity,
+            //             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            //             decoration: BoxDecoration(
+            //               color: Colors.grey[100],
+            //               borderRadius: BorderRadius.circular(10),
+            //               border: Border.all(color: AppColors.borderColor),
+            //             ),
+            //             child: Text(
+            //               VendorEditProfileController.PAKISTAN_COUNTRY_NAME,
+            //               style: GoogleFonts.poppins(
+            //                 color: AppColors.blackColor,
+            //                 fontSize: 14,
+            //                 fontWeight: FontWeight.w500,
+            //               ),
+            //             ),
+            //           ),
+            //         ],
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(height: 10),
             // State Dropdown
             Row(

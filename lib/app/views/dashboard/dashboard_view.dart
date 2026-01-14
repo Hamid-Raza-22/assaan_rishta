@@ -180,8 +180,10 @@ class DashboardView extends GetView<DashboardController> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  controller.userName.isNotEmpty ? controller.userName : "Admin",
+                Obx(() => Text(
+                  controller.vendorProfile.value?.venderBusinessName?.isNotEmpty == true
+                      ? controller.vendorProfile.value!.venderBusinessName!
+                      : controller.userName.isNotEmpty ? controller.userName : "Admin",
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -189,15 +191,16 @@ class DashboardView extends GetView<DashboardController> {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
+                )),
                 const SizedBox(height: 4),
-                Container(
+                Obx(() => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
+                    controller.vendorProfile.value != null ? "Matrimonial Service" :
                     controller.userRole.isNotEmpty ? controller.userRole : "Administrator",
                     style: GoogleFonts.poppins(
                       fontSize: 12,
@@ -205,7 +208,7 @@ class DashboardView extends GetView<DashboardController> {
                       color: Colors.white,
                     ),
                   ),
-                ),
+                )),
               ],
             ),
           ),
