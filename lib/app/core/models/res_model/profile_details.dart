@@ -137,6 +137,8 @@ class ProfileDetails {
   String? tiktokLink;
   bool? blurProfileImage;
   int? profileCreatedBy;
+  String? matName;
+  String? matLogo;
 
   ProfileDetails(
       {this.profileId,
@@ -276,7 +278,9 @@ class ProfileDetails {
         this.aboutParentCityId,
         this.tiktokLink,
         this.blurProfileImage,
-        this.profileCreatedBy});
+        this.profileCreatedBy,
+        this.matName,
+        this.matLogo});
 
   ProfileDetails.fromJson(Map<String, dynamic> json) {
     profileId = json['profile_id'];
@@ -424,6 +428,8 @@ class ProfileDetails {
     blurProfileImage = json['is_blur'] ?? false;
     // Check both possible field names from API
     profileCreatedBy = json['profile_createdby'] ?? json['profile_created_by'];
+    matName = json['mat_name'];
+    matLogo = json['mat_logo'];
   }
 
   Map<String, dynamic> toJson() {
@@ -566,6 +572,8 @@ class ProfileDetails {
     data['tiktokLink'] = tiktokLink;
     data['is_blur'] = blurProfileImage;
     data['profile_created_by'] = profileCreatedBy;
+    data['mat_name'] = matName;
+    data['mat_logo'] = matLogo;
     return data;
   }
 }

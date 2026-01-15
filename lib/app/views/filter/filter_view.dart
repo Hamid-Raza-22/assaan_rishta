@@ -135,6 +135,10 @@ class FilterView extends GetView<FilterController> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    if (user.matName != null && user.matName!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildManagedByBadge(user.matName!),
+                    ],
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -644,6 +648,41 @@ class FilterView extends GetView<FilterController> {
     } else {
       return null;
     }
+  }
+
+  Widget _buildManagedByBadge(String matName) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.verified_user,
+              size: 14,
+              color: AppColors.primaryColor,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: AppText(
+                text: "Profile managed by $matName",
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primaryColor,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   filterShimmer(context) {
