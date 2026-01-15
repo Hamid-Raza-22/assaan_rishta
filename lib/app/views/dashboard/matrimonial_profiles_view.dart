@@ -251,41 +251,7 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
                       ),
 
                     const SizedBox(height: 8),
-                    // Admin Created Badge
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.primaryColor.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.verified_user,
-                              size: 14,
-                              color: AppColors.primaryColor,
-                            ),
-                            const SizedBox(width: 4),
-                            AppText( text:
-                              "Admin Created",
-
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.primaryColor,
-
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _buildManagedByBadge(controller.matrimonialName),
                     // const SizedBox(height: 16),
                     // _buildInfoRow('Cast:', user.cast),
                     // _buildInfoRow('Cast:', user.userId.toString()),
@@ -488,6 +454,41 @@ class MatrimonialProfilesView extends GetView<MatrimonialProfilesController> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildManagedByBadge(String matName) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.verified_user,
+              size: 14,
+              color: AppColors.primaryColor,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: AppText(
+                text: "Profile managed by $matName",
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primaryColor,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -210,6 +210,10 @@ class HomeView extends GetView<HomeController> {
                       ),
                     ],
                   ),
+                  if (user.matName != null && user.matName!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildManagedByBadge(user.matName!),
+                  ],
                 ],
               ),
             ),
@@ -231,6 +235,36 @@ class HomeView extends GetView<HomeController> {
   }
 
 
+
+  Widget _buildManagedByBadge(String matName) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.verified_user,
+            size: 14,
+            color: AppColors.primaryColor,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: AppText(
+              text: "Profile managed by $matName",
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.primaryColor,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget homeShimmer(BuildContext context) {
     double w = MediaQuery.sizeOf(context).width;

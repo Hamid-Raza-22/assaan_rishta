@@ -211,44 +211,15 @@ class UserDetailsView extends GetView<UserDetailsController> {
                       ),
                     ],
                   ),
-                  // Admin Created Badge
-                  if (controller.profileDetails.value.profileCreatedBy != null &&
+                  // Profile Managed By Badge
+                  if (controller.profileDetails.value.matName != null &&
+                      controller.profileDetails.value.matName!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildManagedByBadge(controller.profileDetails.value.matName!),
+                  ] else if (controller.profileDetails.value.profileCreatedBy != null &&
                       controller.profileDetails.value.profileCreatedBy! > 0) ...[
                     const SizedBox(height: 8),
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.primaryColor.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.verified_user,
-                              size: 14,
-                              color: AppColors.primaryColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Admin Managed Profile",
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _buildAdminManagedBadge(),
                   ],
                   const SizedBox(height: 35),
                   // Two buttons in a row - Message and Share
@@ -1796,6 +1767,77 @@ Don't have the app? Download now:
       return "No";
     }
     return value; // Return original value if not 'true' or 'false'
+  }
+
+  Widget _buildManagedByBadge(String matName) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.verified_user,
+              size: 14,
+              color: AppColors.primaryColor,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                "Profile managed by $matName",
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.primaryColor,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminManagedBadge() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.primaryColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.verified_user,
+              size: 14,
+              color: AppColors.primaryColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "Admin Managed Profile",
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 }

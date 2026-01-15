@@ -32,6 +32,8 @@ class MatrimonialProfilesController extends BaseController {
   Rx<bool> isReloadMore = false.obs;
 
   int get adminId => userManagementUseCases.getUserId() ?? 0;
+  
+  String get matrimonialName => userManagementUseCases.getUserName();
 
   @override
   void onInit() {
