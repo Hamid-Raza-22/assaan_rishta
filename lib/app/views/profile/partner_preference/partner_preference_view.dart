@@ -335,6 +335,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
       title: 'Monthly Income',
       child: Obx(() {
         const incomeItems = [
+          'NON'
           'Below 10k',
           '10k-20k',
           '20k-30k',
@@ -355,6 +356,7 @@ class PartnerPreferenceView extends GetView<PartnerPreferenceController> {
               ? controller.monthlyIncome.value
               : null,
           items: const [
+            'NON'
             'Below 10k',
             '10k-20k',
             '20k-30k',

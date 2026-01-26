@@ -959,6 +959,7 @@ class EditProfileView extends GetView<EditProfileController> {
                   hintText: controller.monthlyIncome.value,
                    
                   items: const [
+                    "NON"
                     "Below 10k",
                     "10k-20k",
                     "20k-30k",
