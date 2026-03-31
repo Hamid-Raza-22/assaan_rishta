@@ -4,6 +4,7 @@ class CurrentUserProfile {
   String? forWhom;
   String? likeToMarry;
   String? maritalStatus;
+  int? childrenCount;
   String? languages;
   String? culture;
   String? lifeStyle;
@@ -234,10 +235,12 @@ class CurrentUserProfile {
       this.userStateId,
       this.userCountryId,
       this.subscribtionStatus,
+        this.childrenCount,
       this.blurProfileImage});
 
   CurrentUserProfile.fromJson(Map<String, dynamic> json) {
     profileId = json['profile_id'];
+    childrenCount: json['children_count'] ?? 0;
     profileName = json['profile_name'];
     forWhom = json['for_whom'];
     likeToMarry = json['like_to_marry'];
@@ -360,6 +363,7 @@ class CurrentUserProfile {
     final Map<String, dynamic> data = <String, dynamic>{};
     data['profile_id'] = profileId;
     data['profile_name'] = profileName;
+    data['children_count'] = childrenCount ?? 0;
     data['for_whom'] = forWhom;
     data['like_to_marry'] = likeToMarry;
     data['marital_status'] = maritalStatus;

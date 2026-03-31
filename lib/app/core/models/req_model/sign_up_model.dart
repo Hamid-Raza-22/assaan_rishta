@@ -10,6 +10,7 @@ class SignUpModel {
   String caste;
   String mobileNo;
   String maritalStatus;
+  int childrenCount;
   String height;
   String education;
   int city;
@@ -34,6 +35,7 @@ class SignUpModel {
     required this.caste,
     required this.mobileNo,
     required this.maritalStatus,
+    required this.childrenCount,
     required this.height,
     required this.education,
     required this.city,
@@ -61,6 +63,7 @@ class SignUpModel {
       caste: json['caste'],
       mobileNo: json['mobile_no'],
       maritalStatus: json['marital_status'],
+      childrenCount: json['children_count'] ?? 0,
       height: json['height'],
       education: json['education'],
       city: json['city'],
@@ -87,6 +90,7 @@ class SignUpModel {
       'caste': caste,
       'mobile_no': mobileNo,
       'marital_status': maritalStatus,
+      'children_count':childrenCount??0,
       'height': height,
       'education': education,
       'city': city,
