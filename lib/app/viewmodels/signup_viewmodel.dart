@@ -75,6 +75,8 @@ class SignupViewModel extends GetxController {
 
   // Selected values
   var selectedMaritalStatus = ''.obs;
+  var showChildrenCount = false.obs;
+  final childrenCountController = TextEditingController(text: '0');
   var selectedReligion = ''.obs;
   var selectedCaste = ''.obs;
   var selectedEducation = ''.obs;
@@ -252,6 +254,8 @@ class SignupViewModel extends GetxController {
     // Reset selections
     selectedGender.value = 'Male';
     selectedMaritalStatus.value = '';
+    showChildrenCount.value = false;
+    childrenCountController.text = '0';
     selectedReligion.value = '';
     selectedCaste.value = '';
     selectedEducation.value = '';
@@ -971,6 +975,7 @@ class SignupViewModel extends GetxController {
       password: passwordController.text.trim(),
       gender: selectedGender.value,
       maritalStatus: selectedMaritalStatus.value,
+      childrenCount: int.tryParse(childrenCountController.text) ?? 0,
       religion: selectedReligion.value,
       caste: selectedCaste.value,
       education: selectedEducation.value,
@@ -982,9 +987,11 @@ class SignupViewModel extends GetxController {
       userKaTaruf: aboutYourSelfTEC.text,
       userDiWohtiKaTaruf: aboutYourPartnerTEC.text,
       roleId: 2,
-      profilePhotoBase64: photoBase64,
       profileBlur: isProfileBlur.value,
       profileCreatedBy: isFromDashboard.value && profileCreatedBy > 0 ? profileCreatedBy : null,
+      profilePhotoBase64: photoBase64,
+
+
     );
 
     final response = await userManagementUseCase.signUp(signUpModel: model);

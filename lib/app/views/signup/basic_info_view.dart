@@ -9,6 +9,7 @@ import '../../utils/constant_widgets.dart';
 import '../../viewmodels/signup_viewmodel.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/custom_form_field.dart';
 
 class BasicInfoView extends GetView<SignupViewModel> {
   const BasicInfoView({super.key});
@@ -147,10 +148,63 @@ class BasicInfoView extends GetView<SignupViewModel> {
         validateOnChange: true,
         validator: (value) =>
             value == null ? "Please select marital status" : null,
-        onChanged: (value) => controller.selectedMaritalStatus.value = value!,
+        onChanged: (value) {
+        controller.selectedMaritalStatus.value = value!;
+        controller.showChildrenCount.value = 
+            value == "Married" || value == "Divorced" || value == "Widow/Widower";
+        if (controller.showChildrenCount.value && controller.childrenCountController.text.isEmpty) {
+          controller.childrenCountController.text = '0';
+        }
+      },
         decoration: basicInfoDecoration(),
       ),
       const SizedBox(height: 16),
+      // Show children count field only for divorced or widow/widower
+      Obx(() => controller.showChildrenCount.value
+          ? Column(
+              children: [
+                TextFormField(
+                  controller: controller.childrenCountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'Number of Children',
+                    prefixIcon: Icon(Icons.child_care, color: AppColors.primaryColor),
+                    filled: true,
+                    fillColor: AppColors.fillFieldColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.borderColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.borderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.primaryColor),
+                    ),
+                  ),
+                  // validator: (value) {
+                  //   if (value == null || value.isEmpty) {
+                  //     controller.childrenCountController.text = '0';
+                  //     return null;
+                  //   }
+                  //   final number = int.tryParse(value);
+                  //   if (number == null || number < 0) {
+                  //     return 'Please enter a valid number';
+                  //   }
+                  //   return null;
+                  // },
+                  // onChanged: (value) {
+                  //   if (value.isEmpty) {
+                  //     controller.childrenCountController.text = '0';
+                  //   }
+                  // },
+                ),
+                const SizedBox(height: 16),
+              ],
+            )
+          : const SizedBox.shrink()),
       CustomDropdown<String>(
         hintText: 'Religion',
         items: controller.religionList,

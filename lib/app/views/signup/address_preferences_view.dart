@@ -173,7 +173,8 @@ class AddressPreferencesView extends GetView<SignupViewModel> {
                           "State: ${controller.selectedState.value}\n"
                           "City: ${controller.selectedCity.value}\n"
                           "About Yourself: ${controller.aboutYourSelfTEC.text}\n"
-                          "About Partner: ${controller.aboutYourPartnerTEC.text}",
+                          "About Partner: ${controller.aboutYourPartnerTEC.text}\n"
+                          "No. of Childs:${controller.childrenCountController.text}",
                     );
                     if (controller.otherInfoFormKey.currentState!.validate()) {
                       controller.signUpUser(context);

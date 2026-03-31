@@ -166,6 +166,11 @@ class EditProfileView extends GetView<EditProfileController> {
                   items: controller.maritalStatusList,
                   onChanged: (value) {
                     controller.maritalStatus = value!;
+                    controller.showChildrenCount.value = 
+                        value == "Divorced" || value == "Widow/Widower";
+                    if (controller.showChildrenCount.value && controller.childrenCountTEC.text.isEmpty) {
+                      controller.childrenCountTEC.text = '0';
+                    }
                     controller.update();
                   },
                   decoration: basicInfoDecoration(
@@ -177,6 +182,34 @@ class EditProfileView extends GetView<EditProfileController> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          // Show children count field only for divorced or widow/widower
+          Obx(() => controller.showChildrenCount.value
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    getEditListTile(
+                      title: 'Number of Children',
+                      subtitle: '0',
+                      tec: controller.childrenCountTEC,
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          controller.childrenCountTEC.text = '0';
+                          return null;
+                        }
+                        final number = int.tryParse(value);
+                        if (number == null || number < 0) {
+                          return 'Please enter a valid number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(width: 05),
+                    const SizedBox.shrink(), // Empty space to maintain layout
+                  ],
+                )
+              : const SizedBox.shrink()),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

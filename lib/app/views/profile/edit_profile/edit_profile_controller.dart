@@ -57,6 +57,9 @@ class EditProfileController extends GetxController {
     'Widow/Widower'
   ];
 
+  var childrenCountTEC = TextEditingController();
+  var showChildrenCount = false.obs;
+
   String religion = "";
   List<String> religionList = [
     'Muslim-Suni',
@@ -485,6 +488,7 @@ class EditProfileController extends GetxController {
       "date_of_birth": selectedDateTime.value.toString(),
       "religion": religion,
       "marital_status": maritalStatus,
+      "children_count": int.tryParse(childrenCountTEC.text) ?? 0,
       "education": education,
       "height": height,
       "occupation": occupation,
@@ -1044,6 +1048,8 @@ class EditProfileController extends GetxController {
     selectedDateTime.value = dateTime;
     religion = '${profileDetails.value.religion}';
     maritalStatus = '${profileDetails.value.maritalStatus}';
+    showChildrenCount.value = maritalStatus == "Divorced" || maritalStatus == "Widow/Widower";
+    childrenCountTEC.text = '${profileDetails.value.childrenCount ?? 0}';
     education = '${profileDetails.value.education}';
     height = '${profileDetails.value.height}';
     occupation = '${profileDetails.value.occupation}';
