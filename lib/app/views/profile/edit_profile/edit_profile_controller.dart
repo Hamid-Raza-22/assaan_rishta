@@ -1048,8 +1048,9 @@ class EditProfileController extends GetxController {
     selectedDateTime.value = dateTime;
     religion = '${profileDetails.value.religion}';
     maritalStatus = '${profileDetails.value.maritalStatus}';
-    showChildrenCount.value = maritalStatus == "Divorced" || maritalStatus == "Widow/Widower";
-    childrenCountTEC.text = '${profileDetails.value.childrenCount ?? 0}';
+    showChildrenCount.value = maritalStatus == "Divorced" ||maritalStatus == "Married" || maritalStatus == "Widow/Widower";
+    final childrenCount = profileDetails.value.childrenCount ?? 0;
+    childrenCountTEC.text = childrenCount > 0 ? '$childrenCount' : '';
     education = '${profileDetails.value.education}';
     height = '${profileDetails.value.height}';
     occupation = '${profileDetails.value.occupation}';

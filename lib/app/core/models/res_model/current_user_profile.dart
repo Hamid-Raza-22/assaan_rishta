@@ -240,7 +240,7 @@ class CurrentUserProfile {
 
   CurrentUserProfile.fromJson(Map<String, dynamic> json) {
     profileId = json['profile_id'];
-    childrenCount: json['children_count'] ?? 0;
+    childrenCount = json['children_count'];
     profileName = json['profile_name'];
     forWhom = json['for_whom'];
     likeToMarry = json['like_to_marry'];

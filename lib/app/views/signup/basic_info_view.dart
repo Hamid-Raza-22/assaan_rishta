@@ -152,8 +152,8 @@ class BasicInfoView extends GetView<SignupViewModel> {
         controller.selectedMaritalStatus.value = value!;
         controller.showChildrenCount.value = 
             value == "Married" || value == "Divorced" || value == "Widow/Widower";
-        if (controller.showChildrenCount.value && controller.childrenCountController.text.isEmpty) {
-          controller.childrenCountController.text = '0';
+        if (value == "Single") {
+          controller.childrenCountController.text = '';
         }
       },
         decoration: basicInfoDecoration(),
@@ -167,7 +167,7 @@ class BasicInfoView extends GetView<SignupViewModel> {
                   controller: controller.childrenCountController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    hintText: 'Number of Children',
+                    hintText: 'Number of Children (if Any)',
                     prefixIcon: Icon(Icons.child_care, color: AppColors.primaryColor),
                     filled: true,
                     fillColor: AppColors.fillFieldColor,
