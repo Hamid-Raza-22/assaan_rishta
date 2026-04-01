@@ -76,7 +76,7 @@ class SignupViewModel extends GetxController {
   // Selected values
   var selectedMaritalStatus = ''.obs;
   var showChildrenCount = false.obs;
-  final childrenCountController = TextEditingController(text: '0');
+  final childrenCountController = TextEditingController();
   var selectedReligion = ''.obs;
   var selectedCaste = ''.obs;
   var selectedEducation = ''.obs;
@@ -255,7 +255,7 @@ class SignupViewModel extends GetxController {
     selectedGender.value = 'Male';
     selectedMaritalStatus.value = '';
     showChildrenCount.value = false;
-    childrenCountController.text = '0';
+    childrenCountController.clear();
     selectedReligion.value = '';
     selectedCaste.value = '';
     selectedEducation.value = '';

@@ -167,8 +167,8 @@ class EditProfileView extends GetView<EditProfileController> {
                   onChanged: (value) {
                     controller.maritalStatus = value!;
                     controller.showChildrenCount.value = 
-                        value == "Divorced" || value == "Widow/Widower";
-                    if (controller.showChildrenCount.value && controller.childrenCountTEC.text.isEmpty) {
+                        value == "Divorced" || value == "Married" || value == "Widow/Widower";
+                    if (value == "Single") {
                       controller.childrenCountTEC.text = '0';
                     }
                     controller.update();
@@ -189,17 +189,13 @@ class EditProfileView extends GetView<EditProfileController> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     getEditListTile(
-                      title: 'Number of Children',
-                      subtitle: '0',
+                      title: 'Number of Children (if Any)',
+                      subtitle: '',
                       tec: controller.childrenCountTEC,
                       keyboardType: TextInputType.number,
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          controller.childrenCountTEC.text = '0';
-                          return null;
-                        }
-                        final number = int.tryParse(value);
-                        if (number == null || number < 0) {
+                        final number = int.tryParse(value ?? '');
+                        if (number != null && number < 0) {
                           return 'Please enter a valid number';
                         }
                         return null;
