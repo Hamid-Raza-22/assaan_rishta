@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../widgets/professional_dialogs.dart';
 import 'exports.dart';
 
 class AppUtils {
@@ -24,22 +25,29 @@ class AppUtils {
     Navigator.of(context).pop();
   }
 
+  /// Professional animated success snackbar with checkmark animation
   static successData({String? title, String? message}) {
-    Get.snackbar(
-      title!,
-      message!,
-      colorText: AppColors.whiteColor,
-      backgroundColor: AppColors.greenColor.withValues(alpha: 0.9),
+    ProfessionalSuccessOverlay.show(
+      title: title ?? 'Success',
+      message: message ?? '',
+      duration: const Duration(seconds: 3),
     );
   }
 
+  /// Professional animated failed snackbar
   static failedData({String? title, String? message}) {
     Get.snackbar(
       title!,
       message!,
       colorText: AppColors.whiteColor,
-      backgroundColor: Colors.red,
+      backgroundColor: Colors.red.shade600,
       snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(12),
+      borderRadius: 12,
+      icon: const Icon(Icons.error_outline, color: Colors.white),
+      duration: const Duration(seconds: 3),
+      animationDuration: const Duration(milliseconds: 400),
+      snackStyle: SnackStyle.FLOATING,
     );
   }
 

@@ -208,13 +208,6 @@ class LoginViewModel extends GetxController {
             debugPrint('💬 Chat user created successfully');
           }
 
-          AppUtils.successData(
-            title: "Login",
-            message: "Login successfully",
-          );
-
-
-
           update();
           
           // Refresh BottomNavController to reset tab index after login
@@ -244,6 +237,14 @@ class LoginViewModel extends GetxController {
             // On error fallback to home
             Get.offAllNamed(AppRoutes.BOTTOM_NAV);
           }
+          
+          // Show success message AFTER navigation so overlay is ready
+          Future.delayed(const Duration(milliseconds: 300), () {
+            AppUtils.successData(
+              title: "Login",
+              message: "Login successfully",
+            );
+          });
           isLoading.value = false;
         } catch (e) {
           debugPrint('💥 Error in getCurrentUserProfiles: $e');
