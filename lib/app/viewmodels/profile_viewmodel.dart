@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:assaan_rishta/app/widgets/app_text.dart';
+import 'package:assaan_rishta/app/widgets/professional_dialogs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -634,60 +635,22 @@ class ProfileController extends GetxController {
     final PackageInfo info = await PackageInfo.fromPlatform();
     return info.version;
   }
-// Show loading dialog method
-  void _showLoadingDialog() {
-    Get.dialog(
-      WillPopScope(
-        onWillPop: () async => false, // Prevent dismissal
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(
-                  color: AppColors.primaryColor,
-                ),
-                const SizedBox(height: 16),
-                AppText(
-                  text: 'Logging out...',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-
-              ],
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: false,
-    );
-  }
-// Improved handleLogout method
+// Improved handleLogout method with professional animation
   Future<void> handleLogout(BuildContext context) async {
     try {
-      // Show loading dialog
-      _showLoadingDialog();
+      // Show professional animated loading dialog
+      ProfessionalLogoutDialog.show();
 
       await authService.logout(context);
 
       // Hide loading dialog
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
+      ProfessionalLogoutDialog.dismiss();
 
     } catch (e) {
       debugPrint('❌ Logout error: $e');
 
       // Hide loading dialog if still open
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
+      ProfessionalLogoutDialog.dismiss();
 
       Get.snackbar(
         'Error',

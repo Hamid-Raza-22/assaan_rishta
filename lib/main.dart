@@ -122,7 +122,6 @@ Future<void> main() async {
   await ScreenSecurity.enableScreenSecurity();
   debugPrint('🔒 Screen security enabled - Screenshots blocked');
 
-  runApp(AccountDeactivatedScreen());
   runApp(AsanRishtaApp(initialRoute: initialRoute));
 }
 
