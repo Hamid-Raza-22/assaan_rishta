@@ -18,8 +18,7 @@ samples, guidance on mobile development, and a full API reference.
 
 
 📦 Firestore Root
-'''
-```
+
 ├── users (Collection) // Stores user profile data
 │   ├── {userId} (Document) // Unique user document (e.g., UID from Firebase Auth)
 │   │   ├── name: "Hamid Raza" // Full name of the user
@@ -35,6 +34,7 @@ samples, guidance on mobile development, and a full API reference.
 │   │   │   ├── lastSeenVisible: true // Show/hide last seen to others
 │   │   │   ├── typingVisible: true // Show/hide typing indicator
 │   │   └── ... (other metadata) // e.g., language, theme, etc.
+
 ├── chats (Collection) // Stores all chat threads (1-on-1 or groups)
 │   ├── {chatId} (Document) // Unique chat ID (e.g., user1_user2 or UUID)
 │   │   ├── members: [userId1, userId2] // IDs of users in the chat
@@ -56,6 +56,7 @@ samples, guidance on mobile development, and a full API reference.
 │   │   │   ├── userId1: "url_or_color_code"
 │   │   │   ├── userId2: "url_or_color_code"
 │   │   └── ...
+
 │   │   └── messages (Subcollection) // Stores all messages for this chat
 │   │       ├── {messageId} (Document) // Unique ID per message
 │   │       │   ├── senderId: userId1 // Who sent the message
@@ -75,7 +76,7 @@ samples, guidance on mobile development, and a full API reference.
 ├── userChats (Collection) // Helps quickly fetch all chats for a user
 │   ├── {userId} (Document) // User ID as document
 │   │   └── chatIds: [chatId1, chatId2, ...] // List of chat IDs this user is part of
-```
+
 
 Future<List<Map<String, dynamic>>> getInboxForUser(String userId) async {
 final firestore = FirebaseFirestore.instance;

@@ -635,28 +635,33 @@ class ChatListController extends GetxController {
     try {
       final chatId = getConversationId(currentUserId, userId);
 
-      // Check if any message exists in this conversation
+      // Get the LATEST message in this conversation
       final messagesSnapshot = await FirebaseFirestore.instance
           .collection(EnvConfig.firebaseChatsCollection)
           .doc(chatId)
           .collection('messages')
+          .orderBy('sent', descending: true)
           .limit(1)
           .get();
 
+      if (messagesSnapshot.docs.isEmpty) return false;
+
       // Also check deletion timestamp - if deleted, check for new messages after deletion
       final deletionTime = deletionTimestamps[userId];
-      if (deletionTime != null && messagesSnapshot.docs.isNotEmpty) {
+      if (deletionTime != null) {
         final message = messagesSnapshot.docs.first.data();
         final messageTime = int.parse(message['sent'] ?? '0');
         final deletedAt = int.parse(deletionTime);
 
+
         // Only count messages after deletion
         if (messageTime <= deletedAt) {
+          debugPrint('🚫 User $userId has only old messages (before deletion)');
           return false;
         }
       }
 
-      return messagesSnapshot.docs.isNotEmpty;
+      return true;
     } catch (e) {
       debugPrint('❌ Error checking user messages: $e');
       return false;
