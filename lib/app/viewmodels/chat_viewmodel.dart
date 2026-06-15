@@ -498,6 +498,13 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       _persistentDeletionCache[userId] = null;
       currentChatDeletionTime.value = null;
 
+      // FIXED: Also clear from ChatListController if registered
+      if (Get.isRegistered<ChatListController>()) {
+        final listController = Get.find<ChatListController>();
+        listController.deletionTimestamps.remove(userId);
+        debugPrint('🧹 Cleared deletion record from ChatListController for $userId');
+      }
+
       debugPrint('✅ Deletion record cleared for $userId (Firestore + Hive)');
 
       // Refresh messages to show all history
@@ -678,6 +685,11 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         },
       );
 
+      // FIXED: Clear deletion record since user is actively chatting
+      if (currentChatDeletionTime.value != null) {
+        await clearDeletionRecord();
+      }
+
       debugPrint('✅ Message sent successfully');
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
@@ -801,11 +813,8 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         },
       );
 
-      // Clear any deletion record since user is actively chatting
-      if (_persistentDeletionCache.containsKey(user.id)) {
-        _persistentDeletionCache[user.id] = null;
-        currentChatDeletionTime.value = null;
-      }
+      // FIXED: Properly clear deletion record from Firestore, Hive and memory
+      await clearDeletionRecord();
 
       debugPrint("✅ First message sent successfully to ${user.name}");
     } catch (e) {
