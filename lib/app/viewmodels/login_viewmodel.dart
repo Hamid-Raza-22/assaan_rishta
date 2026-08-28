@@ -138,11 +138,23 @@ class LoginViewModel extends GetxController {
       },
           (success) async {
         try {
-          // SAFE USER ID HANDLING
-          final safeUserId = success.userId ?? 0;
-          final safeName = "${success.firstName ?? ''} ${success.lastName ?? ''}";
-          final safeEmail = success.email ?? '';
-          final roleId = success.roleId ?? 0;
+          // SAFE PARSING OF USER FIELDS (handle strings or ints coming from API)
+          final int safeUserId = (() {
+            final uid = success.userId;
+            if (uid == null) return 0;
+            if (uid is int) return uid;
+            return int.tryParse(uid.toString()) ?? 0;
+          })();
+
+          final String safeName = ('${success.firstName ?? ''} ${success.lastName ?? ''}').trim();
+          final String safeEmail = success.email ?? '';
+
+          final int roleId = (() {
+            final r = success.roleId;
+            if (r == null) return 0;
+            if (r is int) return r;
+            return int.tryParse(r.toString()) ?? 0;
+          })();
 
           debugPrint('👤 User data: ID=$safeUserId, Name=$safeName, Email=$safeEmail, RoleId=$roleId');
 
@@ -189,6 +201,17 @@ class LoginViewModel extends GetxController {
           debugPrint('✅ Role validation passed - proceeding with login');
           // ========== END ROLE VALIDATION ==========
 
+          // minimal validation before persisting
+          if (safeUserId <= 0 || safeEmail.isEmpty) {
+            debugPrint('⚠️ Missing required user fields: userId=$safeUserId, email="$safeEmail"');
+            isLoading.value = false;
+            AppUtils.failedData(
+              title: "Error",
+              message: "Incomplete user data received from server",
+            );
+            return;
+          }
+
           // SAVE USER DATA SECURELY
           await secureStorage.saveUserPassword(passwordController.text);
           await secureStorage.saveUserSession(
@@ -211,7 +234,7 @@ class LoginViewModel extends GetxController {
           );
 
           // Create chat user with safe data
-          if (safeUserId > 0 && safeName.isNotEmpty && safeEmail.isNotEmpty) {
+          try {
             await chatController.createUser(
               name: safeName,
               id: safeUserId.toString(),
@@ -221,6 +244,9 @@ class LoginViewModel extends GetxController {
               isMobileOnline: true,
             );
             debugPrint('💬 Chat user created successfully');
+          } catch (chatErr) {
+            debugPrint('⚠️ Chat createUser failed: $chatErr');
+            // non-fatal: continue login flow
           }
 
           AppUtils.successData(
@@ -258,12 +284,15 @@ class LoginViewModel extends GetxController {
                 Get.offAllNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
               }
             } catch (e) {
+              debugPrint('⚠️ Firebase preference check failed: $e');
               Get.offAllNamed(AppRoutes.BOTTOM_NAV);
             }
           }
+
           isLoading.value = false;
-        } catch (e) {
+        } catch (e, st) {
           debugPrint('💥 Error in getCurrentUserProfiles: $e');
+          debugPrint('$st');
           isLoading.value = false;
           AppUtils.failedData(
             title: "Error",
