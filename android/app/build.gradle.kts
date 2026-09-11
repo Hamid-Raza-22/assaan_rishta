@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     id("com.android.application")
