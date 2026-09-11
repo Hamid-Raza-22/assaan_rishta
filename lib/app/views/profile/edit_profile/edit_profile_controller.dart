@@ -493,7 +493,7 @@ class EditProfileController extends GetxController {
       "cityid": cityId,
       "userKaTaruf": userKaTarufTEC.text,
       "userDiWohtiKaTaruf": userDiWohtiKaTarufTEC.text,
-      "mobile_no": mobileTEC.text,
+      "mobile_no": phoneNumber.value.isEmpty ? mobileTEC.text : phoneNumber.value,
     };
 
     final response = await useCases.updateProfileInfoPic(
@@ -1051,6 +1051,7 @@ class EditProfileController extends GetxController {
     }
 
     mobileTEC.text = localNumber;
+    phoneNumber.value = fullMobileNo;
 
     DateTime dateTime = DateTime.parse('${profileDetails.value.dateOfBirth}');
     dobTEC.text = DateFormat('dd/MM/yyyy').format(dateTime);

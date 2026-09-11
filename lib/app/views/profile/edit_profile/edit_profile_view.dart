@@ -329,8 +329,9 @@ class EditProfileView extends GetView<EditProfileController> {
                   // Update country code when country changes
                   controller.countryCode.value = country.code;
                   
-                  // Clear phone field for better UX
+                  // Clear phone field and full number for better UX
                   controller.mobileTEC.clear();
+                  controller.phoneNumber.value = '';
                   controller.update();
                 },
               ),

@@ -158,69 +158,38 @@ class AuthService extends GetxController {
     }
   }
 
-  // FIXED: Logout method with proper notification handling (with timeouts)
+  // FIXED: Logout method with proper notification handling
   Future<void> logout(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final secureStorage = SecureStorageService();
-
     try {
       AppLogger.lifecycle('Waiting for auth verification to complete...');
       NotificationServices.clearSession();
 
-      // 1. Update Firebase status (guarded with timeout)
+      // 1. Update Firebase status
       if (_userId != null) {
-        try {
-          await FirebaseService.updateActiveStatus(false).timeout(const Duration(seconds: 6));
-        } catch (e) {
-          AppLogger.error('Timeout/Error updating active status (non-fatal): $e');
-        }
-        try {
-          await FirebaseService.insideChatStatus(false).timeout(const Duration(seconds: 4));
-        } catch (e) {
-          AppLogger.error('Timeout/Error updating inside chat status (non-fatal): $e');
-        }
+        await FirebaseService.updateActiveStatus(false);
+        await FirebaseService.insideChatStatus(false);
       }
 
-      // 2. Remove FCM token from Firestore (non-blocking with timeout)
-      try {
-        await _removeFCMToken().timeout(const Duration(seconds: 6));
-      } catch (e) {
-        AppLogger.error('Timeout/Error removing FCM token (non-fatal): $e');
-      }
+      // 2. Remove FCM token from Firestore
+      await _removeFCMToken();
 
       // 3. Clear secure storage BUT preserve onboarding flags
-      // Save the onboarding status before clearing (guarded)
-      bool hasSeenOnboarding = false;
-      bool isFirstInstall = false;
-      try {
-        hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
-        isFirstInstall = await secureStorage.isFirstInstall();
-      } catch (e) {
-        AppLogger.error('Error reading onboarding flags: $e');
-      }
+      final secureStorage = SecureStorageService();
+      
+      // Save the onboarding status before clearing
+      final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
+      final isFirstInstall = await secureStorage.isFirstInstall();
 
-      // Clear all data (guarded)
-      try {
-        await secureStorage.clearAll().timeout(const Duration(seconds: 4));
-      } catch (e) {
-        AppLogger.error('Error clearing secure storage (non-fatal): $e');
-      }
+      // Clear all data
+      await secureStorage.clearAll();
+      await prefs.reload();
+      await prefs.clear();
 
-      // SharedPreferences cleanup (guarded)
-      try {
-        await prefs.reload();
-        await prefs.clear();
-      } catch (e) {
-        AppLogger.error('Error clearing SharedPreferences (non-fatal): $e');
-      }
 
-      // Restore the onboarding flags (best-effort)
-      try {
-        await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
-        await secureStorage.setFirstInstall(isFirstInstall);
-      } catch (e) {
-        AppLogger.error('Error restoring onboarding flags (non-fatal): $e');
-      }
+      // Restore the onboarding flags
+      await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
+      await secureStorage.setFirstInstall(isFirstInstall);
 
       // 4. Reset local variables
       _userId = null;
@@ -231,47 +200,35 @@ class AuthService extends GetxController {
       // 5. Update observable states
       isUserLoggedIn.value = false;
       currentUser.value = null;
+      await clearGetXInstances();
 
-      // Attempt to clear GetX instances but don't block logout
-      try {
-        await clearGetXInstances().timeout(const Duration(seconds: 4));
-      } catch (e) {
-        AppLogger.error('Error clearing GetX instances (non-fatal): $e');
-      }
-
-      // 6. Clear chat controller if exists (non-blocking)
-      try {
-        if (Get.isRegistered<ChatViewModel>()) {
-          final chatController = Get.find<ChatViewModel>();
-          chatController.dispose();
-        }
-      } catch (e) {
-        AppLogger.error('Error disposing chat controller (non-fatal): $e');
+      // 6. Clear chat controller if exists
+      if (Get.isRegistered<ChatViewModel>()) {
+        final chatController = Get.find<ChatViewModel>();
+        chatController.dispose();
       }
 
       AppLogger.success('Logout completed successfully');
 
-      // 7. Navigate to login (always do this last)
+      // 7. Navigate to login
       Get.offAllNamed(AppRoutes.ACCOUNT_TYPE);
 
     } catch (e) {
       NotificationServices.clearSession();
-      AppLogger.error('Error during logout (fallback): $e');
+      AppLogger.error('Error during logout: $e');
 
-      // Fallback: ensure local storage cleared and navigate
-      try {
-        // Save flags before clearing
-        final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
-        final isFirstInstall = await secureStorage.isFirstInstall();
+      // Even if there's an error, clear secure storage
+      final secureStorage = SecureStorageService();
+      
+      // Save flags before clearing
+      final hasSeenOnboarding = await secureStorage.hasSeenOnboarding();
+      final isFirstInstall = await secureStorage.isFirstInstall();
 
-        await secureStorage.clearAll();
+      await secureStorage.clearAll();
 
-        // Restore flags
-        await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
-        await secureStorage.setFirstInstall(isFirstInstall);
-      } catch (er) {
-        AppLogger.error('Error in fallback storage cleanup: $er');
-      }
+      // Restore flags
+      await secureStorage.setHasSeenOnboarding(hasSeenOnboarding);
+      await secureStorage.setFirstInstall(isFirstInstall);
 
       isUserLoggedIn.value = false;
       currentUser.value = null;
