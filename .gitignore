@@ -55,12 +55,12 @@ assets/firebase_service_account.json
 firebase_service_account.json
 
 # Sensitive files
-#*.jks
-#*.keystore
-#*.json
-#!google-services.json
-#!firebase.json
-#!build.json
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+firebase.json
+build.json
 
 # Fastlane and Ruby gems
 android/vendor/

@@ -77,6 +77,17 @@ jobs:
           grep -q "FIREBASE_API_KEY" .env && echo "✅ FIREBASE_API_KEY exists" || echo "❌ FIREBASE_API_KEY MISSING"
           grep -q "BASE_URL" .env && echo "✅ BASE_URL exists" || echo "❌ BASE_URL MISSING"
 
+      # 6.3 Create google-services.json from secrets
+      - name: Create google-services.json
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          if [ -s "android/app/google-services.json" ]; then
+            echo "✅ google-services.json created successfully"
+          else
+            echo "❌ Failed to create google-services.json or file is empty"
+            exit 1
+          fi
+
       # 7. Create service account JSON from secrets
       - name: Create service account JSON
         run: |
