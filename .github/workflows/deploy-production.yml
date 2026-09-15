@@ -80,13 +80,12 @@ jobs:
       # 6.3 Create google-services.json from secrets
       - name: Create google-services.json
         run: |
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-          if [ -s "android/app/google-services.json" ]; then
-            echo "✅ google-services.json created successfully"
-          else
-            echo "❌ Failed to create google-services.json or file is empty"
+          if [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "❌ GOOGLE_SERVICES_JSON secret is MISSING!"
             exit 1
           fi
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          echo "✅ google-services.json created successfully"
 
       # 7. Create service account JSON from secrets
       - name: Create service account JSON
