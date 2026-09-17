@@ -23,6 +23,10 @@ class ChatListController extends GetxController {
   final RxBool isNavigatingToChat = false.obs;
   // Add flag to track if streams are active
   bool _streamsActive = false;
+  // Guard against infinite retries when Firebase auth is broken
+  bool _firestorePermissionDenied = false;
+  int _streamRetryCount = 0;
+  static const int _maxStreamRetries = 3;
   // Deletion tracking
   final RxMap<String, String> deletionTimestamps = <String, String>{}.obs;
 
@@ -281,8 +285,9 @@ class ChatListController extends GetxController {
   void forceUpdateUserPosition(String userId) {
     try {
       final messageTime = _lastMessageTimes[userId]?.value ?? '0';
+      // _updateUserPositionIfNeeded already calls chatUsers.removeAt/insert
+      // which automatically notifies observers — no extra refresh() needed
       _updateUserPositionIfNeeded(userId, messageTime);
-      chatUsers.refresh();
     } catch (e) {
       debugPrint('❌ Error updating user position: $e');
     }
@@ -521,6 +526,12 @@ class ChatListController extends GetxController {
       return;
     }
 
+    // Don't retry if permission was denied (auth broken) and max retries reached
+    if (_firestorePermissionDenied && _streamRetryCount >= _maxStreamRetries) {
+      debugPrint('🚫 Stream init blocked: Firestore permission-denied, Firebase auth unavailable.');
+      return;
+    }
+
     debugPrint('🔄 Setting up streams...');
     _streamsActive = true;
 
@@ -541,6 +552,9 @@ class ChatListController extends GetxController {
         .snapshots()
         .listen(
           (myUsersSnapshot) {
+        // Successful data: reset denial flags
+        _firestorePermissionDenied = false;
+        _streamRetryCount = 0;
         debugPrint('📥 My users stream: ${myUsersSnapshot.docs.length} users');
 
         final userIds = myUsersSnapshot.docs.map((e) => e.id).toList();
@@ -556,12 +570,20 @@ class ChatListController extends GetxController {
         _fetchAndUpdateUsers(userIds);
       },
       onError: (error) {
+        final errorStr = error.toString();
         debugPrint('❌ Error in my users stream: $error');
         isLoading.value = false;
         isRefreshing.value = false;
         _streamsActive = false;
+
+        // If permission-denied, set the flag to stop the retry loop
+        if (errorStr.contains('permission-denied') || errorStr.contains('PERMISSION_DENIED')) {
+          _firestorePermissionDenied = true;
+          _streamRetryCount++;
+          debugPrint('🚫 Firestore permission-denied. Firebase Anonymous Auth may be blocked. Retry $_streamRetryCount/$_maxStreamRetries');
+        }
       },
-      cancelOnError: false, // Don't cancel on error
+      cancelOnError: false,
     );
   }
   void _fetchAndUpdateUsers(List<String> userIds) {
@@ -671,15 +693,17 @@ class ChatListController extends GetxController {
   ensureStreamsActive() {
     debugPrint('🔍 Checking stream status...');
 
+    // If Firebase auth is broken (permission-denied), don't hammer Firestore
+    if (_firestorePermissionDenied && _streamRetryCount >= _maxStreamRetries) {
+      debugPrint('🚫 Skipping stream init: Firebase auth unavailable (permission-denied). Fix Firebase Anonymous Auth in Firebase Console.');
+      isLoading.value = false;
+      return;
+    }
+
     if (!_streamsActive || _myUsersSubscription == null) {
       debugPrint('📡 Streams not active, reinitializing...');
       _initializeStreams();
-    }
-    //else if (chatUsers.isEmpty && !isLoading.value) {
-    //   debugPrint('📡 Chat users empty, forcing refresh...');
-    //   forceRefresh();
-    //}
-    else {
+    } else {
       debugPrint('✅ Streams are active with ${chatUsers.length} users');
     }
   }

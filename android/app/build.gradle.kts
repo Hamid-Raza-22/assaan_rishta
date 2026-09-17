@@ -4,6 +4,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     id("com.android.application")
+
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
     // END: FlutterFire Configuration
@@ -19,8 +20,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
+
     namespace = "com.asan.rishta.matrimonial.asan_rishta"
-    compileSdk = 36  // Updated from 36 to 34 (stable version)
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
     ndkVersion = "28.2.13676358"
 //    ndkVersion = "27.0.12077973"
 
@@ -30,14 +33,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
     defaultConfig {
         applicationId = "com.asan.rishta.matrimonial.asan_rishta"
-        minSdkVersion(flutter.minSdkVersion)
-        targetSdk = 36  // Updated from 36 to 34
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
@@ -57,7 +56,7 @@ android {
             isShrinkResources = true
             isMinifyEnabled = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             // TODO: Add your own signing config for the release build.
@@ -75,6 +74,11 @@ android {
 //            isUniversalApk = false
 //        }
 //    }
+}
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+    }
 }
 flutter {
     source = "../.."
@@ -100,4 +104,12 @@ dependencies {
     // Additional dependencies for Window Manager (for your security flags)
     implementation("androidx.window:window:1.2.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
+}
+
+// Exclude deprecated firebase-iid transitive dependency.
+// firebase-iid (21.1.0) uses GMS for token retrieval which fails on
+// devices with restricted Play Services. The modern firebase-messaging
+// SDK handles FCM tokens directly via firebase-installations.
+configurations.all {
+    exclude(group = "com.google.firebase", module = "firebase-iid")
 }

@@ -40,10 +40,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # - Jab aap app store (Google Play Store ya Apple App Store) par naya version upload karte hain, toh build number pichhle upload se zyada hona chahiye, bhale hi version name wahi ho.
 # - Agar aap `1.0.0+1` release karte hain aur phir usi version (`1.0.0`) mein kuch chota sa fix karke dobara upload karna chahte hain, toh aap `1.0.0+2` use karenge.
 # - Android mein isko `versionCode` aur iOS mein `CFBundleVersion` kehte hain.
-version: 2.39.51+71
+version: 2.40.52+72
 
 environment:
-  sdk: ^3.12.1
+  sdk: ^3.13.1
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -119,6 +119,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   device_info_plus: ^12.2.0
   shared_preferences: ^2.5.3
+  firebase_app_check: ^0.3.2+10
 
 dev_dependencies:
   flutter_test:

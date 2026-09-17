@@ -1152,11 +1152,17 @@ class FirebaseService {
 
   // for getting firebase messaging token
   static Future<void> getFirebaseMessagingToken() async {
-    await fMessaging.requestPermission();
-    if (Platform.isAndroid) {
-      await fMessaging.getToken().then((value) {
-        if (value != null) me!.pushToken = value;
-      });
+    try {
+      await fMessaging.requestPermission();
+      if (Platform.isAndroid) {
+        String? token = await fMessaging.getToken();
+        if (token != null && me != null) {
+          me!.pushToken = token;
+          debugPrint('📱 FCM Token retrieved: $token');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error getting device token (safe catch): $e');
     }
   }
 
@@ -1242,16 +1248,20 @@ class FirebaseService {
   }
 
   static Future<bool> isUserBlocked(String userId) async {
-    final currentUserId = useCase.getUserId().toString();
-
-    final userDoc = await firestore
-        .collection(EnvConfig.firebaseUsersCollection)
-        .doc(useCase.getUserId().toString())
-        .get();
-    final blockedUsers = userDoc.data()?['blockedUsers'] ?? {};
-    if (blockedUsers.isNotEmpty) {
-      return blockedUsers.containsKey(userId);
-    } else {
+    try {
+      final userDoc = await firestore
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(useCase.getUserId().toString())
+          .get();
+      final blockedData = userDoc.data()?['blockedUsers'];
+      if (blockedData is Map) {
+        return blockedData.containsKey(userId);
+      } else if (blockedData is List) {
+        return blockedData.contains(userId);
+      }
+      return false;
+    } catch (e) {
+      log('Error checking if user is blocked: $e');
       return false;
     }
   }
@@ -1265,8 +1275,13 @@ class FirebaseService {
           .doc(userId)
           .get();
 
-      final blockedUsers = otherUserDoc.data()?['blockedUsers'] ?? {};
-      return blockedUsers.containsKey(currentUserId);
+      final blockedData = otherUserDoc.data()?['blockedUsers'];
+      if (blockedData is Map) {
+        return blockedData.containsKey(currentUserId);
+      } else if (blockedData is List) {
+        return blockedData.contains(currentUserId);
+      }
+      return false;
     } catch (e) {
       log('Error checking if blocked by user: $e');
       return false;

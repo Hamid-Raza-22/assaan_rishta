@@ -2,6 +2,7 @@
 import 'package:assaan_rishta/app/viewmodels/chat_list_viewmodel.dart';
 import 'package:assaan_rishta/app/viewmodels/profile_viewmodel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -37,11 +38,43 @@ class AuthService extends GetxController {
   String? get userName => _userName;
   String? get userImage => _userImage;
 
+  int _authRetryCount = 0;
+
   @override
   void onInit() {
     super.onInit();
     _instance = this;
+    ensureFirebaseAuthenticated();
     checkAuthStatus();
+  }
+
+  /// Ensures that the user has a valid Firebase session (Anonymously)
+  /// This is required for Firestore Security Rules (request.auth != null)
+  Future<void> ensureFirebaseAuthenticated() async {
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        debugPrint('🔐 Initializing Firebase Anonymous Auth...');
+        await FirebaseAuth.instance.signInAnonymously();
+        debugPrint('✅ Firebase Anonymous Auth Successful: ${FirebaseAuth.instance.currentUser?.uid}');
+        _authRetryCount = 0; // Reset on success
+      } else {
+        debugPrint('🔐 Firebase Session already active: ${FirebaseAuth.instance.currentUser?.uid}');
+      }
+    } catch (e) {
+      debugPrint('❌ Firebase Anonymous Auth Failed: $e');
+      // Retry up to 3 times after a short delay if failed to prevent infinite loop
+      if (_authRetryCount < 3) {
+        _authRetryCount++;
+        debugPrint('🔄 Retrying Firebase Auth (Attempt $_authRetryCount/3) in 10 seconds...');
+        Future.delayed(const Duration(seconds: 10), () {
+          if (FirebaseAuth.instance.currentUser == null) {
+            ensureFirebaseAuthenticated();
+          }
+        });
+      } else {
+        debugPrint('⚠️ Maximum Firebase Auth retries reached. Stopping retry loop.');
+      }
+    }
   }
 
   // Check authentication status on app start

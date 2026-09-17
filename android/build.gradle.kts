@@ -11,9 +11,25 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+
+    afterEvaluate {
+        if (project.plugins.hasPlugin("com.android.library")) {
+            project.extensions.configure<com.android.build.gradle.LibraryExtension> {
+                if (compileSdk != null && compileSdk!! < 36) {
+                    compileSdk = 36
+                }
+            }
+        }
+    }
 }
-subprojects {
-    project.evaluationDependsOn(":app")
+
+
+// Global repository fix
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
 
 tasks.register<Delete>("clean") {

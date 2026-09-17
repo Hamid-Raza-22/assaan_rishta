@@ -1,7 +1,7 @@
 
 import 'dart:async';
 import 'dart:io';
-
+import 'package:firebase_app_check/firebase_app_check.dart'; // 1. Import the package
 import 'package:assaan_rishta/app/core/bindings/app_bindings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -91,6 +91,23 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // App Check activation — non-blocking, non-fatal
+  // If Firebase Installations Service (FIS) is unavailable on this device,
+  // we still allow the app to start. Disable enforcement in Firebase Console
+  // for development: App Check → Apps → Unenforce Authentication & Firestore
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+    );
+    debugPrint('✅ Firebase App Check activated');
+  } catch (e) {
+    // Non-fatal: App Check failure should not block the app
+    // Fix: Go to Firebase Console → App Check → Apps → Unenforce for Auth & Firestore
+    debugPrint('⚠️ App Check activation failed (non-fatal): $e');
+  }
 
   setupLocator();
 

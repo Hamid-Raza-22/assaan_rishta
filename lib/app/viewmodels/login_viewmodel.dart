@@ -242,7 +242,11 @@ class LoginViewModel extends GetxController {
             Get.offAllNamed(AppRoutes.BOTTOM_NAV);
           } else {
             // Rishta users - check partner preference flag
+            // Ensure Firebase is authenticated before Firestore queries
             try {
+              final authService = Get.find<AuthService>();
+              await authService.ensureFirebaseAuthenticated();
+
               final doc = await FirebaseFirestore.instance
                   .collection(EnvConfig.firebaseUsersCollection)
                   .doc(safeUserId.toString())
@@ -258,6 +262,9 @@ class LoginViewModel extends GetxController {
                 Get.offAllNamed(AppRoutes.PARTNER_PREFERENCE_VIEW);
               }
             } catch (e) {
+              // Firebase auth or Firestore unavailable (e.g. FIS/GMS issue on device)
+              // Fall back to bottom nav gracefully
+              debugPrint('⚠️ Firestore preference check failed, navigating to home: $e');
               Get.offAllNamed(AppRoutes.BOTTOM_NAV);
             }
           }
