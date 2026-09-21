@@ -99,7 +99,7 @@ dependencies:
   stacked_services: ^1.6.0
   confetti: ^0.8.0
   intl_phone_field: ^3.2.0
-  flutter_inappwebview: ^6.1.5
+  flutter_inappwebview: ^6.1.6
   photo_view: ^0.15.0
   rxdart: ^0.28.0
   flutter_cache_manager: ^3.4.1
