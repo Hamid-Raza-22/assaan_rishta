@@ -28,16 +28,3 @@ plugins {
 
 include(":app")
 
-// Centralize repository declarations so legacy plugins (e.g. video_thumbnail 0.5.6)
-// that call the now-removed jcenter() DSL method in Gradle 9 don't cause build failures.
-// PREFER_SETTINGS means subproject repository blocks are silently ignored.
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        google()
-        mavenCentral()
-        // Provide jcenter mirror via explicit URL so artifacts that were
-        // only on jcenter can still be resolved.
-        maven { url = uri("https://jcenter.bintray.com") }
-    }
-}
