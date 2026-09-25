@@ -358,6 +358,7 @@ class EditProfileController extends GetxController {
         isLoading.value = false;
         debugPrint('✅ EditProfile - Profile loaded for: ${success.firstName} ${success.lastName}');
         update();
+        _autoLoadStatesAndCitiesForProfile();
       },
     );
   }
@@ -415,6 +416,72 @@ class EditProfileController extends GetxController {
     );
   }
 
+  void _autoLoadStatesAndCitiesForProfile() async {
+    if (countryList.isEmpty) return;
+    final userCountry = profileDetails.value.userCountryName;
+    final targetCountryName = (userCountry != null && userCountry.isNotEmpty) 
+        ? userCountry 
+        : 'Pakistan';
+
+    final matchingCountry = countryList.firstWhereOrNull(
+      (c) => c.name?.toLowerCase() == targetCountryName.toLowerCase(),
+    );
+
+    if (matchingCountry != null && matchingCountry.id != null) {
+      debugPrint('🌍 Auto-loading initial states for country: ${matchingCountry.name} (ID: ${matchingCountry.id})');
+      final statesResponse = await systemConfigUseCases.getAllStates(countryId: matchingCountry.id!);
+      statesResponse.fold(
+        (error) => debugPrint('❌ Error auto-loading states: ${error.description}'),
+        (success) async {
+          if (success.isNotEmpty) {
+            stateList.clear();
+            stateList.addAll(success);
+            update();
+
+            // Match and set initial state if available
+            final userState = profileDetails.value.userStateName;
+            if (userState != null && userState.isNotEmpty && userState != 'State') {
+              final matchingState = stateList.firstWhereOrNull(
+                (s) => s.name?.toLowerCase() == userState.toLowerCase(),
+              );
+              if (matchingState != null) {
+                stateController.value = matchingState;
+                debugPrint('🏙️ Auto-matched initial state: ${matchingState.name} (ID: ${matchingState.id})');
+
+                // Load cities for this state
+                if (matchingState.id != null) {
+                  final citiesResponse = await systemConfigUseCases.getAllCities(stateId: matchingState.id!);
+                  citiesResponse.fold(
+                    (err) => debugPrint('❌ Error auto-loading cities: ${err.description}'),
+                    (citiesSuccess) {
+                      cityList.clear();
+                      cityList.addAll(citiesSuccess);
+
+                      final userCity = profileDetails.value.cityName;
+                      if (userCity != null && userCity.isNotEmpty && userCity != 'City') {
+                        var matchingCity = cityList.firstWhereOrNull(
+                          (c) => c.name?.toLowerCase() == userCity.toLowerCase(),
+                        );
+                        if (matchingCity == null) {
+                          matchingCity = AllCities(id: profileDetails.value.cityid, name: userCity, stateId: matchingState.id);
+                          cityList.add(matchingCity);
+                        }
+                        cityController.value = matchingCity;
+                        cityId = matchingCity.id ?? profileDetails.value.cityid ?? 0;
+                        debugPrint('📍 City set: ${matchingCity.name} (ID: ${matchingCity.id})');
+                      }
+                      update();
+                    },
+                  );
+                }
+              }
+            }
+          }
+        },
+      );
+    }
+  }
+
   getAllCountries() async {
     countryList.clear();
     final response = await systemConfigUseCases.getAllCountries();
@@ -426,6 +493,7 @@ class EditProfileController extends GetxController {
         if (success.isNotEmpty) {
           countryList.addAll(success);
           update();
+          _autoLoadStatesAndCitiesForProfile();
         }
         return Right(success);
       },
@@ -1063,6 +1131,30 @@ class EditProfileController extends GetxController {
     occupation = '${profileDetails.value.occupation}';
     country = '${profileDetails.value.userCountryName}';
     cityId = profileDetails.value.cityid ?? 0;
+
+    // Set initial city controller value if cityName is available
+    if (profile.cityName != null && profile.cityName!.isNotEmpty && profile.cityName != 'City') {
+      final initialCity = AllCities(
+        id: profile.cityid,
+        name: profile.cityName,
+      );
+      if (!cityList.any((c) => c.name?.toLowerCase() == initialCity.name?.toLowerCase())) {
+        cityList.add(initialCity);
+      }
+      cityController.value = initialCity;
+    }
+
+    // Set initial state controller value if userStateName is available
+    if (profile.userStateName != null && profile.userStateName!.isNotEmpty && profile.userStateName != 'State') {
+      final initialState = AllStates(
+        name: profile.userStateName,
+      );
+      if (!stateList.any((s) => s.name?.toLowerCase() == initialState.name?.toLowerCase())) {
+        stateList.add(initialState);
+      }
+      stateController.value = initialState;
+    }
+
     userKaTarufTEC.text = '${profile.userKaTaruf}';
     userDiWohtiKaTarufTEC.text = '${profile.userDiWohtiKaTaruf}';
     update();

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../utils/app_assets.dart';
 
 class DisplayImage extends StatelessWidget {
   final String imagePath;
@@ -34,12 +35,17 @@ class DisplayImage extends StatelessWidget {
     Color color = const Color(0xFF1C4E80),
     required String imagePath,
   }) {
-    final image = imagePath.contains('https://')
-        ? NetworkImage(imagePath)
-        : FileImage(File(imagePath));
+    final trimmedPath = imagePath.trim();
+    final effectivePath = trimmedPath.isEmpty ? AppAssets.imagePlaceholder : trimmedPath;
+
+    final ImageProvider imageProvider = effectivePath.startsWith('http://') || effectivePath.startsWith('https://')
+        ? NetworkImage(effectivePath)
+        : (effectivePath.startsWith('assets/')
+            ? AssetImage(effectivePath) as ImageProvider
+            : FileImage(File(effectivePath)) as ImageProvider);
 
     Widget avatarWidget = CircleAvatar(
-      backgroundImage: image as ImageProvider,
+      backgroundImage: imageProvider,
       radius: radius - 2,
     );
 
@@ -53,7 +59,7 @@ class DisplayImage extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               Image(
-                image: image as ImageProvider,
+                image: imageProvider,
                 fit: BoxFit.cover,
               ),
               BackdropFilter(

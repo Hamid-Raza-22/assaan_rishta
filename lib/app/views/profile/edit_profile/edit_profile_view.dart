@@ -25,16 +25,27 @@ class EditProfileView extends GetView<EditProfileController> {
       },
       builder: (_) {
         return Scaffold(
-          resizeToAvoidBottomInset: false,
+          resizeToAvoidBottomInset: true,
           backgroundColor: Colors.white,
           appBar: _appBar(),
           body: SafeArea(
             child: controller.isLoading.isFalse
-                ? SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 20.0),
-                      child: Column(
-                        children: [getGeneralInfo(context)],
+                ? GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanDown: (_) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      FocusScope.of(context).unfocus();
+                    },
+                    onVerticalDragStart: (_) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      FocusScope.of(context).unfocus();
+                    },
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 20.0),
+                        child: Column(
+                          children: [getGeneralInfo(context)],
+                        ),
                       ),
                     ),
                   )
@@ -344,7 +355,10 @@ class EditProfileView extends GetView<EditProfileController> {
               getDropDownListTile(
                   title: 'Country',
                   child: CustomDropdown<AllCountries>.search(
-                    hintText: controller.profileDetails.value.userCountryName??"",
+                    hintText: (controller.profileDetails.value.userCountryName != null &&
+                               controller.profileDetails.value.userCountryName!.isNotEmpty)
+                        ? controller.profileDetails.value.userCountryName!
+                        : "Select Country",
                      
                     items: controller.countryList,
                     onChanged: (value) {
@@ -370,7 +384,11 @@ class EditProfileView extends GetView<EditProfileController> {
               getDropDownListTile(
                 title: 'State',
                 child: CustomDropdown<AllStates>.search(
-                  hintText: controller.profileDetails.value.userStateName??"",
+                  hintText: (controller.profileDetails.value.userStateName != null &&
+                             controller.profileDetails.value.userStateName!.isNotEmpty &&
+                             controller.profileDetails.value.userStateName != "State")
+                      ? controller.profileDetails.value.userStateName!
+                      : "Select State",
                    
                   items: controller.stateList,
                   controller: controller.stateController,
@@ -384,7 +402,9 @@ class EditProfileView extends GetView<EditProfileController> {
                   },
                   decoration: basicInfoDecoration(
                     hintStyle:
-                        controller.profileDetails.value.userStateName == "State"
+                        (controller.profileDetails.value.userStateName == null ||
+                         controller.profileDetails.value.userStateName == "State" ||
+                         controller.profileDetails.value.userStateName!.isEmpty)
                             ? null
                             : GoogleFonts.poppins(
                                 color: AppColors.blackColor,
@@ -398,10 +418,12 @@ class EditProfileView extends GetView<EditProfileController> {
           const SizedBox(height: 10),
           Row(
             children: [
-              getDropDownListTile(
-                title: "City",
-                child: CustomDropdown<AllCities>.search(
-                  hintText: controller.profileDetails.value.cityName??"",
+              getDropDownListTile(title: "City", child: CustomDropdown<AllCities>.search(
+                  hintText: (controller.profileDetails.value.cityName != null &&
+                             controller.profileDetails.value.cityName!.isNotEmpty &&
+                             controller.profileDetails.value.cityName != "City")
+                      ? controller.profileDetails.value.cityName!
+                      : "Select City",
                    
                   controller: controller.cityController,
                   items: controller.cityList,
@@ -413,7 +435,9 @@ class EditProfileView extends GetView<EditProfileController> {
                   },
                   decoration: basicInfoDecoration(
                     hintStyle:
-                        controller.profileDetails.value.cityName == "City"
+                        (controller.profileDetails.value.cityName == null ||
+                         controller.profileDetails.value.cityName == "City" ||
+                         controller.profileDetails.value.cityName!.isEmpty)
                             ? null
                             : GoogleFonts.poppins(
                                 color: AppColors.blackColor,

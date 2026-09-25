@@ -28,4 +28,16 @@ class AllCities {
   String toString() {
     return '$name';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AllCities &&
+          runtimeType == other.runtimeType &&
+          ((id != null && other.id != null)
+              ? id == other.id
+              : name?.toLowerCase() == other.name?.toLowerCase());
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode;
 }

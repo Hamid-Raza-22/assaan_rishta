@@ -1050,7 +1050,7 @@ class SignupViewModel extends GetxController {
                 Icon(Icons.schedule, size: 18, color: Colors.orange),
                 const SizedBox(width: 8),
                 const Text(
-                  'Call Timing: 9:00 AM - 6:00 PM\n(Monday - Saturday)',
+                  'Call Timing: 9:00 AM - 6:00 PM\n(Monday - Friday)',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.black87),
                 ),

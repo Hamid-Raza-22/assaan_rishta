@@ -5,7 +5,8 @@ on:
     branches:
 #      - main  # Ya apni main branch ka naam
 #      - master
-      - dec9-featured-blur-fix
+#      - dec9-featured-blur-fix
+      - firebase-account-update
     tags:
       - 'v*'  # Tag push par bhi trigger ho (optional)
 

@@ -1452,6 +1452,30 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       debugPrint('⚠️ Chat user check error (non-critical): $e');
     }));
   }
+
+  Future<void> unblockUser() async {
+    try {
+      await chatController.unblockUser(user.id);
+      isBlocked.value = false;
+      await _updateBlockStatus();
+      Get.snackbar(
+        'Success',
+        'User unblocked successfully',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      debugPrint('Error unblocking user: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to unblock user',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
   // UI state methods
   void toggleEmoji() {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -2766,16 +2790,36 @@ class _ChattingViewState extends State<ChattingView> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       margin: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.block, color: AppColors.redColor, size: 20),
-          const SizedBox(width: 10),
-          Flexible(
-            child: AppText(
-              text: controller.blockMessage,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.block, color: AppColors.redColor, size: 20),
+              const SizedBox(width: 10),
+              Flexible(
+                child: AppText(
+                  text: controller.blockMessage,
+                ),
+              ),
+            ],
           ),
+          if (controller.isBlocked.value) ...[
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () => controller.unblockUser(),
+              icon: const Icon(Icons.lock_open, size: 18, color: Colors.white),
+              label: const Text('Unblock User', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
