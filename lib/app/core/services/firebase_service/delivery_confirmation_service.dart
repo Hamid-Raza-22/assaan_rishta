@@ -305,15 +305,17 @@ class DeliveryConfirmationService {
   // Process all pending deliveries in batches
   static Future<void> processAllPendingDeliveries(String userId) async {
     try {
-      // Use simpler query without multiple where clauses to avoid index requirement
-      final allMessages = await _firestore
-          .collectionGroup('messages')
-          .where('toId', isEqualTo: userId)
-          .limit(100)
+      if (userId.isEmpty) return;
+
+      // Query active user conversations to avoid collectionGroup permission issues
+      final myUsersSnapshot = await _firestore
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(userId)
+          .collection('my_users')
           .get();
 
-      if (allMessages.docs.isEmpty) {
-        debugPrint('No messages found for user');
+      if (myUsersSnapshot.docs.isEmpty) {
+        debugPrint('No user conversations found for pending deliveries');
         return;
       }
 
@@ -321,18 +323,30 @@ class DeliveryConfirmationService {
       final deliveredTime = DateTime.now().millisecondsSinceEpoch.toString();
       int count = 0;
 
-      for (final doc in allMessages.docs) {
-        final data = doc.data();
-        // Check if delivery is pending
-        if (data['deliveryPending'] == true ||
-            data['delivered'] == null ||
-            data['delivered'] == '') {
-          batch.update(doc.reference, {
-            'delivered': deliveredTime,
-            'status': 'delivered',
-            'deliveryPending': false,
-          });
-          count++;
+      for (final userDoc in myUsersSnapshot.docs) {
+        final otherUserId = userDoc.id;
+        final conversationId = _getConversationId(userId, otherUserId);
+
+        final undeliveredMessages = await _firestore
+            .collection(EnvConfig.firebaseChatsCollection)
+            .doc(conversationId)
+            .collection('messages')
+            .where('toId', isEqualTo: userId)
+            .get();
+
+        for (final doc in undeliveredMessages.docs) {
+          final data = doc.data();
+          // Check if delivery is pending
+          if (data['deliveryPending'] == true ||
+              data['delivered'] == null ||
+              data['delivered'] == '') {
+            batch.update(doc.reference, {
+              'delivered': deliveredTime,
+              'status': 'delivered',
+              'deliveryPending': false,
+            });
+            count++;
+          }
         }
       }
 
