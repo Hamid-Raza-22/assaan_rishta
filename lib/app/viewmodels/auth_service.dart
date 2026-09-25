@@ -467,100 +467,112 @@ class AuthService extends GetxController {
     }
   }
 
-  // Complete Firebase cleanup when user is automatically logged out (optimized)
+  // Complete Firebase cleanup when user is automatically logged out (optimized - Ultra Fast)
   Future<void> _performCompleteFirebaseCleanup(String userId) async {
     try {
       debugPrint('🔥 Starting complete Firebase cleanup for user: $userId');
 
       final batch = FirebaseFirestore.instance.batch();
 
-      // Step 1: Mark user as deleted (instead of immediate deletion)
-      final userRef = FirebaseFirestore.instance          .collection(EnvConfig.firebaseUsersCollection)
-.doc(userId);
-      batch.update(userRef, {
+      // Step 1: Mark user as deleted
+      final userRef = FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(userId);
+
+      batch.set(userRef, {
         'account_deleted': true,
         'deleted_at': DateTime.now().millisecondsSinceEpoch.toString(),
         'name': 'Deleted User',
-        'image': '', // Clear image
+        'image': '',
         'about': 'This account has been deleted',
         'is_online': false,
         'is_mobile_online': false,
         'is_web_online': false,
-        'push_token': '', // Clear push token
-      });
+        'push_token': '',
+      }, SetOptions(merge: true));
 
-      // Step 2: Get all users who have this deleted user in their chat list
-      final allUsersSnapshot = await FirebaseFirestore.instance
-                    .collection(EnvConfig.firebaseUsersCollection)
-
-          .get();
-
-      for (var userDoc in allUsersSnapshot.docs) {
-        if (userDoc.id == userId) continue; // Skip the deleted user
-
-        // Check if this user has the deleted user in their my_users
-        final myUsersRef = userDoc.reference.collection('my_users').doc(userId);
-        final myUserDoc = await myUsersRef.get();
-
-        if (myUserDoc.exists) {
-          // Mark this chat as with deleted user
-          batch.update(myUsersRef, {
-            'user_deleted': true,
-            'deletion_timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-          });
-
-          debugPrint('📱 Updated chat reference for user: ${userDoc.id}');
-        }
-      }
-
-      // Step 3: Clean up user's own my_users collection
-      final myUsersSnapshot = await FirebaseFirestore.instance
-                    .collection(EnvConfig.firebaseUsersCollection)
-
+      // Fetch user's my_users, deleted_chats, and active conversations in PARALLEL
+      final myUsersFuture = FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('my_users')
           .get();
 
-      for (var doc in myUsersSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-
-      // Step 4: Clean up deleted_chats collection
-      final deletedChatsSnapshot = await FirebaseFirestore.instance
-                    .collection(EnvConfig.firebaseUsersCollection)
-
+      final deletedChatsFuture = FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseUsersCollection)
           .doc(userId)
           .collection('deleted_chats')
           .get();
 
-      for (var doc in deletedChatsSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-
-      // Step 5: Update all active conversations to show deletion status
-      final conversationsSnapshot = await FirebaseFirestore.instance
-                    .collection(EnvConfig.firebaseChatsCollection)
-
+      final conversationsFuture = FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseChatsCollection)
           .where('participants', arrayContains: userId)
           .get();
 
+      final results = await Future.wait([
+        myUsersFuture,
+        deletedChatsFuture,
+        conversationsFuture,
+      ]);
+
+      final myUsersSnapshot = results[0] as QuerySnapshot<Map<String, dynamic>>;
+      final deletedChatsSnapshot = results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final conversationsSnapshot = results[2] as QuerySnapshot<Map<String, dynamic>>;
+
+      final partnerIds = <String>{};
+
+      // Collect partners from my_users and delete own my_users docs
+      for (var doc in myUsersSnapshot.docs) {
+        partnerIds.add(doc.id);
+        batch.delete(doc.reference);
+      }
+
+      // Collect partners from active conversations and post system message
+      final nowStr = DateTime.now().millisecondsSinceEpoch.toString();
       for (var chatDoc in conversationsSnapshot.docs) {
-        // Add a system message about user deletion
+        final participants = List<String>.from(chatDoc.data()['participants'] ?? []);
+        for (var pId in participants) {
+          if (pId != userId && pId.isNotEmpty) {
+            partnerIds.add(pId);
+          }
+        }
+
         final systemMessageRef = chatDoc.reference
             .collection('messages')
-            .doc(DateTime.now().millisecondsSinceEpoch.toString());
+            .doc(nowStr);
 
         batch.set(systemMessageRef, {
           'fromId': 'SYSTEM',
           'toId': '',
           'msg': 'This user has deleted their account',
           'type': 'system',
-          'sent': DateTime.now().millisecondsSinceEpoch.toString(),
+          'sent': nowStr,
           'read': '',
         });
       }
 
-      // Commit all changes
+      // Mark this chat as with deleted user in partner's my_users
+      for (var partnerId in partnerIds) {
+        final partnerMyUserRef = FirebaseFirestore.instance
+            .collection(EnvConfig.firebaseUsersCollection)
+            .doc(partnerId)
+            .collection('my_users')
+            .doc(userId);
+
+        batch.set(partnerMyUserRef, {
+          'user_deleted': true,
+          'deletion_timestamp': nowStr,
+        }, SetOptions(merge: true));
+
+        debugPrint('📱 Updated chat reference for partner: $partnerId');
+      }
+
+      // Clean up deleted_chats collection
+      for (var doc in deletedChatsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Commit all changes in a single batch
       await batch.commit();
 
       debugPrint('✅ Complete Firebase cleanup completed successfully');

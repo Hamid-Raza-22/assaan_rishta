@@ -115,8 +115,9 @@ class FilterController extends BaseController {
   }
 
   _loadMoreData() {
-    if (scrollController.position.pixels ==
-        scrollController.position.maxScrollExtent) {
+    if (scrollController.hasClients &&
+        scrollController.position.pixels ==
+            scrollController.position.maxScrollExtent) {
       if (totalCounts > profileList.length) {
         pageNo = pageNo + 1;
         featuredPageNo = featuredPageNo + 1;
@@ -393,11 +394,13 @@ class FilterController extends BaseController {
   }
 
   scrollToTop() {
-    scrollController.animateTo(
-      scrollController.position.minScrollExtent,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.minScrollExtent,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   /// Get gender-based placeholder image

@@ -47,8 +47,9 @@ class MatrimonialProfilesController extends BaseController {
   }
 
   void _loadMoreData() {
-    if (scrollController.position.pixels ==
-        scrollController.position.maxScrollExtent) {
+    if (scrollController.hasClients &&
+        scrollController.position.pixels ==
+            scrollController.position.maxScrollExtent) {
       if (totalCounts > profileList.length) {
         pageNo = pageNo + 1;
         isFirstLoad.value = false;
