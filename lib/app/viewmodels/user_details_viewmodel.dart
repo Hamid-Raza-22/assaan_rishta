@@ -305,7 +305,7 @@ class UserDetailsController extends GetxController {
 
       debugPrint('🔍 Checking if already connected with: $targetUserId (admin profile: $isAdminCreatedProfile)');
 
-      // Check if target user exists in current user's my_users collection
+      // Check if target user exists in current user's my_users collection (active chat)
       final myUserDoc = await FirebaseFirestore.instance
           .collection(EnvConfig.firebaseUsersCollection)
           .doc(currentUserId)
@@ -313,8 +313,24 @@ class UserDetailsController extends GetxController {
           .doc(targetUserId)
           .get();
 
-      isAlreadyConnected.value = myUserDoc.exists;
-      debugPrint('✅ Already connected: ${isAlreadyConnected.value}');
+      if (myUserDoc.exists) {
+        isAlreadyConnected.value = true;
+        debugPrint('✅ Already connected (found in my_users): true');
+        update();
+        return;
+      }
+
+      // Also check connected_users — permanent record that survives chat deletion.
+      // If connect was deducted before, we treat this as "already connected".
+      final connectedUserDoc = await FirebaseFirestore.instance
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(currentUserId)
+          .collection('connected_users')
+          .doc(targetUserId)
+          .get();
+
+      isAlreadyConnected.value = connectedUserDoc.exists;
+      debugPrint('✅ Already connected (connected_users check): ${isAlreadyConnected.value}');
       update();
     } catch (e) {
       debugPrint('❌ Error checking connection status: $e');

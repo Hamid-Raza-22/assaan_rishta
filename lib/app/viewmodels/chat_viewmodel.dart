@@ -685,11 +685,6 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         },
       );
 
-      // FIXED: Clear deletion record since user is actively chatting
-      if (currentChatDeletionTime.value != null) {
-        await clearDeletionRecord();
-      }
-
       debugPrint('✅ Message sent successfully');
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
@@ -813,8 +808,14 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         },
       );
 
-      // FIXED: Properly clear deletion record from Firestore, Hive and memory
+      // FIXED: Clear deletion record ONLY on first message send.
+      // After clearing, update the in-memory cache to the first message timestamp
+      // so the deletion filter still hides old (pre-deletion) messages.
+      final firstMsgTime = time; // timestamp of the first new message
       await clearDeletionRecord();
+      // Re-apply soft boundary: messages before firstMsgTime are still hidden
+      _persistentDeletionCache[user.id] = firstMsgTime;
+      currentChatDeletionTime.value = firstMsgTime;
 
       debugPrint("✅ First message sent successfully to ${user.name}");
     } catch (e) {

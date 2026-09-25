@@ -884,9 +884,22 @@ class FirebaseService {
       debugPrint('✅ Message sent with ID: $messageId');
 
       // If this is the first message, deduct connects only after successful send
+      // BUT only if connects have NOT been previously deducted for this user
       if (isFirstMessage && recipientId != null) {
-        await deductConnects(userForId: recipientId);
-        debugPrint('✅ Connects deducted after first message sent successfully');
+        final alreadyConnected = await _hasConnectBeenDeducted(
+          currentUserId: currentUserId,
+          recipientId: recipientId,
+        );
+        if (!alreadyConnected) {
+          await deductConnects(userForId: recipientId);
+          await _markConnectDeducted(
+            currentUserId: currentUserId,
+            recipientId: recipientId,
+          );
+          debugPrint('✅ Connects deducted and recorded for user: $recipientId');
+        } else {
+          debugPrint('ℹ️ Connect already deducted previously for user: $recipientId — skipping deduction');
+        }
       }
 
       sendNotificationIfNeeded(chatUser, msg, type, currentUserId, messageId);
@@ -1297,6 +1310,47 @@ class FirebaseService {
   //   final blockedUsers = userDoc.data()?['blockedUsers'] ?? {};
   //   return blockedUsers.containsKey(useCase.getUserId().toString());
   // }
+
+  /// Check if a connect has already been deducted for this recipient.
+  /// Uses `connected_users` subcollection which is PERMANENT — not deleted when chat is deleted.
+  static Future<bool> _hasConnectBeenDeducted({
+    required String currentUserId,
+    required String recipientId,
+  }) async {
+    try {
+      final doc = await firestore
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(currentUserId)
+          .collection('connected_users')
+          .doc(recipientId)
+          .get();
+      return doc.exists;
+    } catch (e) {
+      debugPrint('❌ Error checking connected_users: $e');
+      return false;
+    }
+  }
+
+  /// Permanently record that a connect was deducted for this recipient.
+  /// This record is NEVER deleted, so it survives chat deletion/recreation.
+  static Future<void> _markConnectDeducted({
+    required String currentUserId,
+    required String recipientId,
+  }) async {
+    try {
+      await firestore
+          .collection(EnvConfig.firebaseUsersCollection)
+          .doc(currentUserId)
+          .collection('connected_users')
+          .doc(recipientId)
+          .set({
+        'connected_at': FieldValue.serverTimestamp(),
+        'recipient_id': recipientId,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('❌ Error marking connect deducted: $e');
+    }
+  }
 
   static deductConnects({required userForId}) async {
     final response = await systemUseCase.deductConnects(
