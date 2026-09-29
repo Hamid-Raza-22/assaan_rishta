@@ -108,7 +108,12 @@ jobs:
         run: |
           flutter pub cache repair
           flutter pub get
-
+      - name: Patch video_thumbnail (jcenter removed in Gradle 9)
+        run: |
+          F=$(ls -d "$HOME"/.pub-cache/hosted/pub.dev/video_thumbnail-*/android/build.gradle)
+          echo "Patching $F"
+          sed -i 's/jcenter()/mavenCentral()/g' "$F"
+          grep -n "jcenter\|mavenCentral" "$F"
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
