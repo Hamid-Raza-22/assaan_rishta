@@ -103,12 +103,21 @@ dependencies {
     // Additional dependencies for Window Manager (for your security flags)
     implementation("androidx.window:window:1.2.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
+
+    // OPTIONAL - Firebase BoM. Only needed if YOU add native Firebase libs here.
+    // FlutterFire plugins already pull their own native Firebase versions, and a
+    // BoM whose version differs from the one firebase_core expects can cause
+    // conflicts. If you use it, take <BOM_VERSION> from the BoM that firebase_core
+    // uses (check with the dependencies task in the steps I gave you), not a guess.
+    // implementation(platform("com.google.firebase:firebase-bom:<BOM_VERSION>"))
 }
 
-// Exclude deprecated firebase-iid transitive dependency.
-// firebase-iid (21.1.0) uses GMS for token retrieval which fails on
-// devices with restricted Play Services. The modern firebase-messaging
-// SDK handles FCM tokens directly via firebase-installations.
-configurations.all {
-    exclude(group = "com.google.firebase", module = "firebase-iid")
-}
+// REMOVED in v73: the global exclude of com.google.firebase:firebase-iid.
+// Some library in the dependency graph still registers a Firebase component
+// that requires com.google.firebase.iid.FirebaseInstanceId. With firebase-iid
+// excluded, ComponentRuntime throws MissingDependencyException inside
+// FirebaseInitProvider.onCreate(), i.e. a crash at launch before any Dart runs.
+//
+// If you re-add ANY exclude here, first prove nothing needs it:
+//   cd android && ./gradlew :app:dependencyInsight \
+//       --dependency firebase-iid --configuration releaseRuntimeClasspath

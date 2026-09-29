@@ -65,20 +65,47 @@ class ContactUsController extends GetxController {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  // Future<void> openWhatsApp({required String phone, String? message}) async {
+  //   String cleanNumber = phone.replaceAll(RegExp(r'[^\d+]'), '');
+  //   final text = Uri.encodeComponent(message ?? 'Assalam-o-Alaikum, I need assistance regarding Asaan Rishta.');
+  //   final whatsappUrl = Uri.parse("whatsapp://send?phone=$cleanNumber&text=$text");
+  //   final whatsappWebUrl = Uri.parse("https://wa.me/$cleanNumber?text=$text");
+  //
+  //   if (await canLaunchUrl(whatsappUrl)) {
+  //     await launchUrl(whatsappUrl);
+  //     return;
+  //   }
+  //   if (await canLaunchUrl(whatsappWebUrl)) {
+  //     await launchUrl(whatsappWebUrl, mode: LaunchMode.externalApplication);
+  //     return;
+  //   }
+  //   await Clipboard.setData(ClipboardData(text: phone));
+  //   Get.snackbar(
+  //     "WhatsApp not found",
+  //     "Number copied: $phone",
+  //     backgroundColor: Colors.orange,
+  //     colorText: Colors.white,
+  //     duration: const Duration(seconds: 2),
+  //     snackPosition: SnackPosition.TOP,
+  //   );
+  // }
   Future<void> openWhatsApp({required String phone, String? message}) async {
-    String cleanNumber = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    final text = Uri.encodeComponent(message ?? 'Assalam-o-Alaikum, I need assistance regarding Asaan Rishta.');
+    // wa.me ke liye '+' nahi chahiye, sirf digits (country code ke saath)
+    final cleanNumber = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final text = Uri.encodeComponent(
+      message ?? 'Assalam-o-Alaikum, I need assistance regarding Asaan Rishta.',
+    );
     final whatsappUrl = Uri.parse("whatsapp://send?phone=$cleanNumber&text=$text");
     final whatsappWebUrl = Uri.parse("https://wa.me/$cleanNumber?text=$text");
 
-    if (await canLaunchUrl(whatsappUrl)) {
-      await launchUrl(whatsappUrl);
-      return;
-    }
-    if (await canLaunchUrl(whatsappWebUrl)) {
-      await launchUrl(whatsappWebUrl, mode: LaunchMode.externalApplication);
-      return;
-    }
+    try {
+      if (await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {}
+
+    try {
+      if (await launchUrl(whatsappWebUrl, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {}
+
     await Clipboard.setData(ClipboardData(text: phone));
     Get.snackbar(
       "WhatsApp not found",
@@ -89,7 +116,6 @@ class ContactUsController extends GetxController {
       snackPosition: SnackPosition.TOP,
     );
   }
-
   contactUsForSupport() async {
       isLoading.value=true;
       try{
