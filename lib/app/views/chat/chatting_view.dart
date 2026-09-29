@@ -1442,6 +1442,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       );
     }
   }
+
 // NEW: Separate method for sending regular messages with user check
   Future<void> sendRegularMessage(String message) async {
     // Double-check selected user is set
