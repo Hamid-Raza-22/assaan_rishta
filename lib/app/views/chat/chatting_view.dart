@@ -108,6 +108,12 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
   // FIXED: Add flag to track if this controller is active
   bool _isActiveController = false;
 
+  // LOCK: Prevent concurrent createUserChat calls.
+  // "Say Hi" button triggers an async addChatUser network call; if the user
+  // sends a text message before that resolves, we must wait rather than
+  // start a second createUserChat which would wipe the first message.
+  bool _isSendingFirstMessage = false;
+
   // FIXED: Track the current chat user ID properly
   String? _currentChatUserId;
 
@@ -477,7 +483,18 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     clearReply();
 
     try {
-      if (cachedMessages.isEmpty) {
+      // The first chat setup must finish before deciding how to send this text.
+      while (_isSendingFirstMessage) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      // FIXED: Check both observable cachedMessages AND Hive/viewModel messages.
+      // When user returns to a chat, cachedMessages may still be loading from Hive
+      // but chatController.messages or hasCachedMessages will know history exists.
+      final hasExistingMessages = cachedMessages.isNotEmpty ||
+          chatController.messages.isNotEmpty ||
+          chatController.hasCachedMessages.value;
+
+      if (!hasExistingMessages) {
         await createUserChat(finalMessage);
       } else {
         checkChatUser();
@@ -1057,13 +1074,12 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     _typingDebounceTimer?.cancel();
     _typingStatusSubscription?.cancel();
     textController.removeListener(_onTextChanged);
-    // CRITICAL: Properly exit chat and clear state
+    // FIXED: Do NOT call forceClearChatState() — it wipes Hive-cached messages
+    // from the observable list, causing blank chat on return.
+    // exitChat() already handles selected-user cleanup and status updates.
     if (chatController.selectedUser.value?.id == user.id) {
       chatController.exitChat();
     }
-
-    // CRITICAL: Force clear chat state to ensure no lingering references
-    chatController.forceClearChatState();
 
     // Clear chat status
     chatController.setInsideChatStatus(false);
@@ -1151,12 +1167,27 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
     await chatController.loadDeletionRecordForUser(user.id);
 
     // Now load cached messages WITH deletion filter already applied
-    final cached = await chatController.getCachedMessages(user.id);
+    var cached = await chatController.getCachedMessages(user.id);
+
+    // MIGRATION: Before the getUserById fix, messages were cached under key "" (empty string).
+    // If nothing found under correct key, check the legacy empty key and migrate.
+    if ((cached == null || cached.isEmpty) && user.id.isNotEmpty) {
+      final legacyCached = await chatController.getCachedMessages('');
+      if (legacyCached != null && legacyCached.isNotEmpty) {
+        debugPrint('🔄 Migrating ${legacyCached.length} messages from legacy empty key to ${user.id}');
+        await chatController.cacheMessages(user.id, legacyCached);
+        cached = legacyCached;
+      }
+    }
+
     if (cached != null && cached.isNotEmpty) {
       // Apply deletion filter to cached messages before showing
       final filteredCached = chatController.applyDeletionFilterToMessages(cached, user.id);
       if (filteredCached.isNotEmpty) {
         cachedMessages.value = filteredCached;
+        // FIXED: Also update viewModel's hasCachedMessages so sendMessageWithReply
+        // knows there are existing messages (prevents re-calling createUserChat on return)
+        chatController.hasCachedMessages.value = true;
         debugPrint('📦 Loaded ${filteredCached.length} filtered messages from cache (Hive)');
         // Sync status from Firestore for cached messages
         _syncCachedMessageStatus();
@@ -1170,6 +1201,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         debugPrint('📦 All cached messages filtered out by deletion record');
       }
     }
+
 // Mark incoming messages as delivered when entering chat
     await chatController.markIncomingMessagesAsDelivered();
 // Start listening for status updates
@@ -1235,7 +1267,29 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
           return;
         }
 
-        cachedMessages.value = messages;
+        // FIXED: Don't overwrite existing cached messages with an empty Firestore result.
+        if (messages.isEmpty && (cachedMessages.isNotEmpty || chatController.messages.isNotEmpty)) {
+          debugPrint('⚠️ Stream returned empty but cache has data — keeping existing messages');
+          return;
+        }
+
+        // FIXED: Preserve any pending (optimistic) messages in cachedMessages that
+        // Firestore hasn't confirmed yet. E.g. stream emits [Hi] before the second
+        // message is persisted — without this merge, [second, Hi] → [Hi] in UI.
+        final pendingInUI = cachedMessages
+            .where((m) => m.status == MessageStatus.pending)
+            .where((m) => !messages.any((f) => f.sent == m.sent))
+            .toList();
+
+        final merged = List<Message>.from(messages);
+        if (pendingInUI.isNotEmpty) {
+          debugPrint('🔄 Preserving ${pendingInUI.length} pending UI message(s) in cachedMessages');
+          for (final pending in pendingInUI) {
+            merged.insert(0, pending);
+          }
+        }
+
+        cachedMessages.value = merged;
 
         // Cache is automatically saved in getFilteredMessagesStream via cacheMessages()
         // No need to manually update here
@@ -1267,6 +1321,7 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
       isInitialLoading.value = false;
     }
   }
+
 
   void _markMessagesAsRead(List<Message> messages) {
     // FIXED: Additional safety check
@@ -1397,9 +1452,25 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
 
     debugPrint('📨 Sending message with selected user: ${chatController.selectedUser.value?.name}');
     await chatController.sendMessage(message);
+
+    // FIXED: Immediately sync cachedMessages with ViewModel messages after send.
+    // This ensures the optimistic message appears in UI right away and the
+    // empty-stream protection (messages.isEmpty && cachedMessages.isNotEmpty) works.
+    if (chatController.messages.isNotEmpty) {
+      cachedMessages.value = List.from(chatController.messages);
+    }
   }
 
   Future<void> createUserChat(String firstMsg) async {
+    // LOCK: Prevent concurrent invocations
+    if (_isSendingFirstMessage) {
+      while (_isSendingFirstMessage) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      await sendRegularMessage(firstMsg);
+      return;
+    }
+    _isSendingFirstMessage = true;
     try {
       debugPrint('🔄 Creating user chat with first message: $firstMsg');
 
@@ -1421,6 +1492,16 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
             : null;
         await chatController.sendFirstMessage(firstMsg, profileIdForConnects: profileIdForConnects);
         debugPrint('✅ First message sent successfully');
+
+        // FIXED: Immediately sync cachedMessages with ViewModel after sendFirstMessage.
+        // sendFirstMessage updates chatController.messages (optimistic) but cachedMessages
+        // (the UI list) is only updated via the Firestore stream listener — which may
+        // fire empty before the first message is persisted, wiping the UI.
+        if (chatController.messages.isNotEmpty) {
+          cachedMessages.value = List.from(chatController.messages);
+          chatController.hasCachedMessages.value = true;
+          debugPrint('✅ Synced cachedMessages after sendFirstMessage: ${cachedMessages.length} messages');
+        }
       } else {
         debugPrint('⚠️ User already exists, sending as regular message');
         // Try sending as regular message
@@ -1435,6 +1516,9 @@ class ChattingViewController extends GetxController with WidgetsBindingObserver 
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+    } finally {
+      // Always release the lock
+      _isSendingFirstMessage = false;
     }
   }
   Future<void> sendHiMessage() async {
@@ -1661,10 +1745,17 @@ class _ChattingViewState extends State<ChattingView> {
     if (!Get.isRegistered<ChatViewModel>()) {
       Get.put(ChatViewModel(), permanent: true);
     }
-    // Get ChatViewModel and clear any lingering state
     final chatViewModel = Get.find<ChatViewModel>();
-    // CRITICAL: Clear any previous chat state before setting new user
-    chatViewModel.forceClearChatState();
+
+    // FIXED: Only clear state if we are switching to a DIFFERENT user.
+    // If same user returns (e.g. back-press then re-open), keep Hive cache intact
+    // so messages don't disappear.
+    final previousUserId = chatViewModel.selectedUser.value?.id;
+    if (previousUserId != null && previousUserId != widget.user.id) {
+      debugPrint('🔄 Switching user: $previousUserId → ${widget.user.id}, clearing state');
+      chatViewModel.forceClearChatState();
+    }
+
     // Set selected user immediately
     chatViewModel.ensureUserSelected(widget.user);
 
@@ -1690,11 +1781,9 @@ class _ChattingViewState extends State<ChattingView> {
 
   @override
   void dispose() {
-    // CRITICAL: Clear chat state when disposing
-    if (Get.isRegistered<ChatViewModel>()) {
-      final chatViewModel = Get.find<ChatViewModel>();
-      chatViewModel.forceClearChatState();
-    }
+    // FIXED: Do NOT call forceClearChatState() here — it clears the observable
+    // message list which causes messages to disappear when user returns to this chat.
+    // Hive persists messages safely; the stream will reload them on re-entry.
     // Properly dispose controller
     if (Get.isRegistered<ChattingViewController>(tag: controllerTag)) {
       Get.delete<ChattingViewController>(tag: controllerTag, force: true);

@@ -72,6 +72,8 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
   var chatUsers = <ChatUser>[].obs;
   var messages = <Message>[].obs;
+  // Keep locally sent messages visible until the conversation stream sees them.
+  final Set<String> _unconfirmedMessageIds = {};
   var selectedUser = Rxn<ChatUser>();
   var isLoading = false.obs;
   var errorMessage = ''.obs;
@@ -321,13 +323,39 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       // Apply deletion filter
       final filteredMessages = _applyDeletionFilter(allMessages, user.id);
 
-      // Update UI and cache
-      messages.assignAll(filteredMessages);
-      await cacheMessages(user.id, filteredMessages);
-      hasCachedMessages.value = filteredMessages.isNotEmpty;
+      // FIXED: Don't overwrite existing messages with empty Firestore result.
+      if (filteredMessages.isEmpty && messages.isNotEmpty) {
+        debugPrint('⚠️ Firestore stream empty but ${messages.length} messages in memory — keeping existing');
+        return messages.toList();
+      }
 
-      return filteredMessages;
+      // FIXED: Preserve pending (optimistic) messages that exist locally but haven't
+      // been confirmed by Firestore yet. Without this, sending "Hi" then immediately
+      // sending a second message causes: Firestore emits [Hi] → messages.assignAll([Hi])
+      // → second message's optimistic [second, Hi] → [Hi] only (second disappears).
+      final pendingLocally = messages
+          .where((m) => _unconfirmedMessageIds.contains(m.sent))
+          .where((m) => !filteredMessages.any((f) => f.sent == m.sent))
+          .toList();
+
+      _unconfirmedMessageIds.removeAll(filteredMessages.map((m) => m.sent));
+
+      final merged = List<Message>.from(filteredMessages);
+      if (pendingLocally.isNotEmpty) {
+        debugPrint('🔄 Preserving ${pendingLocally.length} pending optimistic message(s) during stream update');
+        for (final pending in pendingLocally) {
+          merged.insert(0, pending);
+        }
+      }
+
+      // Update UI and cache
+      messages.assignAll(merged);
+      await cacheMessages(user.id, merged);
+      hasCachedMessages.value = merged.isNotEmpty;
+
+      return merged;
     });
+
   }
   // Process and mark incoming messages as delivered
   // Process message statuses properly
@@ -624,6 +652,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
     // Create optimistic message with pending status
     final time = DateTime.now().millisecondsSinceEpoch.toString();
+    _unconfirmedMessageIds.add(time);
     final optimisticMessage = Message(
       toId: user.id,
       msg: text.trim(),
@@ -688,6 +717,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       debugPrint('✅ Message sent successfully');
     } catch (e) {
       debugPrint('❌ Error sending message: $e');
+      _unconfirmedMessageIds.remove(time);
 
       // Update status to failed
       final index = messages.indexWhere((m) => m.sent == time);
@@ -749,6 +779,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
     // Create optimistic message with pending status
     final time = DateTime.now().millisecondsSinceEpoch.toString();
+    _unconfirmedMessageIds.add(time);
     final optimisticMessage = Message(
       toId: user.id,
       msg: text.trim(),
@@ -820,6 +851,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       debugPrint("✅ First message sent successfully to ${user.name}");
     } catch (e) {
       debugPrint("❌ Error sending first message: $e");
+      _unconfirmedMessageIds.remove(time);
 
       // Update status to failed
       final index = messages.indexWhere((m) => m.sent == time);

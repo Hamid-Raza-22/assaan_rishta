@@ -589,68 +589,102 @@ class ChatListController extends GetxController {
   void _fetchAndUpdateUsers(List<String> userIds) {
     _allUsersSubscription?.cancel();
 
+    // FIXED (1): Firestore user docs don't have an 'id' field — the ID IS the
+    //            document ID. Use FieldPath.documentId for the query.
+    // FIXED (2): Firestore whereIn supports max 30 elements. Chunk the list.
+    const int chunkSize = 30;
+    final chunks = <List<String>>[];
+    for (int i = 0; i < userIds.length; i += chunkSize) {
+      final end = (i + chunkSize < userIds.length) ? i + chunkSize : userIds.length;
+      chunks.add(userIds.sublist(i, end));
+    }
+
+    debugPrint('📦 Fetching ${userIds.length} chat users in ${chunks.length} chunk(s)');
+
+    // Fetch all chunks in parallel then merge results
+    Future<void> fetchAllChunks() async {
+      final newUsers = <ChatUser>[];
+
+      for (final chunk in chunks) {
+        try {
+          final snapshot = await FirebaseFirestore.instance
+              .collection(EnvConfig.firebaseUsersCollection)
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
+
+          for (var doc in snapshot.docs) {
+            try {
+              // FIXED (3): Inject document ID so ChatUser.id is never empty
+              final data = Map<String, dynamic>.from(doc.data());
+              if (data['id'] == null || (data['id'] as String).isEmpty) {
+                data['id'] = doc.id;
+              }
+              final user = ChatUser.fromJson(data);
+
+              // Check if user has at least 1 message
+              final hasMessages = await _userHasMessages(user.id);
+              if (!hasMessages) {
+                debugPrint('⏭️ Skipping user ${user.name} - no messages yet');
+                continue;
+              }
+
+              newUsers.add(user);
+
+              // Setup message listener for each user
+              if (!_messageListeners.containsKey(user.id)) {
+                _listenToUserMessages(user);
+              }
+            } catch (e) {
+              debugPrint('❌ Error parsing user ${doc.id}: $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Error fetching chunk: $e');
+        }
+      }
+
+      // Sort by original order from my_users
+      newUsers.sort((a, b) => userIds.indexOf(a.id).compareTo(userIds.indexOf(b.id)));
+
+      // Update the chat users list
+      chatUsers.assignAll(newUsers);
+
+      // Cleanup old listeners
+      _cleanupStaleListeners(newUsers);
+
+      // Reset loading states
+      if (isLoading.value) isLoading.value = false;
+      if (isRefreshing.value) isRefreshing.value = false;
+      if (isNavigatingToChat.value) isNavigatingToChat.value = false;
+
+      debugPrint('✅ Updated chat list with ${newUsers.length} users');
+    }
+
+    // Also set up a live stream on the my_users changes to keep list updated
+    // Use the first chunk for the stream subscription (realtime updates for primary contacts)
     _allUsersSubscription = FirebaseFirestore.instance
         .collection(EnvConfig.firebaseUsersCollection)
-        .where('id', whereIn: userIds)
+        .where(FieldPath.documentId, whereIn: chunks.first)
         .snapshots()
         .listen(
-          (snapshot) async {
-        final newUsers = <ChatUser>[];
-
-        for (var doc in snapshot.docs) {
-          try {
-            final user = ChatUser.fromJson(doc.data());
-
-            // Check if user has at least 1 message
-            final hasMessages = await _userHasMessages(user.id);
-            if (!hasMessages) {
-              debugPrint('⏭️ Skipping user ${user.name} - no messages yet');
-              continue; // Skip users without messages
-            }
-
-            newUsers.add(user);
-
-            // Setup message listener for each user
-            if (!_messageListeners.containsKey(user.id)) {
-              _listenToUserMessages(user);
-            }
-          } catch (e) {
-            debugPrint('❌ Error parsing user: $e');
-          }
-        }
-
-        // Sort by original order from my_users
-        newUsers.sort((a, b) => userIds.indexOf(a.id).compareTo(userIds.indexOf(b.id)));
-
-        // Update the chat users list
-        chatUsers.assignAll(newUsers);
-
-        // Cleanup old listeners
-        _cleanupStaleListeners(newUsers);
-
-        // Reset loading states
-        if (isLoading.value) {
-          isLoading.value = false;
-        }
-        if (isRefreshing.value) {
-          isRefreshing.value = false;
-        }
-        if (isNavigatingToChat.value) {
-          isNavigatingToChat.value = false;
-        }
-
-        debugPrint('✅ Updated chat list with ${newUsers.length} users (filtered by messages)');
+          (_) {
+        // On any change, re-fetch all chunks
+        fetchAllChunks();
       },
       onError: (error) {
-        debugPrint('❌ Error fetching user details: $error');
+        debugPrint('❌ Error in user details stream: $error');
         isLoading.value = false;
         isRefreshing.value = false;
         isNavigatingToChat.value = false;
         _streamsActive = false;
       },
-      cancelOnError: false, // Don't cancel on error
+      cancelOnError: false,
     );
+
+    // Initial fetch immediately
+    fetchAllChunks();
   }
+
 
   /// Check if user has at least 1 message in the conversation
   Future<bool> _userHasMessages(String userId) async {
