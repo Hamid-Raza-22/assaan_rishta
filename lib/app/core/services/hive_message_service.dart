@@ -5,7 +5,6 @@ import '../../core/models/chat_model/message.dart';
 
 class HiveMessageService {
   static const String _messagesBoxPrefix = 'messages_';
-  static const String _deletionBoxName = 'chat_deletions';
   
   // Singleton pattern
   static final HiveMessageService _instance = HiveMessageService._internal();
@@ -13,12 +12,18 @@ class HiveMessageService {
   HiveMessageService._internal();
 
   // Get box name for specific user chat
-  String _getBoxName(String userId) => '$_messagesBoxPrefix$userId';
+  String _getBoxName(String ownerId, String userId) =>
+      '${_messagesBoxPrefix}${ownerId}_$userId';
+  String _deletionBoxName(String ownerId) => 'chat_deletions_$ownerId';
+
+  bool _belongsToChat(Message message, String ownerId, String userId) =>
+      (message.fromId == ownerId && message.toId == userId) ||
+      (message.fromId == userId && message.toId == ownerId);
 
   // Initialize boxes - call this after Hive.init
-  Future<void> ensureBoxOpen(String userId) async {
+  Future<void> ensureBoxOpen(String ownerId, String userId) async {
     try {
-      final boxName = _getBoxName(userId);
+      final boxName = _getBoxName(ownerId, userId);
       if (!Hive.isBoxOpen(boxName)) {
         await Hive.openBox<Message>(boxName);
         debugPrint('📦 Opened Hive box: $boxName');
@@ -29,10 +34,10 @@ class HiveMessageService {
   }
 
   // PERFORMANCE: Save messages incrementally (only new/updated messages)
-  Future<void> saveMessages(String userId, List<Message> messages) async {
+  Future<void> saveMessages(String ownerId, String userId, List<Message> messages) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       
       // FIXED: Don't clear! Use incremental updates instead
       // This prevents re-saving all messages every time
@@ -40,6 +45,7 @@ class HiveMessageService {
       int updatedCount = 0;
       
       for (var message in messages) {
+        if (!_belongsToChat(message, ownerId, userId)) continue;
         final existingMessage = box.get(message.sent);
         
         if (existingMessage == null) {
@@ -71,19 +77,40 @@ class HiveMessageService {
   }
 
   // Get messages for a specific user
-  Future<List<Message>> getMessages(String userId) async {
+  Future<List<Message>> getMessages(String ownerId, String userId) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       
-      final messages = box.values.toList();
+      final messages = box.values
+          .where((message) => _belongsToChat(message, ownerId, userId))
+          .toList();
+
+      // Older versions used partner-only (and sometimes empty) box names.
+      // Copy only messages whose two participants match this conversation.
+      if (messages.isEmpty) {
+        for (final legacyName in ['$_messagesBoxPrefix$userId', _messagesBoxPrefix]) {
+          if (!Hive.isBoxOpen(legacyName)) {
+            if (!await Hive.boxExists(legacyName)) continue;
+            await Hive.openBox<Message>(legacyName);
+          }
+          final legacy = Hive.box<Message>(legacyName);
+          for (final message in legacy.values) {
+            if (_belongsToChat(message, ownerId, userId) &&
+                !box.containsKey(message.sent)) {
+              messages.add(message);
+              await box.put(message.sent, message);
+            }
+          }
+        }
+      }
       
-      // Sort by timestamp (sent field)
+      // Reverse ListView expects the newest message at index zero.
       messages.sort((a, b) {
         try {
           final aTime = int.parse(a.sent);
           final bTime = int.parse(b.sent);
-          return aTime.compareTo(bTime);
+          return bTime.compareTo(aTime);
         } catch (e) {
           return 0;
         }
@@ -98,10 +125,11 @@ class HiveMessageService {
   }
 
   // Add a single message
-  Future<void> addMessage(String userId, Message message) async {
+  Future<void> addMessage(String ownerId, String userId, Message message) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      if (!_belongsToChat(message, ownerId, userId)) return;
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       await box.put(message.sent, message);
       debugPrint('💾 Added message to Hive for user: $userId');
     } catch (e) {
@@ -110,10 +138,11 @@ class HiveMessageService {
   }
 
   // Update a single message (for status updates)
-  Future<void> updateMessage(String userId, Message message) async {
+  Future<void> updateMessage(String ownerId, String userId, Message message) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      if (!_belongsToChat(message, ownerId, userId)) return;
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       
       if (box.containsKey(message.sent)) {
         await box.put(message.sent, message);
@@ -125,10 +154,10 @@ class HiveMessageService {
   }
 
   // Delete a single message
-  Future<void> deleteMessage(String userId, String messageId) async {
+  Future<void> deleteMessage(String ownerId, String userId, String messageId) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       await box.delete(messageId);
       debugPrint('🗑️ Deleted message from Hive for user: $userId');
     } catch (e) {
@@ -137,10 +166,10 @@ class HiveMessageService {
   }
 
   // Clear all messages for a specific user
-  Future<void> clearMessages(String userId) async {
+  Future<void> clearMessages(String ownerId, String userId) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       await box.clear();
       debugPrint('🧹 Cleared all messages from Hive for user: $userId');
     } catch (e) {
@@ -149,12 +178,13 @@ class HiveMessageService {
   }
 
   // Save deletion timestamp for a chat
-  Future<void> saveDeletionTime(String userId, String timestamp) async {
+  Future<void> saveDeletionTime(String ownerId, String userId, String timestamp) async {
     try {
-      if (!Hive.isBoxOpen(_deletionBoxName)) {
-        await Hive.openBox(_deletionBoxName);
+      final boxName = _deletionBoxName(ownerId);
+      if (!Hive.isBoxOpen(boxName)) {
+        await Hive.openBox(boxName);
       }
-      final box = Hive.box(_deletionBoxName);
+      final box = Hive.box(boxName);
       await box.put(userId, timestamp);
       debugPrint('💾 Saved deletion time for user: $userId');
     } catch (e) {
@@ -163,12 +193,13 @@ class HiveMessageService {
   }
 
   // Get deletion timestamp for a chat
-  Future<String?> getDeletionTime(String userId) async {
+  Future<String?> getDeletionTime(String ownerId, String userId) async {
     try {
-      if (!Hive.isBoxOpen(_deletionBoxName)) {
-        await Hive.openBox(_deletionBoxName);
+      final boxName = _deletionBoxName(ownerId);
+      if (!Hive.isBoxOpen(boxName)) {
+        await Hive.openBox(boxName);
       }
-      final box = Hive.box(_deletionBoxName);
+      final box = Hive.box(boxName);
       return box.get(userId) as String?;
     } catch (e) {
       debugPrint('❌ Error getting deletion time: $e');
@@ -177,12 +208,13 @@ class HiveMessageService {
   }
 
   // Clear deletion timestamp for a chat
-  Future<void> clearDeletionTime(String userId) async {
+  Future<void> clearDeletionTime(String ownerId, String userId) async {
     try {
-      if (!Hive.isBoxOpen(_deletionBoxName)) {
-        await Hive.openBox(_deletionBoxName);
+      final boxName = _deletionBoxName(ownerId);
+      if (!Hive.isBoxOpen(boxName)) {
+        await Hive.openBox(boxName);
       }
-      final box = Hive.box(_deletionBoxName);
+      final box = Hive.box(boxName);
       await box.delete(userId);
       debugPrint('🧹 Cleared deletion time for user: $userId');
     } catch (e) {
@@ -191,9 +223,9 @@ class HiveMessageService {
   }
 
   // Close box for a specific user (optional, for memory management)
-  Future<void> closeBox(String userId) async {
+  Future<void> closeBox(String ownerId, String userId) async {
     try {
-      final boxName = _getBoxName(userId);
+      final boxName = _getBoxName(ownerId, userId);
       if (Hive.isBoxOpen(boxName)) {
         await Hive.box<Message>(boxName).close();
         debugPrint('📪 Closed Hive box: $boxName');
@@ -214,10 +246,10 @@ class HiveMessageService {
   }
 
   // Get count of messages for a user
-  Future<int> getMessageCount(String userId) async {
+  Future<int> getMessageCount(String ownerId, String userId) async {
     try {
-      await ensureBoxOpen(userId);
-      final box = Hive.box<Message>(_getBoxName(userId));
+      await ensureBoxOpen(ownerId, userId);
+      final box = Hive.box<Message>(_getBoxName(ownerId, userId));
       return box.length;
     } catch (e) {
       debugPrint('❌ Error getting message count: $e');
@@ -226,9 +258,9 @@ class HiveMessageService {
   }
 
   // Check if messages exist for a user
-  Future<bool> hasMessages(String userId) async {
+  Future<bool> hasMessages(String ownerId, String userId) async {
     try {
-      final count = await getMessageCount(userId);
+      final count = await getMessageCount(ownerId, userId);
       return count > 0;
     } catch (e) {
       return false;

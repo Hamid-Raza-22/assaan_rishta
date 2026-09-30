@@ -408,13 +408,15 @@ class ChatListController extends GetxController {
   Future<void> deleteChat(ChatUser user) async {
     try {
       debugPrint('🗑️ Deleting chat with ${user.name}...');
+      final deletionTime = DateTime.now().millisecondsSinceEpoch.toString();
 
       // ADDED: Clear cached messages from ChatViewModel and Hive
       if (Get.isRegistered<ChatViewModel>()) {
         final chatController = Get.find<ChatViewModel>();
         chatController.cachedMessagesPerUser.remove(user.id);
         // CRITICAL: Also clear Hive cache to prevent flash of deleted messages
-        await chatController.clearHiveCacheForUser(user.id);
+        await chatController.clearHiveCacheForUser(user.id,
+            deletionTime: deletionTime);
         debugPrint('🧹 Cleared cached messages (memory + Hive) for user: ${user.id}');
       }
 
@@ -426,8 +428,6 @@ class ChatListController extends GetxController {
 
       // Remove from UI immediately
       chatUsers.removeWhere((u) => u.id == user.id);
-
-      final deletionTime = DateTime.now().millisecondsSinceEpoch.toString();
 
       // Update deletion tracking
       deletionTimestamps[user.id] = deletionTime;

@@ -15,6 +15,7 @@ import '../../utils/exports.dart';
 import '../../domain/export.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/storage_services/export.dart';
+import '../../viewmodels/auth_service.dart';
 
 class ForgotPasswordController extends BaseController{
   final useCases = Get.find<UserManagementUseCase>();
@@ -23,7 +24,7 @@ class ForgotPasswordController extends BaseController{
   final enterPasswordFormKey = GlobalKey<FormState>();
   final phoneTEC=TextEditingController();
   final otpTEC=TextEditingController();
-
+  final authService = AuthService.instance;
   RxString countryCode="+92".obs;
   RxString savedPhoneNumber="".obs;
   RxString savedCountryCode="".obs;
@@ -478,17 +479,17 @@ class ForgotPasswordController extends BaseController{
           // Save password to secure storage
           await secureStorage.saveUserPassword(confirmPasswordTEC.text);
 
-          phoneTEC.clear();
-          otpTEC.clear();
-          newPasswordTEC.clear();
-          confirmPasswordTEC.clear();
-          _verificationId = null;
-
+          // phoneTEC.clear();
+          // otpTEC.clear();
+          // newPasswordTEC.clear();
+          // confirmPasswordTEC.clear();
+          // _verificationId = null;
+          await authService.logout(context);
           // Clear password reset screens but preserve Account Type in navigation stack
-          Get.offNamedUntil(
-            AppRoutes.LOGIN,
-            (route) => route.settings.name == AppRoutes.ACCOUNT_TYPE || route.isFirst,
-          );
+          // Get.offNamedUntil(
+          //   AppRoutes.LOGIN,
+          //   (route) => route.settings.name == AppRoutes.ACCOUNT_TYPE || route.isFirst,
+          // );
         },
       );
     } catch (e) {

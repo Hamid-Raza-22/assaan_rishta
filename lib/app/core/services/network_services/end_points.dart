@@ -177,6 +177,7 @@ class EndPoints {
   getUserNumberUrl({required String email}) {
     return '${baseUrl}User/getUserNumber/%7Bemail%7D?email=$email';
   }
+
   // https://thsolutionz.com/api/User/getUserNumber/%7Bemail%7D?email=$email
   ///pay fast
   getPaymentTokenUrl({basketId, amount}) {
@@ -187,12 +188,11 @@ class EndPoints {
     return '${baseUrl}Users/update_blur_profile_image';
   }
 
-  String getMatrimonialProfilesUrl(
-      {
-        required int adminId,
-        // required int pageNo,
-        // required int pageLimit
-      }) {
+  String getMatrimonialProfilesUrl({
+    required int adminId,
+    // required int pageNo,
+    // required int pageLimit
+  }) {
     return '${baseUrl}Users/GetAll_mat_Profiles/$adminId';
     // return '${baseUrl}Users/GetAll_mat_Profiles/$adminId/$pageNo/$pageLimit';
   }

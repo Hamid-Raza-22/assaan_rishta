@@ -4,6 +4,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../utils/chat_message_id.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -689,7 +690,7 @@ class FirebaseService {
       await getSelfInfo();
     }
 
-    final time = DateTime.now().millisecondsSinceEpoch.toString();
+    final time = ChatMessageId.next();
     final currentUserId = useCase.getUserId().toString();
 
     final Message message = Message(
@@ -785,7 +786,7 @@ class FirebaseService {
     }
 
     final currentUserId = useCase.getUserId().toString();
-    final timestamp = messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+    final timestamp = messageId ?? ChatMessageId.next();
 
     WriteBatch batch = firestore.batch();
 

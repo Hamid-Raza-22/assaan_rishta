@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/export.dart';
 import '../../core/services/env_config_service.dart';
 import '../../core/services/firebase_service/export.dart';
+import '../../core/utils/chat_message_id.dart';
 import '../../domain/export.dart';
 
 class ChatRepository {
@@ -664,7 +665,7 @@ class ChatRepository {
       File file,
       ) async {
     final ext = file.path.split('.').last;
-    final time = DateTime.now().millisecondsSinceEpoch.toString();
+    final time = ChatMessageId.next();
 
     final ref = FirebaseStorage.instance.ref().child(
       'view_once_images/${FirebaseService.getConversationID(chatUser.id)}/$time.$ext',

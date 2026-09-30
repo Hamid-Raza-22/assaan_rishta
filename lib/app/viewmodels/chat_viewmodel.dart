@@ -10,6 +10,8 @@ import '../core/export.dart';
 import '../core/services/env_config_service.dart';
 import '../core/services/firebase_service/export.dart';
 import '../core/services/hive_message_service.dart';
+import '../core/utils/chat_message_id.dart';
+import '../core/utils/chat_message_filter.dart';
 import '../data/repositories/chat_repository.dart';
 import 'dart:io';
 import '../views/chat/chatting_view.dart';
@@ -74,6 +76,9 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   var messages = <Message>[].obs;
   // Keep locally sent messages visible until the conversation stream sees them.
   final Set<String> _unconfirmedMessageIds = {};
+  StreamSubscription? _directMessagesSubscription;
+  int _chatGeneration = 0;
+  String? _cacheOwnerId;
   var selectedUser = Rxn<ChatUser>();
   var isLoading = false.obs;
   var errorMessage = ''.obs;
@@ -82,6 +87,47 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   // FIXED: Better deletion tracking
   final RxnString currentChatDeletionTime = RxnString();
   final RxBool hasCachedMessages = false.obs;
+
+  String _ensureCacheOwner() {
+    final ownerId = _repo.currentUserId;
+    if (_cacheOwnerId != ownerId) {
+      _cacheOwnerId = ownerId;
+      _chatGeneration++;
+      cachedMessagesPerUser.clear();
+      _persistentMessageCache.clear();
+      _persistentDeletionCache.clear();
+      _lastHiveSave.clear();
+      messages.clear();
+      _unconfirmedMessageIds.clear();
+      hasCachedMessages.value = false;
+      currentChatDeletionTime.value = null;
+      selectedUser.value = null;
+    }
+    return ownerId;
+  }
+
+  List<Message> _messagesForChat(List<Message> source, String ownerId,
+      String partnerId) => source.where((message) =>
+      (message.fromId == ownerId && message.toId == partnerId) ||
+      (message.fromId == partnerId && message.toId == ownerId)).toList()
+        ..sort((a, b) => (int.tryParse(b.sent) ?? 0)
+            .compareTo(int.tryParse(a.sent) ?? 0));
+
+  void resetChatState() {
+    _chatGeneration++;
+    messages.clear();
+    _unconfirmedMessageIds.clear();
+    selectedUser.value = null;
+    currentChatDeletionTime.value = null;
+    hasCachedMessages.value = false;
+  }
+
+  void startChat(ChatUser user) {
+    _ensureCacheOwner();
+    _directMessagesSubscription?.cancel();
+    resetChatState();
+    selectedUser.value = user;
+  }
 
   // Navigation state management
   String? pendingChatUserId;
@@ -224,16 +270,21 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
   // FIXED: Smart cache retrieval from Hive
   Future<List<Message>?> getCachedMessages(String userId) async {
+    final ownerId = _ensureCacheOwner();
     // First check reactive cache
     if (cachedMessagesPerUser.containsKey(userId)) {
-      return cachedMessagesPerUser[userId];
+      return _applyDeletionFilter(
+          _messagesForChat(cachedMessagesPerUser[userId]!, ownerId, userId),
+          userId);
     }
 
     // Then load from Hive
-    final hiveMessages = await _hiveService.getMessages(userId);
-    if (hiveMessages.isNotEmpty) {
-      cachedMessagesPerUser[userId] = hiveMessages;
-      return hiveMessages;
+    final hiveMessages = await _hiveService.getMessages(ownerId, userId);
+    if (_cacheOwnerId != ownerId) return null;
+    final visible = _applyDeletionFilter(hiveMessages, userId);
+    if (visible.isNotEmpty) {
+      cachedMessagesPerUser[userId] = visible;
+      return visible;
     }
 
     return null;
@@ -241,23 +292,16 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
   // FIXED: Professional cache management with Hive (Incremental saves)
   Future<void> cacheMessages(String userId, List<Message> messages) async {
+    final ownerId = _ensureCacheOwner();
+    messages = _messagesForChat(messages, ownerId, userId);
     // Update reactive cache (always update memory)
     cachedMessagesPerUser[userId] = messages;
 
-    // PERFORMANCE: Throttle Hive saves (500ms cooldown)
-    // Note: HiveMessageService now does incremental saves internally
-    // So we only throttle the frequency, not the content
+    // Persist every update: the Hive service already writes incrementally.
     final now = DateTime.now();
-    final lastSave = _lastHiveSave[userId];
-
-    if (lastSave != null &&
-        now.difference(lastSave.timestamp).inMilliseconds < 500) {
-      debugPrint('⏭️ Throttled Hive save for user $userId (${now.difference(lastSave.timestamp).inMilliseconds}ms since last save)');
-      return;
-    }
 
     // Save to Hive (incremental - only new/changed messages saved internally)
-    await _hiveService.saveMessages(userId, messages);
+    await _hiveService.saveMessages(ownerId, userId, messages);
 
     // Track this save
     _lastHiveSave[userId] = (messageCount: messages.length, timestamp: now);
@@ -267,7 +311,10 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
   // FIXED: Optimized message stream with proper cache handling
   Future<Stream<List<Message>>> getFilteredMessagesStream(ChatUser user) async {
+    final ownerId = _ensureCacheOwner();
+    if (selectedUser.value?.id != user.id) resetChatState();
     selectedUser.value = user;
+    final generation = _chatGeneration;
     debugPrint('📌 Setting selected user in stream: ${user.name} (${user.id})');
 
     setInsideChatStatus(true, chatUserId: user.id);
@@ -275,20 +322,26 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
     _markIncomingMessagesAsDelivered(user.id);
     // IMPORTANT: Only check deletion record once per chat session
     if (!_persistentDeletionCache.containsKey(user.id)) {
-      _loadDeletionRecord(user.id);
+      await _loadDeletionRecord(user.id);
     } else {
       currentChatDeletionTime.value = _persistentDeletionCache[user.id];
     }
 
     // Check if we have cached messages from Hive
     final cachedMessages = await getCachedMessages(user.id);
+    if (generation != _chatGeneration || _cacheOwnerId != ownerId ||
+        selectedUser.value?.id != user.id) {
+      return const Stream<List<Message>>.empty();
+    }
     if (cachedMessages != null && cachedMessages.isNotEmpty) {
       hasCachedMessages.value = true;
-      messages.assignAll(cachedMessages);
+      if (messages.isEmpty) messages.assignAll(cachedMessages);
       debugPrint('⚡ Using cached messages from Hive (${cachedMessages.length}) for ${user.name}');
     }
 
     return _repo.getAllMessages(user).asyncMap((snapshot) async {
+      if (generation != _chatGeneration || _cacheOwnerId != ownerId ||
+          selectedUser.value?.id != user.id) return <Message>[];
       final allMessages = snapshot.docs
           .map((doc) {
         final data = doc.data();
@@ -319,15 +372,10 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       })
           .toList();
       // Mark new incoming messages as delivered
-      processMessageStatuses(allMessages, user.id);
+      processMessageStatuses(_messagesForChat(allMessages, ownerId, user.id), user.id);
       // Apply deletion filter
-      final filteredMessages = _applyDeletionFilter(allMessages, user.id);
-
-      // FIXED: Don't overwrite existing messages with empty Firestore result.
-      if (filteredMessages.isEmpty && messages.isNotEmpty) {
-        debugPrint('⚠️ Firestore stream empty but ${messages.length} messages in memory — keeping existing');
-        return messages.toList();
-      }
+      final filteredMessages = _applyDeletionFilter(
+          _messagesForChat(allMessages, ownerId, user.id), user.id);
 
       // FIXED: Preserve pending (optimistic) messages that exist locally but haven't
       // been confirmed by Firestore yet. Without this, sending "Hi" then immediately
@@ -343,15 +391,19 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       final merged = List<Message>.from(filteredMessages);
       if (pendingLocally.isNotEmpty) {
         debugPrint('🔄 Preserving ${pendingLocally.length} pending optimistic message(s) during stream update');
-        for (final pending in pendingLocally) {
-          merged.insert(0, pending);
-        }
+        merged.addAll(pendingLocally);
       }
+      merged.sort((a, b) => (int.tryParse(b.sent) ?? 0)
+          .compareTo(int.tryParse(a.sent) ?? 0));
 
       // Update UI and cache
+      if (generation != _chatGeneration || _cacheOwnerId != ownerId ||
+          selectedUser.value?.id != user.id) return <Message>[];
       messages.assignAll(merged);
       await cacheMessages(user.id, merged);
-      hasCachedMessages.value = merged.isNotEmpty;
+      if (generation == _chatGeneration && selectedUser.value?.id == user.id) {
+        hasCachedMessages.value = merged.isNotEmpty;
+      }
 
       return merged;
     });
@@ -423,15 +475,16 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
   // FIXED: Load deletion record from Hive and Firestore
   Future<void> _loadDeletionRecord(String userId) async {
+    final ownerId = _ensureCacheOwner();
     try {
       // First check Hive for locally stored deletion time
-      String? deletionTime = await _hiveService.getDeletionTime(userId);
+      String? deletionTime = await _hiveService.getDeletionTime(ownerId, userId);
 
       // If not in Hive, check Firestore
       if (deletionTime == null) {
         final deletionDoc = await FirebaseFirestore.instance
             .collection(EnvConfig.firebaseUsersCollection)
-            .doc(_repo.currentUserId)
+            .doc(ownerId)
             .collection('deleted_chats')
             .doc(userId)
             .get();
@@ -439,7 +492,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         if (deletionDoc.exists) {
           deletionTime = deletionDoc.data()!['deleted_at'] as String;
           // Store in Hive for future access
-          await _hiveService.saveDeletionTime(userId, deletionTime);
+          await _hiveService.saveDeletionTime(ownerId, userId, deletionTime);
           debugPrint('📌 Found deletion record for $userId: $deletionTime');
         }
       } else {
@@ -447,36 +500,36 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
       }
 
       // Cache the result (even if null)
+      if (_cacheOwnerId != ownerId) return;
       _persistentDeletionCache[userId] = deletionTime;
-      currentChatDeletionTime.value = deletionTime;
+      if (selectedUser.value?.id == userId) {
+        currentChatDeletionTime.value = deletionTime;
+      }
 
     } catch (e) {
       debugPrint('❌ Error loading deletion record: $e');
+      if (_cacheOwnerId != ownerId) return;
       _persistentDeletionCache[userId] = null;
-      currentChatDeletionTime.value = null;
+      if (selectedUser.value?.id == userId) {
+        currentChatDeletionTime.value = null;
+      }
     }
   }
 
   // FIXED: Efficient message filtering
   List<Message> _applyDeletionFilter(List<Message> allMessages, String userId) {
-    final deletionTime = _persistentDeletionCache[userId];
-
-    if (deletionTime == null) {
-      return allMessages; // No deletion, show all messages
-    }
-
-    final deletionTimestamp = int.parse(deletionTime);
-    return allMessages.where((message) {
-      final messageTimestamp = int.parse(message.sent);
-      return messageTimestamp > deletionTimestamp;
-    }).toList();
+    return ChatMessageFilter.afterDeletion(
+        allMessages, _persistentDeletionCache[userId]);
   }
 
   // PUBLIC: Load deletion record for a specific user (used before showing cached messages)
   Future<void> loadDeletionRecordForUser(String userId) async {
+    _ensureCacheOwner();
     // Use cached result if available
     if (_persistentDeletionCache.containsKey(userId)) {
-      currentChatDeletionTime.value = _persistentDeletionCache[userId];
+      if (selectedUser.value?.id == userId) {
+        currentChatDeletionTime.value = _persistentDeletionCache[userId];
+      }
       return;
     }
     // Load from Firestore/Hive
@@ -509,18 +562,19 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
     if (selectedUser.value == null) return;
 
     final userId = selectedUser.value!.id;
+    final ownerId = _ensureCacheOwner();
 
     try {
       // Clear from Firestore
       await FirebaseFirestore.instance
           .collection(EnvConfig.firebaseUsersCollection)
-          .doc(_repo.currentUserId)
+          .doc(ownerId)
           .collection('deleted_chats')
           .doc(userId)
           .delete();
 
       // Clear from Hive
-      await _hiveService.clearDeletionTime(userId);
+      await _hiveService.clearDeletionTime(ownerId, userId);
 
       // Clear from memory cache
       _persistentDeletionCache[userId] = null;
@@ -645,13 +699,14 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   // FIXED: Better message sending with proper error handling
   // FIXED: Better message sending with validation
   Future<void> sendMessage(String text) async {
+    _ensureCacheOwner();
     if (selectedUser.value == null || text.trim().isEmpty) return;
 
     final user = selectedUser.value!;
     debugPrint('📤 Sending message to ${user.name}: $text');
 
     // Create optimistic message with pending status
-    final time = DateTime.now().millisecondsSinceEpoch.toString();
+    final time = ChatMessageId.next();
     _unconfirmedMessageIds.add(time);
     final optimisticMessage = Message(
       toId: user.id,
@@ -764,6 +819,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
 
   // FIXED: Better first message handling with status tracking
   Future<void> sendFirstMessage(String text, {String? profileIdForConnects}) async {
+    _ensureCacheOwner();
     if (selectedUser.value == null) {
       debugPrint('❌ ERROR: No selected user for first message');
       throw Exception('Selected user not set');
@@ -778,7 +834,8 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
     }
 
     // Create optimistic message with pending status
-    final time = DateTime.now().millisecondsSinceEpoch.toString();
+    final time = ChatMessageId.next(
+        after: int.tryParse(currentChatDeletionTime.value ?? ''));
     _unconfirmedMessageIds.add(time);
     final optimisticMessage = Message(
       toId: user.id,
@@ -839,14 +896,8 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         },
       );
 
-      // FIXED: Clear deletion record ONLY on first message send.
-      // After clearing, update the in-memory cache to the first message timestamp
-      // so the deletion filter still hides old (pre-deletion) messages.
-      final firstMsgTime = time; // timestamp of the first new message
-      await clearDeletionRecord();
-      // Re-apply soft boundary: messages before firstMsgTime are still hidden
-      _persistentDeletionCache[user.id] = firstMsgTime;
-      currentChatDeletionTime.value = firstMsgTime;
+      // Keep the original deletion boundary. It hides old history across
+      // restarts while allowing this newly sent message through the filter.
 
       debugPrint("✅ First message sent successfully to ${user.name}");
     } catch (e) {
@@ -917,8 +968,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         _activeStreams.remove(userId);
 
         // Clear chat-specific state
-        messages.clear();
-        selectedUser.value = null;
+        resetChatState();
         // currentChatUserId = null;    // IMPORTANT: Clear current chat user ID
 
         currentChatDeletionTime.value = null;
@@ -934,7 +984,7 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
         }
       } else {
         // Even if selectedUser is null, clear everything
-        messages.clear();
+        resetChatState();
         // currentChatUserId = null;
         currentChatDeletionTime.value = null;
         hasCachedMessages.value = false;
@@ -964,11 +1014,19 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   }
 
   // CRITICAL: Clear Hive cache for a specific user (called when chat is deleted)
-  Future<void> clearHiveCacheForUser(String userId) async {
+  Future<void> clearHiveCacheForUser(String userId, {String? deletionTime}) async {
     try {
-      await _hiveService.clearMessages(userId);
-      await _hiveService.saveDeletionTime(userId, DateTime.now().millisecondsSinceEpoch.toString());
-      _persistentDeletionCache[userId] = DateTime.now().millisecondsSinceEpoch.toString();
+      final ownerId = _ensureCacheOwner();
+      await _hiveService.clearMessages(ownerId, userId);
+      cachedMessagesPerUser.remove(userId);
+      _persistentMessageCache.remove(userId);
+      if (selectedUser.value?.id == userId) messages.clear();
+      final boundary = deletionTime ?? DateTime.now().millisecondsSinceEpoch.toString();
+      await _hiveService.saveDeletionTime(ownerId, userId, boundary);
+      _persistentDeletionCache[userId] = boundary;
+      if (selectedUser.value?.id == userId) {
+        currentChatDeletionTime.value = boundary;
+      }
       debugPrint('🧹 Cleared Hive cache for user: $userId');
     } catch (e) {
       debugPrint('❌ Error clearing Hive cache: $e');
@@ -1050,9 +1108,18 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   }
 
   void listenToMessages(ChatUser user) {
+    _directMessagesSubscription?.cancel();
+    _ensureCacheOwner();
+    resetChatState();
     selectedUser.value = user;
-    _repo.getAllMessages(user).listen((snapshot) {
-      messages.value = snapshot.docs.map((doc) => Message.fromJson(doc.data())).toList();
+    final generation = _chatGeneration;
+    final ownerId = _cacheOwnerId!;
+    _directMessagesSubscription = _repo.getAllMessages(user).listen((snapshot) {
+      if (generation != _chatGeneration || selectedUser.value?.id != user.id ||
+          _cacheOwnerId != ownerId) return;
+      messages.value = _messagesForChat(
+          snapshot.docs.map((doc) => Message.fromJson(doc.data())).toList(),
+          ownerId, user.id);
     });
   }
 
@@ -1286,15 +1353,12 @@ class ChatViewModel extends GetxController with WidgetsBindingObserver {
   // Helper to force clear all chat state
   forceClearChatState() {
     debugPrint('🧹 Force clearing all chat state');
-    selectedUser.value = null;
-    // currentChatUserId = null;
-    messages.clear();
-    currentChatDeletionTime.value = null;
-    hasCachedMessages.value = false;
+    resetChatState();
   }
 
   @override
   void onClose() {
+    _directMessagesSubscription?.cancel();
     for (var subscription in _activeStreams.values) {
       subscription.cancel();
     }
