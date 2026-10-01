@@ -125,7 +125,26 @@ jobs:
           cd android
           bundle install
 
-      - name: Deploy to Play Store Production
+      - name: Build AAB
+        run: |
+          # Flutter's "Already watching path" watcher exception fires during VM
+          # shutdown AFTER the build completes, producing a non-zero exit code
+          # even though the AAB is ready. We capture the real outcome by checking
+          # for the output file directly.
+          flutter build appbundle \
+            --obfuscate \
+            --split-debug-info=build/app/outputs/symbols \
+            --release || true
+
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          if [ -f "$AAB" ]; then
+            echo "✅ AAB built successfully: $(ls -lh $AAB | awk '{print $5, $9}')"
+          else
+            echo "❌ AAB not found at $AAB — build truly failed"
+            exit 1
+          fi
+
+      - name: Upload to Play Store Production
         run: |
           cd android
-          bundle exec fastlane android production
+          bundle exec fastlane android upload_production

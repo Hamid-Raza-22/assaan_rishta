@@ -113,6 +113,17 @@ platform :android do
     )
   end
 
+  desc "Upload pre-built AAB to Play Store Production (CI use — build runs separately)"
+  lane :upload_production do
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
+    )
+  end
+
   desc "Deploy to Production with Release Notes (Urdu + English)"
   lane :production_with_notes do |options|
     Dir.chdir("..") do
