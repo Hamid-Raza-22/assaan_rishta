@@ -22,6 +22,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Install NDK 27.0.12077973
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "ndk;27.0.12077973" || \
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            --install "ndk;27.0.12077973"
+          echo "✅ NDK 27.0.12077973 ready"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -126,19 +134,21 @@ jobs:
           bundle install
 
       - name: Build AAB
+        timeout-minutes: 25
         run: |
-          # Flutter's "Already watching path" watcher exception fires during VM
-          # shutdown AFTER the build completes, producing a non-zero exit code
-          # even though the AAB is ready. We capture the real outcome by checking
-          # for the output file directly.
-          flutter build appbundle \
+          # The flutter process hangs after throwing "Already watching path" during
+          # VM shutdown — it never exits on its own, so `|| true` alone isn't enough.
+          # `timeout 1200` sends SIGTERM after 20 min, forcing the process to die.
+          # Both a real build failure (exit 1) and a timeout (exit 124) are caught
+          # by `|| true`; we use the presence of the AAB file as the real indicator.
+          timeout 1200 flutter build appbundle \
             --obfuscate \
             --split-debug-info=build/app/outputs/symbols \
             --release || true
 
           AAB="build/app/outputs/bundle/release/app-release.aab"
           if [ -f "$AAB" ]; then
-            echo "✅ AAB built successfully: $(ls -lh $AAB | awk '{print $5, $9}')"
+            echo "✅ AAB built successfully: $(du -h $AAB | cut -f1) — $(realpath $AAB)"
           else
             echo "❌ AAB not found at $AAB — build truly failed"
             exit 1
