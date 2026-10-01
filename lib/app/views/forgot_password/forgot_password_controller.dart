@@ -416,9 +416,11 @@ class ForgotPasswordController extends BaseController{
       newPasswordTEC.clear();
       confirmPasswordTEC.clear();
 
-      Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW, arguments: Get.arguments);
-
       await auth.FirebaseAuth.instance.signOut();
+      // Phone auth is temporary; the app's Firestore access needs its normal session.
+      await authService.ensureFirebaseAuthenticated();
+
+      Get.toNamed(AppRoutes.ENTER_PASSWORD_VIEW, arguments: Get.arguments);
 
     } on auth.FirebaseAuthException catch (e) {
       debugPrint('❌ OTP verification failed: ${e.code} - ${e.message}');
@@ -469,8 +471,8 @@ class ForgotPasswordController extends BaseController{
 
       Get.back();
 
-      response.fold(
-            (error) {
+      await response.fold<Future<void>>(
+            (error) async {
           AppUtils.failedData(title: 'Failed', message: 'Could not update password');
         },
             (success) async {

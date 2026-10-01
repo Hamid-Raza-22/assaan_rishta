@@ -50,7 +50,7 @@ class AuthService extends GetxController {
 
   /// Ensures that the user has a valid Firebase session (Anonymously)
   /// This is required for Firestore Security Rules (request.auth != null)
-  Future<void> ensureFirebaseAuthenticated() async {
+  Future<void> ensureFirebaseAuthenticated({bool requireSuccess = false}) async {
     try {
       if (FirebaseAuth.instance.currentUser == null) {
         debugPrint('🔐 Initializing Firebase Anonymous Auth...');
@@ -61,6 +61,8 @@ class AuthService extends GetxController {
         debugPrint('🔐 Firebase Session already active: ${FirebaseAuth.instance.currentUser?.uid}');
       }
     } catch (e) {
+      // Login must stop before any Firestore work if authentication failed.
+      if (requireSuccess) rethrow;
       debugPrint('❌ Firebase Anonymous Auth Failed: $e');
       // Retry up to 3 times after a short delay if failed to prevent infinite loop
       if (_authRetryCount < 3) {
@@ -155,6 +157,9 @@ class AuthService extends GetxController {
     required String image,
   }) async {
     try {
+      // OTP verification can sign out the temporary Firebase phone session.
+      // Restore authentication before publishing login state or writing to Firestore.
+      await ensureFirebaseAuthenticated(requireSuccess: true);
       debugPrint('🔑 Logging in user: $name (ID: $userId)');
       NotificationServices.clearSession();
       _userId = userId;
