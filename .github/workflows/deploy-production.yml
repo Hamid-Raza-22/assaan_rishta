@@ -13,6 +13,26 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Free disk space
+        # ubuntu-latest starts with ~14 GB free. Flutter + Gradle + NDK need ~10 GB.
+        # Pre-installed tools (.NET, Swift, Haskell, Docker images, etc.) take ~30 GB.
+        # This step removes them to avoid "No space left on device" failures.
+        run: |
+          echo "Disk before cleanup:"
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /usr/local/lib/android/sdk/build-tools
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY/go"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY/node"
+          sudo apt-get clean -y
+          docker system prune -af 2>/dev/null || true
+          echo "Disk after cleanup:"
+          df -h /
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -22,13 +42,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install NDK 27.0.12077973
+      - name: Install NDK 28.2.13676358
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "ndk;27.0.12077973" || \
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            --install "ndk;27.0.12077973"
-          echo "✅ NDK 27.0.12077973 ready"
+            "ndk;28.2.13676358"
+          echo "✅ NDK 28.2.13676358 installed"
+          ls $ANDROID_HOME/ndk/
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -48,37 +67,28 @@ jobs:
             gradle-${{ runner.os }}-
 
       - name: Clean stale build artifacts
-        shell: bash
         run: |
-          echo "Cleaning build artifacts (keeping caches)..."
           flutter clean || true
           rm -rf "${{ github.workspace }}/build"
           rm -rf "${{ github.workspace }}/.dart_tool"
           rm -rf "${{ github.workspace }}/android/build"
           rm -rf "${{ github.workspace }}/android/app/build"
           rm -rf "${{ github.workspace }}/android/local.properties"
-          flutter --version
-          flutter doctor -v
+          echo "Disk after clean:"
+          df -h /
 
       - name: Create .env file
-        run: |
-          echo "${{ secrets.ENV_FILE }}" > .env
+        run: echo "${{ secrets.ENV_FILE }}" > .env
 
       - name: Create Firebase FCM Service Account JSON
         run: |
           echo '${{ secrets.FIREBASE_FCM_SERVICE_ACCOUNT_JSON }}' > assets/firebase_service_account.json
-          if [ -f "assets/firebase_service_account.json" ]; then
-            echo "✅ Firebase FCM service account file created"
-            grep -q "private_key" assets/firebase_service_account.json && echo "✅ private_key field found" || echo "❌ private_key MISSING"
-            grep -q "client_email" assets/firebase_service_account.json && echo "✅ client_email field found" || echo "❌ client_email MISSING"
-          else
-            echo "❌ Failed to create Firebase FCM service account file"
-            exit 1
-          fi
+          grep -q "private_key" assets/firebase_service_account.json && echo "✅ private_key found" || { echo "❌ private_key MISSING"; exit 1; }
+          grep -q "client_email" assets/firebase_service_account.json && echo "✅ client_email found" || { echo "❌ client_email MISSING"; exit 1; }
 
       - name: Verify .env file
         run: |
-          echo "✅ .env file created with $(wc -l < .env) lines"
+          echo "✅ .env file: $(wc -l < .env) lines"
           grep -q "FIREBASE_API_KEY" .env && echo "✅ FIREBASE_API_KEY exists" || echo "❌ FIREBASE_API_KEY MISSING"
           grep -q "BASE_URL" .env && echo "✅ BASE_URL exists" || echo "❌ BASE_URL MISSING"
 
@@ -89,11 +99,10 @@ jobs:
             exit 1
           fi
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-          echo "✅ google-services.json created successfully"
+          echo "✅ google-services.json created"
 
       - name: Create service account JSON
         run: |
-          mkdir -p android
           printf '%s' '${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}' > android/asaan-rishta-chat-d848bdbc2a5e.json
           chmod 600 android/asaan-rishta-chat-d848bdbc2a5e.json
           ls -lh android/asaan-rishta-chat-d848bdbc2a5e.json
@@ -111,16 +120,17 @@ jobs:
           KEY_PROPS=$(echo "$KEY_PROPS" | sed 's|storeFile=.*\.jks|storeFile=upload-keystore.jks|g')
           echo "$KEY_PROPS" > android/key.properties
 
-      - name: Repair Flutter pub cache
+      - name: Flutter pub get
         run: |
           flutter pub cache repair
           flutter pub get
+
       - name: Patch video_thumbnail (jcenter removed in Gradle 9)
         run: |
           F=$(ls -d "$HOME"/.pub-cache/hosted/pub.dev/video_thumbnail-*/android/build.gradle)
-          echo "Patching $F"
           sed -i 's/jcenter()/mavenCentral()/g' "$F"
-          grep -n "jcenter\|mavenCentral" "$F"
+          echo "✅ Patched: $F"
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -129,18 +139,16 @@ jobs:
           working-directory: android
 
       - name: Install Fastlane dependencies
-        run: |
-          cd android
-          bundle install
+        run: cd android && bundle install
 
       - name: Build AAB
         timeout-minutes: 25
         run: |
-          # The flutter process hangs after throwing "Already watching path" during
-          # VM shutdown — it never exits on its own, so `|| true` alone isn't enough.
-          # `timeout 1200` sends SIGTERM after 20 min, forcing the process to die.
-          # Both a real build failure (exit 1) and a timeout (exit 124) are caught
-          # by `|| true`; we use the presence of the AAB file as the real indicator.
+          echo "Disk before build:"
+          df -h /
+          # Flutter exits non-zero due to "Already watching path" watcher exception
+          # during VM shutdown — the exception fires AFTER the AAB is written.
+          # `timeout 1200` kills the hanging process; we verify success via file.
           timeout 1200 flutter build appbundle \
             --obfuscate \
             --split-debug-info=build/app/outputs/symbols \
@@ -148,13 +156,13 @@ jobs:
 
           AAB="build/app/outputs/bundle/release/app-release.aab"
           if [ -f "$AAB" ]; then
-            echo "✅ AAB built successfully: $(du -h $AAB | cut -f1) — $(realpath $AAB)"
+            echo "✅ AAB ready: $(du -h $AAB | cut -f1)"
+            echo "Disk after build:"
+            df -h /
           else
-            echo "❌ AAB not found at $AAB — build truly failed"
+            echo "❌ AAB not found — build truly failed"
             exit 1
           fi
 
       - name: Upload to Play Store Production
-        run: |
-          cd android
-          bundle exec fastlane android upload_production
+        run: cd android && bundle exec fastlane android upload_production

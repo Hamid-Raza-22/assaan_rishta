@@ -23,8 +23,8 @@ android {
     namespace = "com.asan.rishta.matrimonial.asan_rishta"
     compileSdk = 36
     buildToolsVersion = "36.0.0"
-//    ndkVersion = "28.2.13676358"  // has llvm-strip issues on Windows with --obfuscate
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
+//    ndkVersion = "27.0.12077973"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
